@@ -1,0 +1,25 @@
+{
+  "name": "Full Health for all tokens in scene",
+  "type": "script",
+  "_id": "AayeN1A63P5FOIeM",
+  "author": "lMjTkal2ggc2JaCP",
+  "img": "icons/svg/heal.svg",
+  "scope": "global",
+  "command": "for(let token of game.scenes.current.tokens.filter(o=>o.isOwner)) {\n  token.actor.FullHealth()\n}",
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709246382709,
+    "modifiedTime": 1709247388583,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!macros!AayeN1A63P5FOIeM"
+}
