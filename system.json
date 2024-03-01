@@ -25,6 +25,13 @@
             "system": "hero6efoundryvttv2",
             "type": "Macro",
             "path": "packs/heroMacros"
+        },
+        {
+            "name": "powers-6e",
+            "label": "Powers 6e",
+            "system": "hero6efoundryvttv2",
+            "type": "Item",
+            "path": "packs/powers-6e"
         }
     ],
     "languages": [

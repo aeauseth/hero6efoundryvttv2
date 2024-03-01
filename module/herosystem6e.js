@@ -4,6 +4,7 @@ import { POWERS } from "./powers/powers-rules.js";
 import { HeroSystem6eActor } from "./actor/actor.js";
 import { HeroSystemActorSheet } from "./actor/actor-sheet.js";
 import { HeroSystemActorSavuoriSheet } from "./actor/actor-savuori-sheet.js";
+import { UpdateCompendiumFromSource } from "./utility/compendiumBuilder.js";
 
 import {
     HeroSystem6eToken,
@@ -415,6 +416,15 @@ Hooks.once("ready", async function () {
             game.system.version.replace("-alpha", ""),
         );
     }
+});
+
+// Take information from config.js and update compendium/pack.
+Hooks.once("ready", async function () {
+    if (!game.user.isGM || !game.settings.get(game.system.id, "alphaTesting")) {
+        return;
+    }
+
+    UpdateCompendiumFromSource();
 });
 
 // Remove Character from selectable actor types
