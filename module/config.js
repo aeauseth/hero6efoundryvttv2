@@ -792,6 +792,8 @@ HERO.powers = [
         range: "standard",
         costPerLevel: 5,
         costEnd: true,
+        defaultXmlFragment: `
+        `,
     },
     {
         key: "DARKNESS",

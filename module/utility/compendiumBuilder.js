@@ -22,19 +22,19 @@ export async function UpdateCompendiumFromSource() {
 
         // Loop thru all the powers
         for (const configPower of CONFIG.HERO.powers) {
+            //if (configPower.key != "ENERGYBLAST") continue;
             console.log(configPower);
             if (!configPower.powerType) continue;
             if (
-                ["attack", "defense"].some((o) =>
-                    configPower.powerType.includes(o),
-                ) &&
+                // ["attack", "defense", "standard"].some((o) =>
+                //     configPower.powerType.includes(o),
+                // ) &&
                 !configPower.powerType.includes("characteristic")
             ) {
                 const itemData = {
-                    name: configPower.name || configPower.key,
-                    system: {
-                        XMLID: configPower.key,
-                    },
+                    XMLID: configPower.key,
+                    type: "power",
+                    ...configPower.frag,
                 };
 
                 // Check if this item is already in the compendium
@@ -43,15 +43,23 @@ export async function UpdateCompendiumFromSource() {
                         .get(game.system.id + ".powers-6e")
                         .index.find((o) => o.name === itemData.name)
                 ) {
-                    await compendium.documentClass.create(
+                    const item = await compendium.documentClass.create(
                         {
-                            name: itemData.name,
+                            name: `${
+                                configPower.name || configPower.key
+                            } (power)`,
                             type: "power",
                             data: itemData,
                         },
                         { pack: compendium.collection },
                     );
                     console.log("Added", itemData.name);
+                    try {
+                        item.updateItemDescription();
+                        await item.update({ system: item.system });
+                    } catch (err) {
+                        console.log(err);
+                    }
                 }
             }
         }
