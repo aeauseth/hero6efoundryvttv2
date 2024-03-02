@@ -4,7 +4,7 @@
 - Fixes for TELEKINESIS (TK punch/strike). [#780](https://github.com/dmdorman/hero6e-foundryvtt/issues/780)
 - Effective STR specified as part of the attack is no longer ignored.  Allows for attacks at less than full power, thus conserving END.
 - Fixes for ENDURANCERESERVE. [#783](https://github.com/dmdorman/hero6e-foundryvtt/issues/783)
-- 5e STR updates lift notes for STR values under 5. [#709](https://github.com/dmdorman/hero6e-foundryvtt/issues/709)
+- 5e now shows proper lift capacities for STR values under 5. [#709](https://github.com/dmdorman/hero6e-foundryvtt/issues/709)
 
 ## Version 3.0.59
 
