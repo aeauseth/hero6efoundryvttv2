@@ -3218,7 +3218,6 @@ export class HeroSystem6eItem extends Item {
 
         if (xmlid === "TELEKINESIS") {
             // levels is the equivalent strength
-            this.system.extraDice = "zero";
             this.system.dice = 0;
             this.system.extraDice = "zero";
             this.name = name + " (TK strike)";

@@ -64,7 +64,7 @@ export async function AttackOptions(item) {
     );
     let tkStr = 0;
     for (const item of tkItems) {
-        tkStr += parseInt(item.system.LEVELS.value) || 0;
+        tkStr += parseInt(item.system.LEVELS) || 0;
     }
     if (item.system.usesTk) {
         if (item.system.usesStrength) {
@@ -486,14 +486,20 @@ export async function AttackToHit(item, options) {
         let itemEnd = (parseInt(item.system.end) || 0) * (autoFireShots || 1);
         let newEnd = valueEnd - itemEnd;
         let spentEnd = itemEnd;
-        options.effectiveStr = options.effectiveStr || 0;
+        options.effectiveStr = options.effectiveStr || 0; // May want to get rid of this so we can support HKA with 0 STR (wierd but possible?)
 
         if (itemData.usesStrength || itemData.usesTk) {
             let strEnd = Math.max(1, Math.round(options.effectiveStr / 10));
-            item.system.endEstimate += strEnd;
 
-            newEnd = parseInt(newEnd) - parseInt(strEnd);
-            spentEnd = parseInt(spentEnd) + parseInt(strEnd);
+            // TELIKENESIS is more expensive than normal STR
+            if (itemData.usesTk) {
+                spentEnd = Math.ceil(
+                    (spentEnd * options?.effectiveStr) / item.system.LEVELS,
+                );
+            } else {
+                spentEnd = parseInt(spentEnd) + parseInt(strEnd);
+            }
+            //item.system.endEstimate += strEnd;=            newEnd = parseInt(newEnd) - parseInt(strEnd);
         }
 
         const enduranceReserve = item.actor.items.find(

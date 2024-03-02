@@ -121,7 +121,10 @@ export function convertToDcFromItem(item, options) {
 
     // Add in STR
     if (item.system.usesStrength) {
-        let str = actor.system.characteristics.str.value;
+        let str =
+            options?.effectivestr != undefined
+                ? options?.effectivestr
+                : actor.system.characteristics.str.value;
 
         // MOVEBY halves STR
         if (item.system.XMLID === "MOVEBY") {
@@ -145,8 +148,9 @@ export function convertToDcFromItem(item, options) {
         );
         let str = 0;
         for (const item of tkItems) {
-            str += parseInt(item.system.LEVELS.value) || 0;
+            str += parseInt(item.system.LEVELS) || 0;
         }
+        str = options?.effectivestr != undefined ? options?.effectivestr : str;
         let str5 = Math.floor(str / 5);
         dc += str5;
         end += Math.max(1, Math.round(str / 10));
