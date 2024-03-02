@@ -2234,10 +2234,7 @@ export class HeroSystem6eItem extends Item {
             case "ENDURANCERESERVE":
                 {
                     // Endurance Reserve  (20 END, 5 REC) (9 Active Points)
-                    system.description = `${system.ALIAS.replace(
-                        "Endurance Reserve",
-                        "",
-                    )}`;
+                    system.description = system.ALIAS || system.XMLID;
 
                     const ENDURANCERESERVEREC = this.findModsByXmlid(
                         "ENDURANCERESERVEREC",

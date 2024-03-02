@@ -514,10 +514,10 @@ export async function AttackToHit(item, options) {
                     );
                 }
                 erValue -= spentEnd;
-                enduranceReserve.system.LEVELS.value = erValue;
+                enduranceReserve.system.value = erValue;
                 enduranceReserve.updateItemDescription();
                 await enduranceReserve.update({
-                    "system.LEVELS": enduranceReserve.system.LEVELS,
+                    "system.value": enduranceReserve.system.value,
                     "system.description": enduranceReserve.system.description,
                 });
                 newEnd = valueEnd;

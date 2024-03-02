@@ -69,7 +69,7 @@ Hooks.once("init", async function () {
      */
     CONFIG.Combat.initiative = {
         formula:
-            "@characteristics.dex.value + (@characteristics.int.value / 100)",
+            "@characteristics.dex.value + (@characteristics.spd.value / 100)",
         decimals: 2,
     };
 
@@ -678,14 +678,14 @@ Hooks.on("updateWorldTime", async (worldTime, options) => {
                 !game.combat?.active &&
                 (automation === "all" ||
                     (automation === "npcOnly" && actor.type == "npc") ||
-                    (automation === "pcEndOnly" && actor.type === "pc"))
+                    (automation === "pcEndOnly" && actor.type === "pc")) &&
+                multiplier > 0
             ) {
                 if (
-                    multiplier > 0 &&
-                    (parseInt(actor.system.characteristics.end.value) <
+                    parseInt(actor.system.characteristics.end.value) <
                         parseInt(actor.system.characteristics.end.max) ||
-                        parseInt(actor.system.characteristics.stun.value) <
-                            parseInt(actor.system.characteristics.stun.max))
+                    parseInt(actor.system.characteristics.stun.value) <
+                        parseInt(actor.system.characteristics.stun.max)
                 ) {
                     // If this is an NPC and their STUN <= 0 then leave them be.
                     // Typically, you should only use the Recovery Time Table for
@@ -732,6 +732,29 @@ Hooks.on("updateWorldTime", async (worldTime, options) => {
                                 },
                                 { render: true },
                             );
+                    }
+                }
+
+                // END RESERVE
+                for (const item of actor.items.filter(
+                    (o) => o.system.XMLID === "ENDURANCERESERVE",
+                )) {
+                    const ENDURANCERESERVEREC = item.findModsByXmlid(
+                        "ENDURANCERESERVEREC",
+                    );
+                    if (ENDURANCERESERVEREC) {
+                        const newValue = Math.min(
+                            item.system.max,
+                            item.system.value +
+                                parseInt(
+                                    ENDURANCERESERVEREC.LEVELS * multiplier,
+                                ),
+                        );
+                        if (newValue > item.system.value) {
+                            await item.update({
+                                "system.value": newValue,
+                            });
+                        }
                     }
                 }
             }

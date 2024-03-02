@@ -255,13 +255,12 @@ export class HeroSystem6eItemSheet extends ItemSheet {
             }
         }
 
-        // AID
-        // A select list of possible AID from sources
+        // ENDURANCERESERVE has a REC rate
         if (item.system.XMLID == "ENDURANCERESERVE") {
-            const power = item.system.powers.find(
+            const power = item.system.POWER.find(
                 (o) => o.XMLID === "ENDURANCERESERVEREC",
             );
-            data.rec = parseInt(power.LEVELS);
+            data.rec = parseInt(power?.LEVELS) || 0;
         }
 
         return data;
@@ -332,13 +331,13 @@ export class HeroSystem6eItemSheet extends ItemSheet {
 
         // Endurance Reserve
         if (expandedData.rec) {
-            let power = this.item.system.powers.find(
-                (o) => o.XMLID === "ENDURANCERESERVEREC",
+            const ENDURANCERESERVEREC = this.item.findModsByXmlid(
+                "ENDURANCERESERVEREC",
             );
-            if (power) {
-                power.LEVELS = parseInt(expandedData.rec) || 1;
+            if (ENDURANCERESERVEREC) {
+                this.item.system.value = parseInt(expandedData.rec) || 1;
                 await this.item.update({
-                    "system.powers": this.item.system.powers,
+                    "system.value": this.item.system.value,
                 });
             }
         }

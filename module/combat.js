@@ -35,9 +35,9 @@ export class HeroSystem6eCombat extends Combat {
             let dexValue =
                 combatant.actor.system.characteristics[characteristic].value;
             let spdValue = combatant.actor.system.characteristics.spd.value;
-            let intValue = combatant.actor.system.characteristics.int.value;
+            //let intValue = combatant.actor.system.characteristics.int.value;
 
-            let initiativeValue = dexValue + spdValue / 100 + intValue / 10000;
+            let initiativeValue = dexValue + spdValue / 100; // + intValue / 10000;
 
             if (initiativeValue != combatant.initiative) {
                 updates.push({
@@ -749,6 +749,40 @@ export class HeroSystem6eCombat extends Combat {
                         "<li>" +
                         (await combatant.actor.TakeRecovery()) +
                         "</li>";
+                }
+
+                // END RESERVE
+                for (const item of actor.items.filter(
+                    (o) => o.system.XMLID === "ENDURANCERESERVE",
+                )) {
+                    const ENDURANCERESERVEREC = item.findModsByXmlid(
+                        "ENDURANCERESERVEREC",
+                    );
+                    if (ENDURANCERESERVEREC) {
+                        const newValue = Math.min(
+                            item.system.max,
+                            item.system.value +
+                                parseInt(ENDURANCERESERVEREC.LEVELS),
+                        );
+                        if (newValue > item.system.value) {
+                            const delta = newValue - item.system.value;
+                            await item.update({
+                                "system.value": newValue,
+                            });
+
+                            if (!combatant.hidden) {
+                                content +=
+                                    "<li>" +
+                                    `${combatant.token.name} ${item.name} +${delta}` +
+                                    "</li>";
+                            } else {
+                                contentHidden +=
+                                    "<li>" +
+                                    `${combatant.token.name} ${item.name} +${delta}` +
+                                    "</li>";
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -640,6 +640,58 @@ export class HeroSystem6eActor extends Actor {
         }
 
         if (this.system.is5e) {
+            if (value < -25) {
+                strLiftText = "0";
+                strRunningThrow = 0;
+            }
+            if (value >= -25 && value < -23) {
+                strLiftText = "0.8kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -23 && value < -20) {
+                strLiftText = "1kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -20 && value < -18) {
+                strLiftText = "1.6kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -18 && value < -15) {
+                strLiftText = "2kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -15 && value < -13) {
+                strLiftText = "3.2kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -13 && value < -10) {
+                strLiftText = "4kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -10 && value < -8) {
+                strLiftText = "6.4kg";
+                strRunningThrow = 1;
+            }
+            if (value >= -8 && value < -5) {
+                strLiftText = "8kg";
+                strRunningThrow = 2;
+            }
+            if (value >= -5 && value < -3) {
+                strLiftText = "12.5kg";
+                strRunningThrow = 2;
+            }
+            if (value >= -3 && value < 0) {
+                strLiftText = "16kg";
+                strRunningThrow = 3;
+            }
+            if (value >= 0 && value < 3) {
+                strLiftText = "25kg";
+                strRunningThrow = 4;
+            }
+            if (value >= 3 && value < 5) {
+                strLiftText = "37kg";
+                strRunningThrow = 6;
+            }
             strRunningThrow /= 2;
         }
 

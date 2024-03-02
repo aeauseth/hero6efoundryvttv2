@@ -102,11 +102,11 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                             combatant.actor.system.characteristics[
                                 characteristic
                             ].value;
-                        const intValue =
-                            combatant.actor.system.characteristics.int.value;
+                        const spdValue =
+                            combatant.actor.system.characteristics.spd.value;
                         context.turns[t].initiative =
                             dexValue +
-                            intValue / 100 +
+                            spdValue / 100 +
                             combatant.initiative +
                             parseInt(levels);
                     }
