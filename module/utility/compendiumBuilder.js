@@ -1,4 +1,5 @@
 import { HeroSystem6eActor } from "../actor/actor.js";
+import { HeroSystem6eItem } from "../item/item.js";
 import { getPowerInfo } from "../utility/util.js";
 
 export async function UpdateCompendiumFromSource() {
@@ -41,80 +42,46 @@ export async function UpdateCompendiumFromSource() {
         }
 
         // Loop thru all the powers
-        for (const power of heroJson.CHARACTER.POWERS) {
-            //if (power.XMLID != "ENERGYBLAST") continue;
-            console.log(power);
+        for (const itemTag of HeroSystem6eItem.ItemXmlTags) {
+            if (heroJson.CHARACTER[itemTag]) {
+                for (let system of heroJson.CHARACTER[itemTag]) {
+                    const configPowerInfo = getPowerInfo({
+                        xmlid: system.XMLID,
+                    });
 
-            const configPowerInfo = getPowerInfo({ xmlid: power.XMLID });
+                    const itemData = {
+                        ...system,
+                    };
+                    console.log("Adding", itemData);
 
-            const itemData = {
-                ...power,
-            };
-            console.log("Adding", itemData);
+                    let _type = "power";
+                    if (configPowerInfo.powerType?.includes("skill")) {
+                        _type = "skill";
+                    }
+                    if (configPowerInfo.powerType?.includes("perk")) {
+                        _type = "perk";
+                    }
+                    if (configPowerInfo.powerType?.includes("talent")) {
+                        _type = "talent";
+                    }
 
-            let _type = "power";
-            if (configPowerInfo.powerType?.includes("skill")) {
-                _type = "skill";
+                    try {
+                        const item = await compendium.documentClass.create(
+                            {
+                                name: `${
+                                    itemData.ALIAS || itemData.XMLID
+                                } (${_type})`,
+                                type: _type,
+                                data: itemData,
+                            },
+                            { pack: compendium.collection },
+                        );
+                        item.updateItemDescription();
+                    } catch (err) {
+                        console.log(itemData.XMLID, err);
+                    }
+                }
             }
-            if (configPowerInfo.powerType?.includes("perk")) {
-                _type = "perk";
-            }
-            if (configPowerInfo.powerType?.includes("talent")) {
-                _type = "talent";
-            }
-
-            try {
-                const item = await compendium.documentClass.create(
-                    {
-                        name: `${itemData.ALIAS || itemData.XMLID} (${_type})`,
-                        type: _type,
-                        data: itemData,
-                    },
-                    { pack: compendium.collection },
-                );
-                item.updateItemDescription();
-            } catch (err) {
-                console.log(itemData.XMLID, err);
-            }
-
-            //if (!configPower.powerType) continue;
-            // if (
-            //     // ["attack", "defense", "standard"].some((o) =>
-            //     //     configPower.powerType.includes(o),
-            //     // ) &&
-            //     !configPower.powerType.includes("characteristic")
-            // ) {
-            //     const itemData = {
-            //         XMLID: configPower.key,
-            //         type: "power",
-            //         ...configPower.frag,
-            //     };
-
-            //     // Check if this item is already in the compendium
-            //     if (
-            //         !game.packs
-            //             .get(game.system.id + ".powers-6e")
-            //             .index.find((o) => o.name === itemData.name)
-            //     ) {
-            //         const item = await compendium.documentClass.create(
-            //             {
-            //                 name: `${
-            //                     configPower.name || configPower.key
-            //                 } (power)`,
-            //                 type: "power",
-            //                 data: itemData,
-            //             },
-            //             { pack: compendium.collection },
-            //         );
-            //         console.log("Added", itemData.name);
-            //         try {
-            //             item.updateItemDescription();
-            //             await item.update({ system: item.system });
-            //         } catch (err) {
-            //             console.log(err);
-            //         }
-            //     }
-            // }
         }
     } catch (err) {
         console.error(err);
