@@ -1,0 +1,50 @@
+{
+  "name": "Money (power)",
+  "type": "power",
+  "system": {
+    "description": "Well Off",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "MONEY",
+    "BASECOST": "5.0",
+    "LEVELS": "0",
+    "ALIAS": "Money",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "OPTION": "WELL_OFF",
+    "OPTIONID": "WELL_OFF",
+    "OPTION_ALIAS": "Well Off",
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "NOTES": "",
+    "max": 0,
+    "value": 0,
+    "baseCost": 5,
+    "basePointsPlusAdders": 5,
+    "activePointsDc": 5,
+    "activePoints": 5,
+    "realCost": "5"
+  },
+  "_id": "p8hNtRsVmUfvYZNR",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368554698,
+    "modifiedTime": 1709368554703,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!p8hNtRsVmUfvYZNR"
+}

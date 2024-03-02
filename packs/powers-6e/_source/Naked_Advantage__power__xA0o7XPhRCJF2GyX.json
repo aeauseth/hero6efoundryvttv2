@@ -1,0 +1,50 @@
+{
+  "name": "Naked Advantage (power)",
+  "type": "power",
+  "system": {
+    "description": "Naked Advantage for up to 1 Active points",
+    "cost": 0,
+    "parentid": "",
+    "end": 1,
+    "active": "false",
+    "XMLID": "NAKEDMODIFIER",
+    "BASECOST": "0.0",
+    "LEVELS": "1",
+    "ALIAS": "Naked Advantage",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "max": 1,
+    "value": 1,
+    "baseCost": 0,
+    "basePointsPlusAdders": 1,
+    "activePointsDc": 1,
+    "activePoints": 1,
+    "realCost": "1"
+  },
+  "_id": "xA0o7XPhRCJF2GyX",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368556416,
+    "modifiedTime": 1709368556463,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!xA0o7XPhRCJF2GyX"
+}

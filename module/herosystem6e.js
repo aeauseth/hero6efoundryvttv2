@@ -424,7 +424,7 @@ Hooks.once("ready", async function () {
         return;
     }
 
-    UpdateCompendiumFromSource();
+    await UpdateCompendiumFromSource();
 });
 
 // Remove Character from selectable actor types

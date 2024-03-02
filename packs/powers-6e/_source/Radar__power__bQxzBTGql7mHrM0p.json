@@ -1,0 +1,51 @@
+{
+  "name": "Radar (power)",
+  "type": "power",
+  "system": {
+    "description": "Radar",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "RADAR",
+    "BASECOST": "15.0",
+    "LEVELS": "0",
+    "ALIAS": "Radar",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "GROUP": "RADIOGROUP",
+    "NOTES": "",
+    "max": 0,
+    "value": 0,
+    "baseCost": 15,
+    "basePointsPlusAdders": 15,
+    "activePointsDc": 15,
+    "activePoints": 15,
+    "realCost": "15"
+  },
+  "_id": "bQxzBTGql7mHrM0p",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368555764,
+    "modifiedTime": 1709368555772,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!bQxzBTGql7mHrM0p"
+}

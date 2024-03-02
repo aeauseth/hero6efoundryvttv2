@@ -1,0 +1,53 @@
+{
+  "name": "Regeneration (power)",
+  "type": "power",
+  "system": {
+    "description": "Week",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "REGENERATION",
+    "BASECOST": "0.0",
+    "LEVELS": "1",
+    "ALIAS": "Regeneration",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "OPTION": "WEEK",
+    "OPTIONID": "WEEK",
+    "OPTION_ALIAS": "Week",
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "max": 1,
+    "value": 1,
+    "baseCost": 0,
+    "basePointsPlusAdders": 1,
+    "activePointsDc": 1,
+    "activePoints": 1,
+    "realCost": "1"
+  },
+  "_id": "oupUqBuA8YCAonJl",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368556751,
+    "modifiedTime": 1709368556789,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!oupUqBuA8YCAonJl"
+}

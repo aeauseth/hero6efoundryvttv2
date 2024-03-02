@@ -1,0 +1,47 @@
+{
+  "name": "Lightsleep (power)",
+  "type": "power",
+  "system": {
+    "description": "Lightsleep",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "LIGHTSLEEP",
+    "BASECOST": "3.0",
+    "LEVELS": "0",
+    "ALIAS": "Lightsleep",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "NOTES": "",
+    "max": 0,
+    "value": 0,
+    "baseCost": 3,
+    "basePointsPlusAdders": 3,
+    "activePointsDc": 3,
+    "activePoints": 3,
+    "realCost": "3"
+  },
+  "_id": "riwzYyNTnYS1RPtm",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368554926,
+    "modifiedTime": 1709368554933,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!riwzYyNTnYS1RPtm"
+}

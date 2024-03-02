@@ -1,0 +1,94 @@
+{
+  "name": "Density Increase (power)",
+  "type": "power",
+  "system": {
+    "description": "Density Increase (100 kg mass, +5 STR, +1 PD/ED, -2m KB)",
+    "cost": 0,
+    "parentid": "",
+    "end": 1,
+    "active": "false",
+    "XMLID": "DENSITYINCREASE",
+    "BASECOST": "0.0",
+    "LEVELS": "1",
+    "ALIAS": "Density Increase",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "max": 1,
+    "value": 1,
+    "baseCost": 0,
+    "basePointsPlusAdders": 4,
+    "activePointsDc": 4,
+    "activePoints": 4,
+    "realCost": "4",
+    "subType": "defense",
+    "showToggle": true
+  },
+  "_id": "DerUM4DqJa7I6zH5",
+  "img": "icons/svg/aura.svg",
+  "effects": [
+    {
+      "name": "Density Increase (power): DENSITYINCREASE 1",
+      "icon": "icons/svg/upgrade.svg",
+      "changes": [
+        {
+          "key": "system.characteristics.str.max",
+          "value": "5",
+          "mode": 2,
+          "priority": null
+        },
+        {
+          "key": "system.characteristics.pd.max",
+          "value": "1",
+          "mode": 2,
+          "priority": null
+        },
+        {
+          "key": "system.characteristics.ed.max",
+          "value": "1",
+          "mode": 2,
+          "priority": null
+        }
+      ],
+      "transfer": true,
+      "_id": "7NGVZDBLq6R94Tbu",
+      "disabled": false,
+      "duration": {
+        "startTime": null,
+        "seconds": null,
+        "combat": null,
+        "rounds": null,
+        "turns": null,
+        "startRound": null,
+        "startTurn": null
+      },
+      "description": "",
+      "origin": null,
+      "statuses": [],
+      "flags": {},
+      "_key": "!items.effects!DerUM4DqJa7I6zH5.7NGVZDBLq6R94Tbu"
+    }
+  ],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368555529,
+    "modifiedTime": 1709368555547,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!DerUM4DqJa7I6zH5"
+}

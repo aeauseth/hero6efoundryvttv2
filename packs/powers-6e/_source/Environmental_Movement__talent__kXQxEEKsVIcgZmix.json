@@ -1,0 +1,52 @@
+{
+  "name": "Environmental Movement (talent)",
+  "type": "talent",
+  "system": {
+    "description": "no penalties on Environmental Movement (no penalties on)",
+    "effect": "",
+    "cost": 0,
+    "modifiers": [],
+    "hdcid": "",
+    "parentid": "",
+    "id": "",
+    "other": {},
+    "XMLID": "ENVIRONMENTAL_MOVEMENT",
+    "BASECOST": "2.0",
+    "LEVELS": "0",
+    "ALIAS": "Environmental Movement",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "INPUT": "no penalties on",
+    "NOTES": "",
+    "end": 0,
+    "max": 0,
+    "value": 0,
+    "baseCost": 2,
+    "basePointsPlusAdders": 2,
+    "activePointsDc": 2,
+    "activePoints": 2,
+    "realCost": "2"
+  },
+  "_id": "kXQxEEKsVIcgZmix",
+  "img": "icons/svg/item-bag.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368554887,
+    "modifiedTime": 1709368554896,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!kXQxEEKsVIcgZmix"
+}

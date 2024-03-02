@@ -1,0 +1,82 @@
+{
+  "name": "Running (power)",
+  "type": "power",
+  "system": {
+    "description": "Running +0m",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "RUNNING",
+    "BASECOST": "0.0",
+    "LEVELS": "0",
+    "ALIAS": "Running",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "AFFECTS_PRIMARY": true,
+    "AFFECTS_TOTAL": true,
+    "ADD_MODIFIERS_TO_BASE": false,
+    "NOTES": "",
+    "max": 0,
+    "value": 0,
+    "baseCost": 0,
+    "basePointsPlusAdders": 0,
+    "activePointsDc": 0,
+    "activePoints": 0,
+    "realCost": "0",
+    "subType": "movement",
+    "showToggle": true
+  },
+  "_id": "XK3WXY6MccDkUh8S",
+  "img": "icons/svg/aura.svg",
+  "effects": [
+    {
+      "name": "Running (power): RUNNING +0",
+      "icon": "icons/svg/upgrade.svg",
+      "changes": [
+        {
+          "key": "system.characteristics.running.max",
+          "value": "0",
+          "mode": 2,
+          "priority": null
+        }
+      ],
+      "transfer": true,
+      "_id": "HsOdBEsiv0K6EdMV",
+      "disabled": false,
+      "duration": {
+        "startTime": null,
+        "seconds": null,
+        "combat": null,
+        "rounds": null,
+        "turns": null,
+        "startRound": null,
+        "startTurn": null
+      },
+      "description": "",
+      "origin": null,
+      "statuses": [],
+      "flags": {},
+      "_key": "!items.effects!XK3WXY6MccDkUh8S.HsOdBEsiv0K6EdMV"
+    }
+  ],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368556879,
+    "modifiedTime": 1709368556940,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!XK3WXY6MccDkUh8S"
+}

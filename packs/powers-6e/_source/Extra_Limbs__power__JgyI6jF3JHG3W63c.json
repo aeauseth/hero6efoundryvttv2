@@ -1,0 +1,50 @@
+{
+  "name": "Extra Limbs (power)",
+  "type": "power",
+  "system": {
+    "description": "Extra Limbs",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "EXTRALIMBS",
+    "BASECOST": "5.0",
+    "LEVELS": "1",
+    "ALIAS": "Extra Limbs",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "max": 1,
+    "value": 1,
+    "baseCost": 5,
+    "basePointsPlusAdders": 5,
+    "activePointsDc": 5,
+    "activePoints": 5,
+    "realCost": "5"
+  },
+  "_id": "JgyI6jF3JHG3W63c",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368555856,
+    "modifiedTime": 1709368555862,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!JgyI6jF3JHG3W63c"
+}

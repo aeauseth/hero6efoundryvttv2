@@ -1,0 +1,63 @@
+{
+  "name": "Mental Combat Skill Levels (skill)",
+  "type": "skill",
+  "system": {
+    "description": ": +1 with a single Mental Power",
+    "effect": "",
+    "cost": 0,
+    "modifiers": [],
+    "hdcid": "",
+    "parentid": "",
+    "levels": 0,
+    "state": "untrained",
+    "roll": "6-",
+    "XMLID": "MENTAL_COMBAT_LEVELS",
+    "BASECOST": "0.0",
+    "LEVELS": "1",
+    "ALIAS": "Mental Combat Skill Levels",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "OPTION": "SINGLE",
+    "OPTIONID": "SINGLE",
+    "OPTION_ALIAS": "with a single Mental Power",
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "CHARACTERISTIC": "GENERAL",
+    "FAMILIARITY": false,
+    "PROFICIENCY": false,
+    "NOTES": "",
+    "end": 0,
+    "max": 1,
+    "value": 1,
+    "costPerLevel": 1,
+    "baseCost": 0,
+    "basePointsPlusAdders": 1,
+    "activePointsDc": 1,
+    "activePoints": 1,
+    "realCost": "1",
+    "subType": "skill",
+    "csl": {
+      "0": "omcv"
+    }
+  },
+  "_id": "7PJebWlbonPZeyi0",
+  "img": "icons/svg/hanging-sign.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368554242,
+    "modifiedTime": 1709368554247,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!7PJebWlbonPZeyi0"
+}

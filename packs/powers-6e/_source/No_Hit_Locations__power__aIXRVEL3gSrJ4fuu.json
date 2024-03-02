@@ -1,0 +1,50 @@
+{
+  "name": "No Hit Locations (power)",
+  "type": "power",
+  "system": {
+    "description": "No Hit Locations",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "NOHITLOCATIONS",
+    "BASECOST": "10.0",
+    "LEVELS": "0",
+    "ALIAS": "No Hit Locations",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "max": 0,
+    "value": 0,
+    "baseCost": 10,
+    "basePointsPlusAdders": 10,
+    "activePointsDc": 10,
+    "activePoints": 10,
+    "realCost": "10"
+  },
+  "_id": "aIXRVEL3gSrJ4fuu",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368556486,
+    "modifiedTime": 1709368556532,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!aIXRVEL3gSrJ4fuu"
+}

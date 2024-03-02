@@ -1,0 +1,82 @@
+{
+  "name": "Leaping (power)",
+  "type": "power",
+  "system": {
+    "description": "Leaping +0m",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "LEAPING",
+    "BASECOST": "0.0",
+    "LEVELS": "0",
+    "ALIAS": "Leaping",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "AFFECTS_PRIMARY": true,
+    "AFFECTS_TOTAL": true,
+    "ADD_MODIFIERS_TO_BASE": false,
+    "NOTES": "",
+    "max": 0,
+    "value": 0,
+    "baseCost": 0,
+    "basePointsPlusAdders": 0,
+    "activePointsDc": 0,
+    "activePoints": 0,
+    "realCost": "0",
+    "subType": "movement",
+    "showToggle": true
+  },
+  "_id": "vIXYPiBmU74S15SQ",
+  "img": "icons/svg/aura.svg",
+  "effects": [
+    {
+      "name": "Leaping (power): LEAPING +0",
+      "icon": "icons/svg/upgrade.svg",
+      "changes": [
+        {
+          "key": "system.characteristics.leaping.max",
+          "value": "0",
+          "mode": 2,
+          "priority": null
+        }
+      ],
+      "transfer": true,
+      "_id": "7oZ8RbfehTsw5adg",
+      "disabled": false,
+      "duration": {
+        "startTime": null,
+        "seconds": null,
+        "combat": null,
+        "rounds": null,
+        "turns": null,
+        "startRound": null,
+        "startTurn": null
+      },
+      "description": "",
+      "origin": null,
+      "statuses": [],
+      "flags": {},
+      "_key": "!items.effects!vIXYPiBmU74S15SQ.7oZ8RbfehTsw5adg"
+    }
+  ],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368556023,
+    "modifiedTime": 1709368556036,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!vIXYPiBmU74S15SQ"
+}

@@ -1,0 +1,50 @@
+{
+  "name": "Multiform (power)",
+  "type": "power",
+  "system": {
+    "description": "Multiform",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "MULTIFORM",
+    "BASECOST": "0.0",
+    "LEVELS": "50",
+    "ALIAS": "Multiform",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "max": 50,
+    "value": 50,
+    "baseCost": 0,
+    "basePointsPlusAdders": 10,
+    "activePointsDc": 10,
+    "activePoints": 10,
+    "realCost": "10"
+  },
+  "_id": "XeIINwQCx81egT3F",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368556343,
+    "modifiedTime": 1709368556390,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!XeIINwQCx81egT3F"
+}

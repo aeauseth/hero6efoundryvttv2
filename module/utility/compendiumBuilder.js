@@ -34,12 +34,14 @@ export async function UpdateCompendiumFromSource() {
 
         // REF: https://discord.com/channels/732325252788387980/754127569246355477/862517136390750218
 
-        // Delete all item in the compendium
-        while (
-            game.packs.get(game.system.id + ".powers-6e").index.contents[0]
-        ) {
-            await compendium.delete(compendium.index.contents[0]._id);
-        }
+        // Delete all items in the compendium
+        const index = await compendium.getIndex(); //get all documents in the pack
+        await HeroSystem6eItem.deleteDocuments(
+            index.map((o) => o._id),
+            {
+                pack: compendium.collection,
+            },
+        );
 
         // Loop thru all the powers
         for (const itemTag of HeroSystem6eItem.ItemXmlTags) {
@@ -52,6 +54,15 @@ export async function UpdateCompendiumFromSource() {
                     const itemData = {
                         ...system,
                     };
+
+                    // Some of the XML properties are unique to Hero Designer and are not needed.
+                    // They likely don't cause any issues. Saving space by removing?
+                    // We should ensure things like ID are cleared upon drag/drop operation anyway.
+                    delete itemData.ID;
+                    delete itemData.POSITION;
+                    delete itemData.GRAPHIC;
+                    delete itemData.COLOR;
+
                     console.log("Adding", itemData);
 
                     let _type = "power";
@@ -77,6 +88,7 @@ export async function UpdateCompendiumFromSource() {
                             { pack: compendium.collection },
                         );
                         item.updateItemDescription();
+                        await item._postUpload();
                     } catch (err) {
                         console.log(itemData.XMLID, err);
                     }

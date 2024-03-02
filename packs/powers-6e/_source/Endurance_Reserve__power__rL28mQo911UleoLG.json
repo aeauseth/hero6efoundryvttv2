@@ -1,0 +1,72 @@
+{
+  "name": "Endurance Reserve (power)",
+  "type": "power",
+  "system": {
+    "description": "Endurance Reserve (0 END, 1 REC)",
+    "cost": 0,
+    "parentid": "",
+    "end": 0,
+    "active": "false",
+    "XMLID": "ENDURANCERESERVE",
+    "BASECOST": "0.0",
+    "LEVELS": "0",
+    "ALIAS": "Endurance Reserve",
+    "MULTIPLIER": "1.0",
+    "SFX": "Default",
+    "SHOW_ACTIVE_COST": true,
+    "INCLUDE_NOTES_IN_PRINTOUT": true,
+    "NAME": "",
+    "QUANTITY": "1",
+    "AFFECTS_PRIMARY": false,
+    "AFFECTS_TOTAL": true,
+    "NOTES": "",
+    "POWER": [
+      {
+        "XMLID": "ENDURANCERESERVEREC",
+        "ID": "1709358415640",
+        "BASECOST": "0.0",
+        "LEVELS": "1",
+        "ALIAS": "Recovery",
+        "POSITION": "-1",
+        "MULTIPLIER": "1.0",
+        "GRAPHIC": "Burst",
+        "COLOR": "255 255 255",
+        "SFX": "Default",
+        "SHOW_ACTIVE_COST": true,
+        "INCLUDE_NOTES_IN_PRINTOUT": true,
+        "NAME": "",
+        "QUANTITY": "1",
+        "AFFECTS_PRIMARY": false,
+        "AFFECTS_TOTAL": true,
+        "NOTES": "",
+        "baseCost": 0.6666666666666666
+      }
+    ],
+    "max": 0,
+    "value": 0,
+    "baseCost": 0,
+    "basePointsPlusAdders": 1,
+    "activePointsDc": 1,
+    "activePoints": 1,
+    "realCost": "1"
+  },
+  "_id": "rL28mQo911UleoLG",
+  "img": "icons/svg/aura.svg",
+  "effects": [],
+  "folder": null,
+  "sort": 0,
+  "ownership": {
+    "default": 0,
+    "lMjTkal2ggc2JaCP": 3
+  },
+  "flags": {},
+  "_stats": {
+    "systemId": "hero6efoundryvttv2",
+    "systemVersion": "3.0.59",
+    "coreVersion": "11.315",
+    "createdTime": 1709368555645,
+    "modifiedTime": 1709368555652,
+    "lastModifiedBy": "lMjTkal2ggc2JaCP"
+  },
+  "_key": "!items!rL28mQo911UleoLG"
+}
