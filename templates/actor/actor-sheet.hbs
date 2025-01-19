@@ -915,6 +915,16 @@
                     <input name="system.CHARACTER.BASIC_CONFIGURATION.EXPERIENCE" value="{{actor.system.CHARACTER.BASIC_CONFIGURATION.EXPERIENCE}}" type="number">
                 </div>
 
+                <div class-"form-group stacked" style="background:pink">
+                    <label class="world-desc">NOTES1</label>
+                    {{
+                        editor NOTES1
+                        target="system.CHARACTER.CHARACTER_INFO.NOTES1"
+                        engine='prosemirror'
+                        button=false
+                    }}
+                </div>
+
                 <table>
                     {{#if actor.system.CHARACTER.CHARACTER_INFO.BIOGRAPHY}}
                         <tr>
