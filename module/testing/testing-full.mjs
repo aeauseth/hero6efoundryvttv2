@@ -2345,7 +2345,6 @@ export function registerFullTests(quench) {
                 });
 
                 describe("Haymaker", function () {
-                    let haymakerPreviousActiveState;
                     let haymakerManuever;
 
                     beforeEach(function () {
@@ -2353,14 +2352,6 @@ export function registerFullTests(quench) {
                         haymakerManuever = actor.items.find(
                             (item) => item.type === "maneuver" && item.system.XMLID === "HAYMAKER",
                         );
-
-                        haymakerPreviousActiveState = haymakerManuever.system.active;
-                        haymakerManuever.system.active = true;
-                    });
-
-                    afterEach(function () {
-                        // Turn off the haymaker
-                        haymakerManuever.system.active = haymakerPreviousActiveState;
                     });
 
                     it("should increase the damage of a Strike", function () {
@@ -2368,7 +2359,13 @@ export function registerFullTests(quench) {
                         // Added DCs: Strike 0DC, Haymaker +4DC =>  +4 DC
                         // Base + Added = 16DC + 4DC (doubling rule does not apply) = 16 DC. Martial Strike is 5AP/die => 20d6
                         const strikeItem = actor.items.find((item) => item.system.XMLID === "STRIKE");
-                        assert.equal(getEffectForumulaFromItem(strikeItem, { hthAttackItems: [hthAttack] }), "20d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(strikeItem, {
+                                haymakerManeuverActiveItem: haymakerManuever,
+                                hthAttackItems: [hthAttack],
+                            }),
+                            "20d6",
+                        );
                     });
 
                     it("should not increase the damage of a move through", function () {
@@ -2376,7 +2373,13 @@ export function registerFullTests(quench) {
                         // Added DCs: Haymaker does not apply since we are executing a maneuver and this is not a Strike, velocity 20"/3 -> 6d6/6DC,
                         // Base + Added = 2DC + 6DC (doubling rule does not apply) = 8 DC. Move Through is 5AP/die => 8d6
                         const moveThroughItem = actor.items.find((item) => item.system.XMLID === "MOVETHROUGH");
-                        assert.equal(getEffectForumulaFromItem(moveThroughItem, { velocity: 20 }), "8d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(moveThroughItem, {
+                                haymakerManeuverActiveItem: haymakerManuever,
+                                velocity: 20,
+                            }),
+                            "8d6",
+                        );
                     });
                 });
 
@@ -3750,48 +3753,62 @@ export function registerFullTests(quench) {
 
                 // Confirm that we add straight dice in 5e for haymakers.
                 describe("Haymaker", function () {
-                    let haymakerPreviousActiveState;
                     let haymakerManuever;
 
-                    beforeEach(function () {
+                    before(function () {
                         // Turn on the haymaker
                         haymakerManuever = actor.items.find(
                             (item) => item.type === "maneuver" && item.system.XMLID === "HAYMAKER",
                         );
-
-                        haymakerPreviousActiveState = haymakerManuever.system.active;
-                        haymakerManuever.system.active = true;
-                    });
-
-                    afterEach(function () {
-                        // Turn off the haymaker
-                        haymakerManuever.system.active = haymakerPreviousActiveState;
                     });
 
                     it("should have the correct damage for the +1/2 EB", function () {
-                        assert.equal(getEffectForumulaFromItem(ebPlusHalfItem, {}), "8d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(ebPlusHalfItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "8d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1 EB", function () {
-                        assert.equal(getEffectForumulaFromItem(ebPlusOneItem, {}), "8d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(ebPlusOneItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "8d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1/2 EA", function () {
-                        assert.equal(getEffectForumulaFromItem(eaPlusHalfItem, {}), "6d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(eaPlusHalfItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "6d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1 EA", function () {
-                        assert.equal(getEffectForumulaFromItem(eaPlusOneItem, {}), "6d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(eaPlusOneItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "6d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1/2 RKA", function () {
                         // +4 DC (ignoring advantages) at +1/2 is 4 DC and is then halved to +2DC => ½d6
-                        assert.equal(getEffectForumulaFromItem(rkaPlusHalfItem, {}), "3½d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(rkaPlusHalfItem, {
+                                haymakerManeuverActiveItem: haymakerManuever,
+                            }),
+                            "3½d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1/2 HKA", function () {
                         // +4 DC (ignoring advantages) at +1/2 is 4 DC and is then halved to +2DC => ½d6
-                        assert.equal(getEffectForumulaFromItem(hkaPlusHalfItem, { effectivestr: 0 }), "3½d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(hkaPlusHalfItem, {
+                                haymakerManeuverActiveItem: haymakerManuever,
+                                effectivestr: 0,
+                            }),
+                            "3½d6",
+                        );
                     });
                 });
             });
@@ -4128,52 +4145,66 @@ export function registerFullTests(quench) {
 
                 // Confirm that we add straight dice in 5e for haymakers.
                 describe("Haymaker", function () {
-                    let haymakerPreviousActiveState;
                     let haymakerManuever;
 
-                    beforeEach(function () {
+                    before(function () {
                         // Turn on the haymaker
                         haymakerManuever = actor.items.find(
                             (item) => item.type === "maneuver" && item.system.XMLID === "HAYMAKER",
                         );
-
-                        haymakerPreviousActiveState = haymakerManuever.system.active;
-                        haymakerManuever.system.active = true;
-                    });
-
-                    afterEach(function () {
-                        // Turn off the haymaker
-                        haymakerManuever.system.active = haymakerPreviousActiveState;
                     });
 
                     it("should have the correct damage for the +1/2 EB", function () {
                         // +4 DC at +1/2 is 2.66 DC => 2½d6
-                        assert.equal(getEffectForumulaFromItem(ebPlusHalfItem, {}), "6½d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(ebPlusHalfItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "6½d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1 EB", function () {
                         // +4 DC at +1 is 2 DC => 2d6
-                        assert.equal(getEffectForumulaFromItem(ebPlusOneItem, {}), "6d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(ebPlusOneItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "6d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1/2 EA", function () {
                         // +4 DC at +1/2 is 2.66 DC => 1d6+1
-                        assert.equal(getEffectForumulaFromItem(eaPlusHalfItem, {}), "5d6+1");
+                        assert.equal(
+                            getEffectForumulaFromItem(eaPlusHalfItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "5d6+1",
+                        );
                     });
 
                     it("should have the correct damage for the +1 EA", function () {
                         // +4 DC at +1 is 2 DC => 1d6
-                        assert.equal(getEffectForumulaFromItem(eaPlusOneItem, {}), "5d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(eaPlusOneItem, { haymakerManeuverActiveItem: haymakerManuever }),
+                            "5d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1/2 RKA", function () {
                         // +4 DC at +1/2 is 2.66 DC => ½d6
-                        assert.equal(getEffectForumulaFromItem(rkaPlusHalfItem, {}), "3½d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(rkaPlusHalfItem, {
+                                haymakerManeuverActiveItem: haymakerManuever,
+                            }),
+                            "3½d6",
+                        );
                     });
 
                     it("should have the correct damage for the +1/2 HKA", function () {
                         // +4 DC at +1 is 2 DC => 2d6
-                        assert.equal(getEffectForumulaFromItem(hkaPlusHalfItem, { effectivestr: 0 }), "3½d6");
+                        assert.equal(
+                            getEffectForumulaFromItem(hkaPlusHalfItem, {
+                                haymakerManeuverActiveItem: haymakerManuever,
+                                effectivestr: 0,
+                            }),
+                            "3½d6",
+                        );
                     });
                 });
             });

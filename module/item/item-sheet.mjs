@@ -219,16 +219,17 @@ export class HeroSystem6eItemSheet extends ItemSheet {
             if (item.actor) {
                 for (const attack of item.actor.items.filter(
                     (o) =>
-                        (o.type === "attack" || o.system.subType === "attack") &&
+                        o.rollsToHit() &&
                         (!o.baseInfo.behaviors.includes("optional-maneuver") ||
-                            game.settings.get(HEROSYS.module, "optionalManeuvers")),
+                            game.settings.get(HEROSYS.module, "optionalManeuvers")) &&
+                        !o.system.XMLID.startsWith("__"),
                 )) {
                     // Check if there is an adder (if so attack is checked)
                     const adder = (this.item.system.ADDER || []).find((o) => o.ALIAS == attack.name);
 
                     data.attacks.push({
                         id: attack.id,
-                        name: attack.name, //attack.system.NAME || attack.name,
+                        name: attack.name,
                         checked: adder ? true : false,
                         title: `${
                             attack.system.XMLID + (attack.system.DISPLAY ? " (" + attack.system.DISPLAY + ")" : "")

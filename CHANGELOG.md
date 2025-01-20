@@ -1,14 +1,22 @@
 # Releases
 
-## Version 4.0.14 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+## Version 4.0.15 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
 
+- PD and ED from AID is now applying to defenses. [#1695](https://github.com/dmdorman/hero6e-foundryvtt/issues/1695)
+
+## Version 4.0.14 20250119
+
+- Migrations will take longer than normal.
+- Hand-to-Hand Attacks have changed and are no longer attacks on their own. Per the rules, hand-to-hand attacks only increases the STR used for attacks that deal normal damage. To use your hand-to-hand attack powers and equipment, select them from the to-hit dialog of the strength based attack (such as Strike) you wish to use it with.
 - Fix where 5e AOE NAKEDMODIFIER powers failed to upload. [#1704](https://github.com/dmdorman/hero6e-foundryvtt/issues/1704)
 - Improvements to HDC uploads. Actor sheet now shows "Upload in progress", preventing you from clicking around until the upload is complete. Actor owners are notified of upload in a chat message.
 - Improved damage and DC calculations. [#717](https://github.com/dmdorman/hero6e-foundryvtt/issues/717) [#763](https://github.com/dmdorman/hero6e-foundryvtt/issues/763) [#1182](https://github.com/dmdorman/hero6e-foundryvtt/issues/1182) [#1632](https://github.com/dmdorman/hero6e-foundryvtt/issues/1632)
 - Fix crash on loading items with strength minimum and provide better handling for older HDC files. [#1628](https://github.com/dmdorman/hero6e-foundryvtt/issues/1628)
-- Added dodging effect icon.
+- Added dodging effect icon. Dodge effect now activates automatically when activating any maneuver with the dodge effect.
 - Fixed HDC uploads of type BASE.
 - Actor sheet display improvements (Seperators, Lists, Martial Arts, filters) [#1723] (https://github.com/dmdorman/hero6e-foundryvtt/issues/1723)
+- Improve CSL autoselection of attacks. [#1727](https://github.com/dmdorman/hero6e-foundryvtt/issues/1727)
+- Combat Maneuvers & Martial Arts are only supported on PCs & NPCs, not AUTOMATONs or any other actor type. Changing actor types may confuse Combat Maneuvers & Martial Arts, you will need to re-upload the HDC file after changing actor type.
 
 ## Version 4.0.13 20250111
 

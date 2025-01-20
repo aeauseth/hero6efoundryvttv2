@@ -6288,7 +6288,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         {
             key: "__STRENGTHDAMAGE",
             type: ["attack"],
-            behaviors: ["to-hit", "dice"],
+            behaviors: ["non-hd", "to-hit", "dice"],
             perceivability: "obvious",
             duration: "instant",
             range: HERO.RANGE_TYPES.STANDARD,

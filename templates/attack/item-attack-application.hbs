@@ -206,14 +206,20 @@
         {{#if hthAttackItems}}
           <div class="form-group">
             <label>
-              Hand To Hand Attacks
+              Hand-To-Hand Attacks
             </label>
-            {{#each hthAttackItems}}
-                <label title="{{{this.description}}}">
-                  {{this.name}}
-                </label>
-                <input class="item-toggle" id="{{this.uuid}}" type="checkbox" name="hthAttackItems.{{@key}}._canUseForAttack" {{checked this._canUseForAttack}} data-dtype="Boolean" />
-            {{/each}}
+            <div class="form-fields hand-to-hand-attacks">
+              <ol>
+              {{#each hthAttackItems}}
+                <li>
+                    <label title="{{{this.description}}}">
+                      <input class="item-toggle" {{#if (lt @root.effectiveStr 3)}}disabled title="Must use at least 3 (½d6) STR to add a hand-to-hand attack"{{/if}} id="{{this.uuid}}" type="checkbox" name="hthAttackItems.{{@key}}._canUseForAttack" {{checked this._canUseForAttack}} data-dtype="Boolean" />
+                      {{this.name}}
+                    </label>
+                  </li>
+              {{/each}}
+              </ol>
+            </div>
           </div>
         {{/if}}
       {{/if}}

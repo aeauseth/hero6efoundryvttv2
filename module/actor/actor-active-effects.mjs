@@ -205,6 +205,13 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                 name: game.i18n.localize("EFFECT.StatusTargeted"),
                 img: "icons/svg/target.svg",
             },
+            holdingEffect: {
+                id: "holding",
+                name: game.i18n.localize("EFFECT.HoldingAnAction"),
+                img: `icons/svg/clockwork.svg`,
+            },
+
+            // Water effects
             underwaterEffect: {
                 id: "underwater",
                 name: game.i18n.localize("EFFECT.Underwater"),
@@ -240,6 +247,11 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                 id: "aborted",
                 name: game.i18n.localize("EFFECT.Aborted"),
                 img: `systems/${module}/icons/aborted.svg`,
+            },
+            blockEffect: {
+                id: "block",
+                name: game.i18n.localize("EFFECT.StatusBlocking"),
+                img: `systems/${module}/icons/block.svg`,
             },
             braceEffect: {
                 id: "brace",
@@ -282,10 +294,10 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                     },
                 ],
             },
-            holdingEffect: {
-                id: "holding",
-                name: game.i18n.localize("EFFECT.HoldingAnAction"),
-                img: `icons/svg/clockwork.svg`,
+            strikeEffect: {
+                id: "strike",
+                name: game.i18n.localize("EFFECT.StatusStriking"),
+                img: `systems/${module}/icons/fist.svg`,
             },
 
             // Movement Effects

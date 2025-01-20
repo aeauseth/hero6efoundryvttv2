@@ -97,7 +97,7 @@ export async function migrateWorld() {
     await migrateToVersion(
         "4.0.14",
         lastMigration,
-        getAllActorsInGame().filter((actor) => actor.type === "pc" || actor.type === "npc"),
+        getAllActorsInGame(),
         "rebuilding all built in maneuvers for PC and NPCs",
         async (actor) => await replaceActorsBuiltInManeuvers(actor),
     );
@@ -130,6 +130,10 @@ async function replaceActorsBuiltInManeuvers(actor) {
             actor.items.filter((power) => power.type?.includes("maneuver")).map((o) => o.id),
         );
         timer.deleteEnd = Date.now();
+
+        if (actor.type !== "pc" && actor.type !== "npc") {
+            return;
+        }
 
         // Add in the new placeholder items and all built in maneuvers
         timer.placeholdersStart = Date.now();

@@ -77,12 +77,12 @@
     }
 }
 
-// .presence-attack-card label {
-//     // flex: 1;
-//     color: blue;
-// }
+.hand-to-hand-attacks {
+    ol {
+        padding: 0;
+    }
 
-// .presence-attack-card table {
-//     // flex: 1;
-//     color: red;
-// }
+    li {
+        list-style-type: none;
+    }
+}

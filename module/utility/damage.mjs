@@ -163,12 +163,13 @@ function isManeuverWithEmptyHand(item, options) {
 }
 
 // Maneuver's EFFECT indicates normal damage or is Strike/Pulling a Punch (exceptions)
-function isManeuverThatDoesNormalDamage(item) {
+export function isManeuverThatDoesNormalDamage(item) {
     return (
-        item.system.EFFECT.search(/NORMALDC/) > -1 ||
-        item.system.EFFECT.search(/STRDC/) > -1 ||
-        item.system.XMLID === "STRIKE" ||
-        item.system.XMLID === "PULLINGAPUNCH"
+        (item.type === "martialart" || item.type === "maneuver") &&
+        (item.system.EFFECT.search(/NORMALDC/) > -1 ||
+            item.system.EFFECT.search(/STRDC/) > -1 ||
+            item.system.XMLID === "STRIKE" ||
+            item.system.XMLID === "PULLINGAPUNCH")
     );
 }
 
@@ -337,17 +338,14 @@ export function calculateAddedDicePartsFromItem(item, baseDamageItem, options) {
 
     // Is there a haymaker active and thus part of this attack? Haymaker is added in without consideration of advantages in 5e but not in 6e.
     // Also in 5e killing haymakers get the DC halved.
-    const haymakerManeuverActive = item.actor?.items.find(
-        (item) => item.type === "maneuver" && item.system.XMLID === "HAYMAKER" && item.system.active,
-    );
-    if (haymakerManeuverActive) {
+    if (options.haymakerManeuverActiveItem) {
         // Can haymaker anything except for maneuvers because it is a maneuver itself. The strike manuever is the 1 exception.
         // PH: FIXME: Implement the exceptions: See 6e v2 pg. 99. 5e has none?
         if (
             !["maneuver", "martialart"].includes(item.type) ||
             (item.type === "maneuver" && item.system.XMLID === "STRIKE")
         ) {
-            const rawHaymakerDc = parseInt(haymakerManeuverActive.system.DC);
+            const rawHaymakerDc = parseInt(options.haymakerManeuverActiveItem.system.DC);
 
             let haymakerDC = rawHaymakerDc;
             if (item.is5e && item.doesKillingDamage) {
@@ -669,7 +667,9 @@ export function calculateDicePartsForItem(item, options) {
 
     // PH: FIXME: This can be removed when we don't create damage for things that aren't attacks.
     if (!baseAttackItem) {
-        console.error(`${item.name}/${item.system.XMLID} links to a base attack item of ${baseAttackItem}.`);
+        console.error(
+            `Actor=${item.actor?.name}. Actor.type=${item.actor?.type}. ${item.name}/${item.system.XMLID} links to a base attack item of ${baseAttackItem}.`,
+        );
         return {
             diceParts: zeroDiceParts,
             tags: [],
@@ -758,7 +758,9 @@ export function getFullyQualifiedEffectFormulaFromItem(item, options) {
     const { diceParts, baseAttackItem } = calculateDicePartsForItem(item, options);
 
     if (!baseAttackItem) {
-        console.error(`Missing required baseAttackItem`);
+        console.error(
+            `Actor=${item.actor?.name}. Actor.type=${item.actor?.type}. ${item.name} is missing required baseAttackItem`,
+        );
         return;
     }
 

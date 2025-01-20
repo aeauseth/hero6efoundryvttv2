@@ -1,4 +1,8 @@
-import { combatSkillLevelsForAttack, penaltySkillLevelsForAttack } from "../utility/damage.mjs";
+import {
+    combatSkillLevelsForAttack,
+    isManeuverThatDoesNormalDamage,
+    penaltySkillLevelsForAttack,
+} from "../utility/damage.mjs";
 import { processActionToHit } from "../item/item-attack.mjs";
 import { convertSystemUnitsToMetres, getSystemDisplayUnits } from "../utility/units.mjs";
 import { HEROSYS } from "../herosystem6e.mjs";
@@ -233,21 +237,26 @@ export class ItemAttackFormApplication extends FormApplication {
                 item.system.conditionalAttacks[DEADLYBLOW.id].system.checked ??= true;
             }
 
-            const hthAttacks = item.actor.items.filter((item) => item.system.XMLID === "HANDTOHANDATTACK");
-            data.hthAttackItems = hthAttacks.reduce((attacksObj, hthAttack) => {
-                // If already exists we're updating so no need to recreate.
-                if (attacksObj[hthAttack.uuid]) {
-                    return attacksObj;
-                }
+            // Hand-to-hand attacks only apply to things that are strength damage
+            if (isManeuverThatDoesNormalDamage(item)) {
+                const hthAttacks = item.actor.items.filter(
+                    (item) => item.system.XMLID === "HANDTOHANDATTACK" && !(item.system.CARRIED && !item.system.active),
+                );
+                data.hthAttackItems = hthAttacks.reduce((attacksObj, hthAttack) => {
+                    // If already exists we're updating so no need to recreate.
+                    if (attacksObj[hthAttack.uuid]) {
+                        return attacksObj;
+                    }
 
-                // Default to useable for any attack.
-                attacksObj[hthAttack.uuid] = {
-                    _canUseForAttack: hthAttack.system._canUseForAttack ?? true,
-                    description: hthAttack.system.description,
-                    name: hthAttack.name,
-                };
-                return attacksObj;
-            }, data.hthAttackItems ?? {});
+                    // Default to useable for any attack.
+                    attacksObj[hthAttack.uuid] = {
+                        _canUseForAttack: hthAttack.system._canUseForAttack ?? true,
+                        description: hthAttack.system.description,
+                        name: hthAttack.name,
+                    };
+                    return attacksObj;
+                }, data.hthAttackItems ?? {});
+            }
 
             data.action = Attack.getActionInfo(
                 data.item,
@@ -304,13 +313,6 @@ export class ItemAttackFormApplication extends FormApplication {
 
         // HTH Attacks format includes the UUID which has periods in it so we can't use extendedFormData. Do a custom merge.
         delete extendedFormData.hthAttackItems;
-        Object.entries(formData).forEach(([key, value]) => {
-            const match = key.match(/^hthAttackItems.(.*)._canUseForAttack$/);
-            if (!match) {
-                return;
-            }
-            this.data.hthAttackItems[match[1]]._canUseForAttack = value;
-        });
 
         // CSL & PSL format is non-standard, need to deal with those
         const updates = [];
@@ -329,6 +331,22 @@ export class ItemAttackFormApplication extends FormApplication {
 
         // Take all the data we updated in the form and apply it.
         this.data = foundry.utils.mergeObject(this.data, extendedFormData);
+
+        const limitedByStrength = this.data.effectiveStr < 3;
+        let hthAttackDisabledDueToStrength = false;
+        Object.entries(formData).forEach(([key, value]) => {
+            const match = key.match(/^hthAttackItems.(.*)._canUseForAttack$/);
+            if (!match) {
+                return;
+            }
+
+            // HTH attacks should not be enabled if there is not enough STR
+            hthAttackDisabledDueToStrength = hthAttackDisabledDueToStrength || value;
+            this.data.hthAttackItems[match[1]]._canUseForAttack = limitedByStrength ? false : value;
+        });
+        if (limitedByStrength && hthAttackDisabledDueToStrength) {
+            ui.notifications.warn(`Must use at least 3 (½d6) STR to add a hand-to-hand attack`);
+        }
 
         if (event.submitter?.name === "roll") {
             canvas.tokens.activate();

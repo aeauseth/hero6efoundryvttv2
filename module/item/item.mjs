@@ -554,6 +554,8 @@ export class HeroSystem6eItem extends Item {
         if (effect) {
             const maneuverHasAbortTrait = effect.indexOf("abort") > -1;
             const maneuverHasDodgeTrait = effect.indexOf("dodge") > -1;
+            const maneuverHasBlockTrait = effect.indexOf("block") > -1;
+
             const currentCombatActorId = game.combat?.combatants.find(
                 (combatant) => combatant.tokenId === game.combat.current?.tokenId,
             )?.actorId;
@@ -565,6 +567,7 @@ export class HeroSystem6eItem extends Item {
                 this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.abortEffect);
             }
 
+            // Dodge effect
             if (maneuverHasDodgeTrait) {
                 const dodgeStatusEffect = foundry.utils.deepClone(
                     HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect,
@@ -575,6 +578,19 @@ export class HeroSystem6eItem extends Item {
                     addOcvTraitToChanges(maneuverOcvTrait),
                 ].filter(Boolean);
                 this.actor.addActiveEffect(dodgeStatusEffect);
+            }
+
+            // Block effect
+            if (maneuverHasBlockTrait) {
+                const blockStatusEffect = foundry.utils.deepClone(
+                    HeroSystem6eActorActiveEffects.statusEffectsObj.blockEffect,
+                );
+                blockStatusEffect.name = this.name ? `${this.name} (${this.system.XMLID})` : `${this.system.XMLID}`;
+                blockStatusEffect.changes = [
+                    addDcvTraitToChanges(maneuverDcvTrait),
+                    addOcvTraitToChanges(maneuverOcvTrait),
+                ].filter(Boolean);
+                this.actor.addActiveEffect(blockStatusEffect);
             }
         }
 
@@ -1913,9 +1929,10 @@ export class HeroSystem6eItem extends Item {
                     let count = 0;
                     for (const attackItem of this.actor.items.filter(
                         (o) =>
-                            (o.type === "attack" || o.system.subType === "attack") &&
+                            o.rollsToHit() &&
                             (!o.baseInfo.behaviors.includes("optional-maneuver") ||
-                                game.settings.get(HEROSYS.module, "optionalManeuvers")),
+                                game.settings.get(HEROSYS.module, "optionalManeuvers")) &&
+                            !o.system.XMLID.startsWith("__"), // TODO: Should we allow __STRENGTHDAMAGE to have a "to-hit" behaviour when it isn't player facing?
                     )) {
                         let addMe = false;
 
@@ -1984,13 +2001,26 @@ export class HeroSystem6eItem extends Item {
                                             addMe = true;
                                         }
                                         break;
+
                                     case "RANGED":
                                         if (attackItem.baseInfo.range === "Standard") {
                                             addMe = true;
                                         }
                                         break;
+                                    /// 5e only: +1 DCV against all attacks (HTH and Ranged)
+                                    // — no matter how many opponents attack a
+                                    // character in a given Segment, or with how many
+                                    // diff erent attacks, a 5-point DCV CSL provides +1
+                                    // DCV versus all of them.
+                                    case "DCV":
+                                        addMe = true;
+                                        break;
                                     case "ALL":
                                         addMe = true;
+                                        break;
+                                    default:
+                                        console.error(`Unknown OPTIONID ${this.system.OPTIONID}`);
+                                        addMe = false;
                                         break;
                                 }
                                 break;
@@ -2078,13 +2108,11 @@ export class HeroSystem6eItem extends Item {
                                 console.warn("Unhandled attack automatic selection", this);
                         }
 
-                        if (addMe) {
-                            // FIXME: This should check that it doesn't already exist. Frequently there are multiple entries.
-
+                        if (addMe && !this.adders.find((adder) => adder.ALIAS === attackItem.name)) {
                             const newAdder = {
                                 XMLID: "ADDER",
                                 ID: new Date().getTime().toString(),
-                                ALIAS: attackItem.name || attackItem.system.ALIAS,
+                                ALIAS: attackItem.name,
                                 BASECOST: "0.0",
                                 LEVELS: "0",
                                 NAME: "",
@@ -3443,10 +3471,16 @@ export class HeroSystem6eItem extends Item {
             case "ENERGYBLAST":
             case "EGOATTACK":
             case "MINDCONTROL":
-            case "HANDTOHANDATTACK":
                 {
                     const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
                     system.description = `${system.ALIAS} ${diceFormula}`;
+                }
+                break;
+
+            case "HANDTOHANDATTACK":
+                {
+                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    system.description = `${system.ALIAS} +${diceFormula}${diceFormula === "1" || diceFormula === "0" ? " point" : ""}`;
                 }
                 break;
 
@@ -5385,19 +5419,16 @@ export class HeroSystem6eItem extends Item {
     get doesKillingDamage() {
         if (this.system.KILLING === true) {
             return true;
-        }
-
-        if (this.system.KILLING === false) {
+        } else if (this.system.KILLING === false) {
             return false;
-        }
-
-        if (this.system.WEAPONEFFECT?.includes("KILLING")) {
+        } else if (this.system.WEAPONEFFECT?.includes("KILLING")) {
             return true;
         }
 
         // Legacy check
-        if (this.system.killing) {
-            console.error(`Unable to determine KILLING property for ${this.name}`);
+        else if (this.system.killing) {
+            // TODO: We should get off the system.killing drug.
+            console.warn(`Unable to determine KILLING property for ${this.name}`);
             return true;
         }
 
