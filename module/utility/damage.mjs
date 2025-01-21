@@ -44,10 +44,10 @@ export function penaltySkillLevelsForAttack(item) {
     if (!item.actor) return [];
 
     const psls = item.actor.items.filter(
-        (item) =>
-            ["PENALTY_SKILL_LEVELS"].includes(item.system.XMLID) &&
-            (item.system.ADDER || []).find((adder) => adder.ALIAS === item.system.ALIAS || adder.ALIAS === item.name) &&
-            item.isActive != false,
+        (itm) =>
+            ["PENALTY_SKILL_LEVELS"].includes(itm.system.XMLID) &&
+            itm.adders.find((adder) => adder.ALIAS === item.name) &&
+            itm.isActive != false,
     );
 
     return psls;
