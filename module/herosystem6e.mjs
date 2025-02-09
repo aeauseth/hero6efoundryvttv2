@@ -149,14 +149,15 @@ Hooks.once("init", async function () {
     loadTemplates(templatePaths);
 
     // Assign the Sidebar subclasses
-    //CONFIG.ui.actors =
     CONFIG.ui.items = HeroSystem6eItemDirectory;
-    CONFIG.ui.combat = HeroSystem6eCombatTracker;
-    //CONFIG.ui.chat =
     CONFIG.ui.compendium = HeroSystem6eCompendiumDirectory;
-    //CONFIG.ui.hotbar =
 
-    // Insert templates into DOM tree so Applications can render into
+    // Custom combat tracker doesn't work in v13 (yet)
+    if (!foundry.utils.isNewerVersion(game.version, "13.000")) {
+        CONFIG.ui.combat = HeroSystem6eCombatTracker;
+    }
+
+    // Insert EffectsPanel template into DOM tree so it can render
     if (document.querySelector("#ui-top") !== null) {
         // Template element for effects-panel
         const uiTop = document.querySelector("#ui-top");
@@ -200,6 +201,14 @@ Hooks.once("ready", async function () {
     ) {
         console.log(SimpleCalendar.api.getCurrentCalendar().general.gameWorldTimeIntegration);
         return ui.notifications.warn(`Recommend setting Simple Calendar GameWorldTimeIntegration = Mixed`);
+    }
+
+    // When using a square grid for scenes, the system needs the realistic square diagonals. Warn users if they don't have that setting.
+    if (game.settings.get("core", "gridDiagonals") !== CONST.GRID_DIAGONALS.EXACT) {
+        ui.notifications.warn(
+            'The Core FoundryVTT setting, "Square Grid Diagonals", needs to be "Exact (√2)" for correct measurement and behavior for scenes with square grids.',
+            { permanent: true },
+        );
     }
 });
 
@@ -628,7 +637,18 @@ Hooks.on("updateWorldTime", async (worldTime, options) => {
                 game.combats.viewed.combatant?.actorId === actor.id ||
                 actor.temporaryEffects.find((o) => o.name === "TakeRecovery")
             ) {
+                if (actor.inCombat) {
+                    console.debug(`calling expireEffects for ${actor.name} who is inCombat`);
+                }
                 await expireEffects(actor);
+            } else {
+                if (actor.inCombat) {
+                    // We are only expiring temporary effects in expireEffects.
+                    // Drains should expire on worldTime regardless of combat status, which we currently don't do.
+                    console.debug(
+                        `skipping expireEffects for ${actor.name} who is inCombat. ${game.combats.viewed.combatant?.actorId !== actor.id ? "Not active combatant" : ""}`,
+                    );
+                }
             }
 
             // Out of combat recovery.  When SimpleCalendar is used to advance time.
@@ -734,10 +754,11 @@ Hooks.on("updateWorldTime", async (worldTime, options) => {
 
                 // Double check maneuver to make sure it is a flash
                 if (
-                    senseAffectingItem.system.XMLID === "MANEUVER" &&
-                    !senseAffectingItem.system.EFFECT.includes("FLASH")
-                )
+                    senseAffectingItem?.system.XMLID === "MANEUVER" &&
+                    !senseAffectingItem?.system.EFFECT.includes("FLASH")
+                ) {
                     break;
+                }
                 if (senseAffectingItem) {
                     const d = flashAe._prepareDuration();
                     if (d.remaining > 0) {
@@ -794,19 +815,6 @@ Hooks.once("setup", function () {
     console.log(`Hooks.on "setup"`);
     // Apply custom application for Compendiums for parent/child features
     game.packs.filter((p) => p.metadata.type === "Item").forEach((p) => (p.applicationClass = HeroSystem6eCompendium));
-});
-
-// An errant "bar3" reference causes v12 to crash.
-// Hopefully we are in v11 and can fix the problem before GM decides to migrate to v12.
-// If we are already in v12 then we have to manually revert to v11 to delete the problem property.
-// REF: https://github.com/dmdorman/hero6e-foundryvtt/issues/1187
-Hooks.once("ready", async function () {
-    let _defaultToken = game.settings.get("core", DefaultTokenConfig.SETTING) ?? {};
-    if (_defaultToken.bar3) {
-        delete _defaultToken.bar3;
-        game.settings.set("core", DefaultTokenConfig.SETTING, _defaultToken);
-        console.warn("Removing errant bar3 setting as it will prevent loading of world in FoundryVTT V12+");
-    }
 });
 
 Hooks.on("getCombatTrackerEntryContext", function (html, menu) {
@@ -956,7 +964,23 @@ Hooks.on("renderSidebarTab", async (app, html) => {
 
                 await heroRoller.roll();
 
-                const cardHtml = await heroRoller.render(`Roll Generic ${userSelection.damageType} Damage`);
+                let cardHtml = await heroRoller.render(`Roll Generic ${userSelection.damageType} Damage`);
+
+                if (["NORMAL", "KILLING"].includes(userSelection.damageType)) {
+                    const action = { damageType: userSelection.damageType };
+                    cardHtml += `
+                    <div data-visibility="gm">
+                        <button class="apply-damage"
+                            title="Apply damage to selected tokens."
+                            data-action-data='${JSON.stringify(action)}'
+                            data-roller='${heroRoller.toJSON()}'
+                            data-target-tokens='${JSON.stringify([])}'
+                        >
+                            Apply ${userSelection.damageType} Damage
+                        </button>
+                    </div>
+                `;
+                }
 
                 const chatData = {
                     style: CONST.CHAT_MESSAGE_STYLES.OTHER,
@@ -972,25 +996,3 @@ Hooks.on("renderSidebarTab", async (app, html) => {
         }
     });
 });
-
-// Hooks.on("renderActiveEffectConfig", (activeEffectConfig, html, data) => {
-//     console.log(activeEffectConfig, html, data);
-
-//     const effectsTab = html.find("section[data-tab='effects']");
-//     const header = effectsTab.find("header");
-//     const headerValue = header.find("div.value");
-//     headerValue.after("<div>Seconds</div>");
-
-//     const changesList = effectsTab.find("ol.changes-list");
-//     changesList.find("li").each(function (idx) {
-//         const liValue = $(this).find("div.value");
-//         //const idx = liValue.name.match(/changes\.(\d+)/)[1];
-//         liValue.after(`<input type="text" class="seconds" name="changes.${idx}.seconds" value="">`);
-//     });
-
-//     const submitButton = html.find("button[type='submit']");
-//     submitButton.one("submit", function () {
-//         debugger;
-//         console.log(this);
-//     });
-// });

@@ -82,8 +82,8 @@ export class ItemAttackFormApplication extends FormApplication {
             }
 
             // Initialize aim to the default option values
-            this.data.aim ??= "none";
-            this.data.aimSide ??= "none";
+            data.aim ??= "none";
+            data.aimSide ??= "none";
 
             // We are using the numberInput handlebar helper which requires NUMBERS, thus the parseInt
             // Set the initial values on the form
@@ -135,18 +135,38 @@ export class ItemAttackFormApplication extends FormApplication {
                 data.targetEntangle = false;
             }
 
-            data.hitLoc = [];
-            data.useHitLoc = false;
-            const aoe = item.AoeAttackParameters({ levels: data.effectiveLevels });
-            if (game.settings.get(HEROSYS.module, "hit locations") && !item.system.noHitLocations && !aoe) {
-                for (const key of Object.keys(CONFIG.HERO.hitLocations)) {
-                    data.hitLoc.push({ key: key, label: key });
-                }
-                data.useHitLoc = true;
-            }
+            const aoe = item.aoeAttackParameters({ levels: data.effectiveLevels });
+            data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations");
+            data.hitLocationSideEnabled =
+                data.hitLocationsEnabled && game.settings.get(HEROSYS.module, "hitLocTracking") === "all";
 
-            if (data.useHitLoc) {
-                data.hitLoc = [{ key: "none", label: "None" }, ...data.hitLoc];
+            // If there are no hit locations for the power or this is an AoE then the user cannot
+            // place a shot. If they can't place a shot the only options should be "none"
+            if (data.hitLocationsEnabled) {
+                data.hitLoc = [];
+                data.hitLocSide = [];
+
+                if (!item.system.noHitLocations && !aoe) {
+                    for (const key of Object.keys(CONFIG.HERO.hitLocations)) {
+                        data.hitLoc.push({ key: key, label: key });
+                    }
+
+                    if (data.hitLocationSideEnabled) {
+                        for (const key of Object.keys(CONFIG.HERO.hitLocationSide)) {
+                            data.hitLocSide.push({ key: key, label: key });
+                        }
+                    }
+                }
+
+                const noneReason = item.system.noHitLocations
+                    ? `does not allow hit locations`
+                    : aoe
+                      ? `has an area of effect`
+                      : undefined;
+
+                const noneLabel = `None${noneReason ? ` - ${noneReason}` : ""}`;
+                data.hitLoc = [{ key: "none", label: `${noneLabel}` }, ...data.hitLoc];
+                data.hitLocSide = [{ key: "none", label: `${noneLabel}` }, ...data.hitLocSide];
             }
 
             if (aoe) {
@@ -449,13 +469,11 @@ export class ItemAttackFormApplication extends FormApplication {
      */
     async _spawnAreaOfEffect() {
         const item = this.data.item;
-        // const aoeModifier = item.getAoeModifier();
-        // const areaOfEffect = item.system.areaOfEffect;
 
-        const areaOfEffect = item.AoeAttackParameters({ levels: this.data.effectiveLevels });
+        const areaOfEffect = item.aoeAttackParameters({ levels: this.data.effectiveLevels });
         if (!areaOfEffect) return;
 
-        const aoeType = areaOfEffect.OPTION.toLowerCase();
+        const aoeType = areaOfEffect.type;
         const aoeValue = areaOfEffect.value;
 
         const actor = item.actor;
@@ -463,7 +481,6 @@ export class ItemAttackFormApplication extends FormApplication {
         if (!token) {
             return ui.notifications.error(`${actor.name} has no token in this scene.  Unable to place AOE template.`);
         }
-        const is5e = actor.system.is5e;
 
         // Close all windows except us
         for (let id of Object.keys(ui.windows)) {
@@ -476,9 +493,15 @@ export class ItemAttackFormApplication extends FormApplication {
 
         const sizeConversionToMeters = convertSystemUnitsToMetres(1, actor);
 
-        // NOTE: The target hex is in should count as a distance of 1". This means that to convert to what FoundryVTT expects
+        const HexTemplates = game.settings.get(HEROSYS.module, "HexTemplates");
+        const hexGrid = !(
+            game.scenes.current.grid.type === CONST.GRID_TYPES.GRIDLESS ||
+            game.scenes.current.grid.type === CONST.GRID_TYPES.SQUARE
+        );
+
+        // NOTE: If we're using hex templates (i.e. 5e), the target hex is in should count as a distance of 1". This means that to convert to what FoundryVTT expects
         //       for distance we need to subtract 0.5"/1m.
-        const distance = aoeValue * sizeConversionToMeters - (is5e ? 1 : 0);
+        const distance = aoeValue * sizeConversionToMeters - (HexTemplates && hexGrid ? 1 : 0);
 
         const templateData = {
             t: templateType,
@@ -493,7 +516,7 @@ export class ItemAttackFormApplication extends FormApplication {
                 aoeType,
                 aoeValue,
                 sizeConversionToMeters,
-                is5e,
+                usesHexTemplate: HexTemplates && hexGrid,
             },
         };
 
@@ -504,15 +527,9 @@ export class ItemAttackFormApplication extends FormApplication {
             case "cone":
                 {
                     if ((areaOfEffect.ADDER || []).find((adder) => adder.XMLID === "THINCONE")) {
-                        // TODO: The extra 0.1 degree helps with approximating the correct hex counts when not
-                        //       not oriented in one of the prime 6 directions. This is because we're not
-                        //       hex counting. The extra degree is more incorrect the larger the cone is.
-                        templateData.angle = 30.1;
+                        templateData.angle = 30;
                     } else {
-                        // TODO: The extra 0.1 degree helps with approximating the correct hex counts when not
-                        //       not oriented in one of the prime 6 directions. This is because we're not
-                        //       hex counting. The extra degree is more incorrect the larger the cone is.
-                        templateData.angle = 60.1;
+                        templateData.angle = 60;
                     }
                 }
 

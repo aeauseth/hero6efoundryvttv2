@@ -50,7 +50,7 @@ export class HeroProgressBar {
         this._count = this._count + count;
 
         if (this._count > this._max) {
-            console.warn("ProgressBar: Count > Max");
+            console.log("ProgressBar: Count > Max");
             this._max = this._count;
         }
 

@@ -37,7 +37,33 @@ export class HeroSystemActorSheet extends ActorSheet {
 
     /** @override */
     async getData() {
+        // Unlinked actors can end up with duplicate items when prototype actor is re-uploaded.
+        // KLUDGE fix
+        let klugeDeleteItems = false;
+        for (const item of this.actor.items) {
+            try {
+                const item2 = this.actor.items.find(
+                    (i) =>
+                        i.system.ID === item.system.ID && i.id !== item.id && (item.system.ID || item.name === i.name),
+                );
+                if (item2) {
+                    if (item2.link.includes("Scene.")) {
+                        console.warn(`Deleting duplicate item ${item2.name} from linked ${this.actor.name}`);
+                        await item2.delete();
+                        klugeDeleteItems = true;
+                    }
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+        if (klugeDeleteItems) {
+            ui.notifications.warn(`${this.actor.name} had duplicate items which were deleted.`);
+        }
+
         const data = super.getData();
+        if (data.actor.flags.uploading) return data;
+
         data.system = data.actor.system;
 
         try {
@@ -383,7 +409,7 @@ export class HeroSystemActorSheet extends ActorSheet {
             );
             for (const d of defensePowers) {
                 d.disabled = !d.isActive;
-                switch (getPowerInfo({ xmlid: d.system.XMLID, actor: this.actor })?.duration) {
+                switch (d.baseInfo?.duration) {
                     case "instant":
                         // Might Vary
                         switch (d.system.XMLID) {
@@ -405,14 +431,16 @@ export class HeroSystemActorSheet extends ActorSheet {
                         data.allConstantEffects.push(d);
 
                         if (game.settings.get(game.system.id, "alphaTesting")) {
-                            const powerInfo = getPowerInfo({
-                                xmlid: d.system.XMLID,
-                                actor: this.actor,
-                            });
-                            if (!powerInfo) {
-                                ui.notifications.warn(`${d.system.XMLID} has no powerInfo/config.`);
+                            if (!d.baseInfo) {
+                                ui.notifications.warn(
+                                    `${this.actor.name}: ${d.name}/${d.system.XMLID} has no powerInfo/config.`,
+                                    d,
+                                );
                             } else {
-                                ui.notifications.warn(`${d.system.XMLID} has no duration specified.`);
+                                ui.notifications.warn(
+                                    `${this.actor.name}: ${d.name}/${d.system.XMLID} has no duration specified.`,
+                                    d,
+                                );
                             }
                         }
                 }
@@ -425,6 +453,7 @@ export class HeroSystemActorSheet extends ActorSheet {
                 const powerInfo = getPowerInfo({
                     xmlid: key.toUpperCase(),
                     actor: this.actor,
+                    xmlTag: key.toUpperCase(),
                 });
                 let valueTop = Math.max(char.value, char.max);
                 let activePoints = valueTop * (powerInfo?.cost || 0);
@@ -752,59 +781,73 @@ export class HeroSystemActorSheet extends ActorSheet {
     async _updateObject(event, formData) {
         event.preventDefault();
 
+        // If we are updating, don't bother with anything special
+        if (this.actor.flags.updating) {
+            await super._updateObject(event, expandedData);
+            return;
+        }
+
         let expandedData = foundry.utils.expandObject(formData);
 
         // Left Sidebar of actor sheet has Xsystem characteristics
         const characteristics = getCharacteristicInfoArrayForActor(this.actor).filter((o) =>
             ["BODY", "STUN", "END"].includes(o.key),
         );
-        for (const _char of characteristics) {
-            const characteristic = _char.key.toLowerCase();
-            if (!this.actor.system.characteristics) {
-                console.error("Missing this.actor.system.characteristics");
-            } else if (!this.actor.system.characteristics?.[characteristic]) {
-                console.warn(`Missing this.actor.system.characteristics[${characteristic}]`);
-            } else {
-                if (
-                    this.actor.system.characteristics[characteristic] &&
-                    expandedData.Xsystem.characteristics?.[characteristic].value !==
-                        this.actor.system.characteristics[characteristic].value
-                ) {
-                    expandedData.system.characteristics[characteristic].value =
-                        expandedData.Xsystem.characteristics[characteristic].value;
+        try {
+            for (const _char of characteristics) {
+                const characteristic = _char.key.toLowerCase();
+                if (!this.actor.system.characteristics) {
+                    console.log("Missing this.actor.system.characteristics");
+                } else if (!this.actor.system.characteristics?.[characteristic]) {
+                    console.log(`Missing this.actor.system.characteristics[${characteristic}]`);
+                } else if (!expandedData.Xsystem?.characteristics?.[characteristic]) {
+                    console.log(`Missing expandedData.Xsystem.characteristics[${characteristic}]`);
+                } else {
+                    if (
+                        this.actor.system.characteristics[characteristic] &&
+                        expandedData.Xsystem.characteristics?.[characteristic].value !==
+                            this.actor.system.characteristics[characteristic].value
+                    ) {
+                        expandedData.system.characteristics[characteristic].value =
+                            expandedData.Xsystem.characteristics[characteristic].value;
+                    }
                 }
             }
-        }
 
-        // Left Sidebar may have EndReserve
-        if (expandedData.endReserve) {
-            const endReserveId = Object.keys(expandedData.endReserve)?.[0];
-            const endReserve = this.actor.items.find((o) => o.id === endReserveId);
-            if (endReserve) {
-                await endReserve.update({ "system.value": parseInt(expandedData.endReserve[endReserveId].value || 0) });
+            // Left Sidebar may have EndReserve
+            if (expandedData?.endReserve) {
+                const endReserveId = Object.keys(expandedData.endReserve)?.[0];
+                const endReserve = this.actor.items.find((o) => o.id === endReserveId);
+                if (endReserve) {
+                    await endReserve.update({
+                        "system.value": parseInt(expandedData.endReserve[endReserveId].value || 0),
+                    });
+                }
             }
-        }
 
-        this.options.itemFilters.power = expandedData.itemFilters.power;
-        this.options.itemFilters.skill = expandedData.itemFilters.skill;
-        this.options.itemFilters.equipment = expandedData.itemFilters.equipment;
-        this.options.itemFilters.martial = expandedData.itemFilters.martial;
+            this.options.itemFilters.power = expandedData.itemFilters?.power;
+            this.options.itemFilters.skill = expandedData.itemFilters?.skill;
+            this.options.itemFilters.equipment = expandedData.itemFilters?.equipment;
+            this.options.itemFilters.martial = expandedData.itemFilters?.martial;
 
-        // If core characteristics changed the re-calculate costs
-        let recalculateCosts = false;
-        for (const char of Object.keys(expandedData.system.characteristics)) {
-            if (this.actor.system.characteristics[char].core !== expandedData.system.characteristics[char].core) {
-                recalculateCosts = true;
-            }
+            // If core characteristics changed the re-calculate costs
+            // let recalculateCosts = false;
+            // for (const char of Object.keys(expandedData?.system?.characteristics)) {
+            //     if (this.actor.system.characteristics[char].core !== expandedData.system.characteristics[char].core) {
+            //         recalculateCosts = true;
+            //     }
+            // }
+        } catch (e) {
+            console.error(e);
         }
 
         // Do all the standard things like updating item properties that match the name of input boxes
         await super._updateObject(event, expandedData); //formData);
 
-        if (recalculateCosts) {
-            await this.actor.calcCharacteristicsCost();
-            await this.actor.CalcActorRealAndActivePoints();
-        }
+        // if (recalculateCosts) {
+        //     await this.actor.calcCharacteristicsCost();
+        //     await this.actor.CalcActorRealAndActivePoints();
+        // }
 
         await this.render();
     }
@@ -1373,10 +1416,24 @@ export class HeroSystemActorSheet extends ActorSheet {
 
     async #createStaticFakeAttack(damageType, xml) {
         const is5e = this.actor.is5e;
-        if (is5e === undefined) {
-            console.error(`Undefined is5e`);
-        }
+        const attackKey = `${damageType}Attack${is5e ? "5e" : "6e"}`;
         const defenseCalculationActorKey = `defenseCalculationActor${is5e ? "5e" : "6e"}`;
+
+        // This typically happens during upload.  Don't save anything in static.
+        if (is5e === undefined) {
+            const defenseCalculationActor = new HeroSystem6eActor({
+                name: "Defense Calculation Actor",
+                type: "pc",
+                system: { is5e },
+            });
+            const attack = (HeroSystemActorSheet.sampleAttacks[attackKey] = new HeroSystem6eItem(
+                HeroSystem6eItem.itemDataFromXml(xml, defenseCalculationActor),
+                { parent: defenseCalculationActor },
+            ));
+            await attack._postUpload();
+            console.debug(`${attackKey}: Undefined is5e`);
+        }
+
         HeroSystemActorSheet.sampleAttacks[defenseCalculationActorKey] ??= new HeroSystem6eActor(
             {
                 name: "Defense Calculation Actor",
@@ -1387,16 +1444,15 @@ export class HeroSystemActorSheet extends ActorSheet {
         );
         const defenseCalculationActor = HeroSystemActorSheet.sampleAttacks[defenseCalculationActorKey];
 
-        const attackKey = `${damageType}Attack${is5e ? "5e" : "6e"}`;
         if (!HeroSystemActorSheet.sampleAttacks[attackKey]) {
             HeroSystemActorSheet.sampleAttacks[attackKey] = new HeroSystem6eItem(
                 HeroSystem6eItem.itemDataFromXml(xml, defenseCalculationActor),
                 { parent: defenseCalculationActor },
             );
             await HeroSystemActorSheet.sampleAttacks[attackKey]._postUpload();
-            console.debug(`${attackKey}: Created`);
+            //console.debug(`${attackKey}: Created`);
         } else {
-            console.debug(`${attackKey}: used cache`);
+            //console.debug(`${attackKey}: used cache`);
         }
         return HeroSystemActorSheet.sampleAttacks[attackKey];
     }

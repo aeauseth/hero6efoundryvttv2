@@ -163,7 +163,17 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
     }
 
     async _render(...args) {
-        await super._render(args);
-        await ui.combat.scrollToTurn();
+        // v13 does not seem to have a _render function, perhaps super.render instead.
+        if (super._render) {
+            await super._render(args);
+            await ui.combat.scrollToTurn();
+        } else {
+            console.error(`v13 workaround for combatTracker:_render`);
+        }
     }
+
+    // async render(...args) {
+    //     console.log(`combatTracker:render`);
+    //     super.render(args);
+    // }
 }

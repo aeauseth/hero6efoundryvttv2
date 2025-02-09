@@ -1,4 +1,5 @@
 import { HEROSYS } from "../herosystem6e.mjs";
+import { HeroSystem6eItem } from "../item/item.mjs";
 //import { HeroSystem6eActor } from "../actor/actor.mjs";
 import { performAdjustment, renderAdjustmentChatCards } from "./adjustment.mjs";
 
@@ -11,6 +12,39 @@ export function getPowerInfo(options) {
         options.item?.system?.id;
 
     const actor = options?.actor || options?.item?.actor;
+
+    // Legacy init of an item (we now include xmlTag during upload process)
+    try {
+        if (!options?.xmlTag && !options?.xmlid) {
+            if (options?.item?.system?.xmlTag) {
+                // Excellent we have a positive source for xmlTag!
+                options.xmlTag = options.item.system.xmlTag;
+            } else if (options?.item?.xmlTag) {
+                // Excellent we have a positive source for xmlTag!
+                options.xmlTag = options.item.xmlTag;
+            } else if (options?.item?.system?.XMLID === "FOCUS") {
+                options.xmlTag = "MODIFIER";
+            } else if (["power", "equipment"].includes(options?.item?.type)) {
+                options.xmlTag = "POWER";
+            } else if (options?.item?.type === "skill") {
+                options.xmlTag = "SKILL";
+            } else if (options?.item?.type === "talent") {
+                options.xmlTag = "TALENT";
+            } else if (options?.item?.type === "complication" || options?.item?.type === "disadvantage") {
+                options.xmlTag = "DISAD";
+            } else if (options?.item?.type === "perk") {
+                if (options.item.system.XMLID === "WELL_CONNECTED") {
+                    options.xmlTag = "WELL_CONNECTED"; // PERK ENHANCER
+                } else {
+                    options.xmlTag = "PERK";
+                }
+            } else if (options?.item?.system?.XMLID === "HANDTOHANDATTACK" && options.item.type === "attack") {
+                options.xmlTag = "POWER";
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
 
     // Determine is5e
     let is5e = actor?.is5e; //?.system?.is5e;
@@ -31,7 +65,43 @@ export function getPowerInfo(options) {
     }
 
     const powerList = is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
-    let powerInfo = powerList.find((o) => o.key === xmlid);
+
+    // ENHANCEDPERCEPTION is a POWER and an ADDER, we can pass in xmlTag to get the right one
+    let powerInfo = powerList.filter(
+        (o) => o.key === xmlid && (!options?.xmlTag || !o.xmlTag || o.xmlTag === options?.xmlTag),
+    );
+
+    if (powerInfo.length > 1) {
+        if (!window.warnGetPowerInfo?.includes(xmlid)) {
+            console.warn(
+                `${actor?.name}/${options.item?.name}/${options.item?.system?.XMLID}/${xmlid}: Multiple powerInfo results. Costs may be incorrect, but shouldn't break core functionality. Uploading the HDC file again may resolve this issue.`,
+                powerInfo,
+                options,
+            );
+            window.warnGetPowerInfo ??= [];
+            window.warnGetPowerInfo.push(xmlid);
+        }
+    }
+    powerInfo = powerInfo?.[0];
+
+    if (!powerInfo) {
+        powerInfo = powerList.find((o) => o.key === xmlid);
+        if (powerInfo) {
+            if (powerInfo.type.some((t) => ["movement", "skill", "characteristic"].includes(t))) {
+                // console.debug(
+                //     `${actor?.name}/${options.item?.name}/${options.item?.system?.XMLID}/${xmlid}: Was looking for xmlTag=${options.xmlTag} but got ${powerInfo.xmlTag}. Costs may be incorrect, but shouldn't break core functionality. Uploading the HDC file again should resolve this issue.`,
+                //     powerInfo,
+                //     options,
+                // );
+            } else {
+                console.warn(
+                    `${actor?.name}/${options.item?.name}/${options.item?.system?.XMLID}/${xmlid}: Was looking for xmlTag=${options.xmlTag} but got ${powerInfo.xmlTag}. Costs may be incorrect, but shouldn't break core functionality. Uploading the HDC file again should resolve this issue.`,
+                    powerInfo,
+                    options,
+                );
+            }
+        }
+    }
 
     // TODO: Why are we modifying the power entries from config here?
     if (powerInfo) {
@@ -78,7 +148,7 @@ export function getModifierInfo(options) {
     if (Object.entries(modifierOverrideInfo).length == 0) {
         modifierOverrideInfo = getPowerInfo(options);
     } else {
-        console.warn("modifierOverrideInfo using older format", xmlid);
+        console.warn(`modifierOverrideInfo using older format`, xmlid, options);
     }
 
     return modifierOverrideInfo;
@@ -104,7 +174,7 @@ export function getCharacteristicInfoArrayForActor(actor) {
     );
     if (AUTOMATON && powers.find((o) => o.key === "STUN")) {
         if (["pc", "npc"].includes(actor.type)) {
-            console.warn(`${actor.name} has the wrong actor type ${actor.type}`, actor);
+            console.debug(`${actor.name} has the wrong actor type ${actor.type}`, actor);
         }
 
         // TODO: change actor type to AUTOMATON or whatever is appropriate?
@@ -204,6 +274,21 @@ export async function expireEffects(actor) {
         //     // TakeRecovery has no XMLID, not sure why we HAVE to have one, just expire the effect.
         //     console.warn(`Unable to determine XMLID for ${ae.name} active effect.`);
         // }
+
+        // Sanity Check
+        if (ae._prepareDuration().remaining > 0 && !ae.duration.startTime) {
+            console.warn(
+                `${actor.name}/${ae.name} has ${ae._prepareDuration().remaining}s remaining.  It has no duration.startTime and will likely never expire.`,
+                ae,
+            );
+            if (ae.parent instanceof HeroSystem6eItem) {
+                console.error(
+                    `${actor.name}/${ae.parent.name}/${ae.parent.system.XMLID}/${ae.name} is a temporary effect associated with an item. This is super unusual. Try uploading the HDC file again.  If that doesn't resolve the issue then this could be a coding error and should be reported.`,
+                    ae,
+                );
+            }
+            //await ae.update({ [`duration.startTime`]: game.time.worldTime });
+        }
 
         // With Simple Calendar you can move time ahead in large steps.
         // Need to loop as multiple fades may be required.
@@ -382,6 +467,7 @@ export function hdcTimeOptionIdToSeconds(durationOptionId) {
             break;
 
         default:
+            console.warn(`Unhandled duration ${durationOptionId}`);
             seconds = -1;
             break;
     }

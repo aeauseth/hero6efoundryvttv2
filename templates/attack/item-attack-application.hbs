@@ -132,27 +132,26 @@
 
 
       {{!-- Aim (hit location) form group --}}
-      {{#if useHitLoc}}
-      <div class="form-group">
-        <label>Aim</label>
-        <select name="aim" style="max-width:234px">
-          {{selectOptions hitLoc selected=aim nameAttr="key" labelAttr="label" disabled="disabled"}}
-        </select>
-      </div>
+      {{#if hitLocationsEnabled}}
+        <div class="form-group">
+          <label>Aim</label>
+          <select name="aim" style="max-width:234px">
+            {{selectOptions hitLoc selected=aim valueAttr="key" labelAttr="label" disabled="disabled"}}
+          </select>
+        </div>
       {{/if}}
 
       {{!-- Aim side (hit location side) form group --}}
-      {{#if hitLocSide}}
-      <div class="form-group">
-        <label>Aim Side</label>
-        <select name="aimSide" id="aimSide">
-          <option value="none">None</option>
-          {{#each hitLocSide as |hitLocSide key|}}
-            <option value={{key}}{{#if (eq key @root/aimSide)}} selected{{/if}}>{{key}}</option>
-          {{/each}}
-        </select>
-      </div>
+      {{#if hitLocationSideEnabled}}
+        <div class="form-group">
+          <label>Aim Side</label>
+          <select name="aimSide" id="aimSide">
+            {{selectOptions hitLocSide selected=aimSide valueAttr="key" labelAttr="label" disabled="disabled"}}
+          </select>
+        </div>
       {{/if}}
+
+
 
       {{#if mindScanChoices}}
         <div class="form-group">
@@ -235,14 +234,14 @@
         <div class="form-group">
           <label>Number of Minds</label>
           <select name="mindScanMinds" data-dtype="text">
-            {{selectOptions mindScanChoices nameAttr="key" labelAttr="label" selected=mindScanMinds}}
+            {{selectOptions mindScanChoices valueAttr="key" labelAttr="label" selected=mindScanMinds}}
           </select>
         </div>
 
         <div class="form-group">
           <label>Familiar Mind</label>
           <select name="mindScanFamiliar" data-dtype="text">
-            {{selectOptions mindScanFamiliarOptions nameAttr="key" labelAttr="label" selected=mindScanFamiliar}}
+            {{selectOptions mindScanFamiliarOptions valueAttr="key" labelAttr="label" selected=mindScanFamiliar}}
           </select>
         </div>
       {{/if}}

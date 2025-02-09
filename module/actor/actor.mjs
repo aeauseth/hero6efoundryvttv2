@@ -1052,15 +1052,14 @@ export class HeroSystem6eActor extends Actor {
     }
 
     async FullHealth() {
-        // Remove all status effects
-        for (const status of this.statuses) {
-            const ae = Array.from(this.effects).find((effect) => effect.statuses.has(status));
+        // Remove temporary effects
+        for (const ae of this.temporaryEffects) {
             await ae.delete();
         }
 
-        // Remove temporary effects
-        const tempEffects = Array.from(this.effects).filter((effect) => parseInt(effect.duration?.seconds || 0) > 0);
-        for (const ae of tempEffects) {
+        // Remove all status effects
+        for (const status of this.statuses) {
+            const ae = Array.from(this.effects).find((effect) => effect.statuses.has(status));
             await ae.delete();
         }
 
@@ -1096,13 +1095,21 @@ export class HeroSystem6eActor extends Actor {
             await item.resetToOriginal();
         }
 
+        // Ghosts fly (or anything with RUNNING=0 and FLIGHT)
+        if (this.system.characteristics?.running?.value === 0 && this.system.characteristics?.running?.core === 0) {
+            for (const flight of this.items.filter((i) => i.system.XMLID === "FLIGHT")) {
+                flight.system.active = false;
+                await flight.toggle();
+            }
+        }
+
         // We just cleared encumbrance, check if it applies again
-        this.applyEncumbrancePenalty();
+        await this.applyEncumbrancePenalty();
     }
 
     // Raw base is insufficient for 5e characters
     getCharacteristicBase(key) {
-        const powerInfo = getPowerInfo({ xmlid: key.toUpperCase(), actor: this });
+        const powerInfo = getPowerInfo({ xmlid: key.toUpperCase(), actor: this, xmlTag: key.toUpperCase() });
         const base = parseInt(powerInfo?.base) || 0;
 
         if (!this.system.is5e) return base;
@@ -1190,6 +1197,7 @@ export class HeroSystem6eActor extends Actor {
                     getPowerInfo({
                         xmlid: characteristicUpperCase,
                         actor: this,
+                        xmlTag: characteristicUpperCase,
                     })?.base,
                 ) || 0)
             );
@@ -1357,11 +1365,6 @@ export class HeroSystem6eActor extends Actor {
     }
 
     async uploadFromXml(xml) {
-        const uploadPerformance = {
-            startTime: new Date(),
-            _d: new Date(),
-        };
-
         // Convert xml string to xml document (if necessary)
         if (typeof xml === "string") {
             const parser = new DOMParser();
@@ -1412,6 +1415,21 @@ export class HeroSystem6eActor extends Actor {
             }
         }
 
+        const uploadPerformance = {
+            startTime: new Date(),
+            _d: new Date(),
+        };
+
+        // Let GM know actor is being uploaded (unless it is a quench test; missing ID)
+        if (this.id) {
+            ChatMessage.create({
+                style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+                author: game.user._id,
+                content: `<b>${game.user.name}</b> is uploading <b>${this.name}</b>`,
+                whisper: whisperUserTargetsForActor(this),
+            });
+        }
+
         // Remove all existing effects
         let promiseArray = [];
         promiseArray.push(
@@ -1432,8 +1450,8 @@ export class HeroSystem6eActor extends Actor {
 
         // Character name is what's in the sheet or, if missing, what is already in the actor sheet.
         const characterName = heroJson.CHARACTER.CHARACTER_INFO.CHARACTER_NAME || this.name;
-        uploadPerformance.removeEffects = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.removeEffects = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
         this.name = characterName;
         changes["name"] = this.name;
         changes["flags"] = {
@@ -1451,6 +1469,7 @@ export class HeroSystem6eActor extends Actor {
         );
         const _system = _actor.system;
 
+        // remove any system properties that are not part of system.json
         const schemaKeys = Object.keys(_system);
         for (const key of Object.keys(this.system)) {
             if (!schemaKeys.includes(key)) {
@@ -1463,7 +1482,7 @@ export class HeroSystem6eActor extends Actor {
             }
         }
         if (this.id) {
-            for (let prop of Object.keys(this.flags)) {
+            for (let prop of Object.keys(this.flags).filter((f) => f !== "uploading")) {
                 changes[`flags.-=${prop}`] = null;
             }
 
@@ -1472,8 +1491,8 @@ export class HeroSystem6eActor extends Actor {
 
         // Wait for promiseArray to finish
         await Promise.all(promiseArray);
-        uploadPerformance.resetToDefault = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.resetToDefault = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
         promiseArray = [];
         changes = {};
 
@@ -1540,11 +1559,14 @@ export class HeroSystem6eActor extends Actor {
 
         // Need count of maneuvers for progress bar
         const powerList = this.system.is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
-        const freeStuffCount = powerList.filter(
-            (power) =>
-                !(power.behaviors.includes("adder") || power.behaviors.includes("modifier")) &&
-                power.type.includes("maneuver"),
-        ).length;
+        const freeStuffCount =
+            powerList.filter(
+                (power) =>
+                    !(power.behaviors.includes("adder") || power.behaviors.includes("modifier")) &&
+                    power.type.includes("maneuver"),
+            ).length +
+            1 + // Perception
+            2; // STR and Weapon placeholder
 
         const xmlItemsToProcess =
             1 + // we process heroJson.CHARACTER.CHARACTERISTICS all at once so just track as 1 item.
@@ -1555,19 +1577,26 @@ export class HeroSystem6eActor extends Actor {
             heroJson.CHARACTER.POWERS.length +
             heroJson.CHARACTER.SKILLS.length +
             heroJson.CHARACTER.TALENTS.length +
-            (this.type === "pc" || this.type === "npc" ? freeStuffCount : 0) + // Free stuff
+            (this.type === "pc" || this.type === "npc" || this.type === "automaton" ? freeStuffCount : 0) + // Free stuff
             1 + // Validating adjustment and powers
             1 + // Images
             1 + // Final save
             1 + // Restore retained damage
             1; // Not really sure why we need an extra +1
         const uploadProgressBar = new HeroProgressBar(`${this.name}: Processing HDC file`, xmlItemsToProcess, 0);
+        uploadPerformance.itemsToCreateEstimate = xmlItemsToProcess - 6;
 
         // NOTE don't put this into the promiseArray because we create things in here that are absolutely required by later items (e.g. strength placeholder).
-        await this.#addFreeStuff(uploadProgressBar);
+        if (this.type === "pc" || this.type === "npc" || this.type === "automaton") {
+            uploadProgressBar.advance(
+                `${this.name}: Adding non HDC items for PCs, NPCs, and Automatons`,
+                freeStuffCount,
+            );
+            await this.addFreeStuff();
+        }
 
-        uploadPerformance.progressBarFreeStuff = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.progressBarFreeStuff - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // ITEMS
         let itemPromiseArray = [];
@@ -1577,6 +1606,22 @@ export class HeroSystem6eActor extends Actor {
             sortBase += 1000;
             if (heroJson.CHARACTER[itemTag]) {
                 for (const system of heroJson.CHARACTER[itemTag]) {
+                    if (system.XMLID === "COMPOUNDPOWER") {
+                        for (const _modifier of system.MODIFIER || []) {
+                            console.warn(
+                                `${this.name}/${system.ALIAS}/${system.XMLID}/${_modifier.XMLID}/${_modifier.ID} was excluded from upload because MODIFIERs are not supported on a COMPOUNDPOWER. It is likely on the parentItem and thus should flow down to the children.`,
+                            );
+                        }
+                        delete system.MODIFIER;
+
+                        for (const _adder of system.ADDER || []) {
+                            ui.notifications.warn(
+                                `${this.name}/${system.ALIAS}/${system.XMLID}/${_adder.XMLID}/${_adder.ID} was excluded from upload because MODIFIERs are not supported on a COMPOUNDPOWER. It is likely on the parentItem and thus should flow down to the children.`,
+                            );
+                        }
+                        delete system.ADDER;
+                    }
+
                     const itemData = {
                         name: system.NAME || system?.ALIAS || system?.XMLID || itemTag,
                         type: itemTag.toLowerCase().replace(/s$/, ""),
@@ -1605,111 +1650,69 @@ export class HeroSystem6eActor extends Actor {
                             break;
                     }
 
-                    if (this.id) {
-                        itemsToCreate.push(itemData);
+                    // Note that we create COMPOUNDPOWER subitems before creating the parent
+                    // so that we can remove the subitems from the parent COMPOUNDPOWER attributes
 
-                        // COMPOUNDPOWER is similar to a MULTIPOWER.
-                        // MULTIPOWER uses PARENTID references.
-                        // COMPOUNDPOWER is structured as children.  Which we add PARENTID to, so it looks like a MULTIPOWER.
-                        if (system.XMLID === "COMPOUNDPOWER") {
-                            const compoundItems = [];
-                            for (const value of Object.values(system)) {
-                                // We only care about arrays and objects (array of 1)
-                                if (typeof value === "object") {
-                                    const values = value.length ? value : [value];
-                                    for (const system2 of values) {
-                                        if (system2.XMLID) {
-                                            const power = getPowerInfo({
-                                                xmlid: system2.XMLID,
-                                                actor: this,
-                                            });
-                                            if (!power) {
-                                                await ui.notifications.error(
-                                                    `${this.name}/${itemData.name}/${system2.XMLID} failed to parse. It will not be available to this actor.  Please report.`,
-                                                    {
-                                                        console: true,
-                                                        permanent: true,
-                                                    },
-                                                );
-                                                continue;
-                                            }
-                                            compoundItems.push(system2);
+                    // COMPOUNDPOWER is similar to a MULTIPOWER.
+                    // MULTIPOWER uses PARENTID references.
+                    // COMPOUNDPOWER is structured as children.  Which we add PARENTID to, so it looks like a MULTIPOWER.
+                    if (system.XMLID === "COMPOUNDPOWER") {
+                        const compoundItems = [];
+                        for (const [key, value] of Object.entries(system)) {
+                            // We only care about arrays and objects (array of 1)
+                            // These are expected to be POWERS, SKILLS, etc that make up the COMPOUNDPOWER
+                            // Instead of COMPOUNDPOWER attributes, they should be separate items, with PARENT/CHILD
+                            if (typeof value === "object") {
+                                const values = value.length ? value : [value];
+                                for (const system2 of values) {
+                                    if (system2.XMLID) {
+                                        const power = getPowerInfo({
+                                            xmlid: system2.XMLID,
+                                            actor: this,
+                                            xmlTag: key,
+                                        });
+                                        if (!power || ["MODIFIER", "ADDER"].includes(power.xmlTag)) {
+                                            await ui.notifications.error(
+                                                `${this.name}/${itemData.name}/${system2.XMLID} failed to parse. It will not be available to this actor.  Please report.`,
+                                                {
+                                                    console: true,
+                                                    permanent: true,
+                                                },
+                                            );
+                                            continue;
                                         }
+                                        compoundItems.push(system2);
                                     }
                                 }
-                            }
-                            compoundItems.sort((a, b) => parseInt(a.POSITION) - parseInt(b.POSITION));
-                            for (const system2 of compoundItems) {
-                                const power = getPowerInfo({
-                                    xmlid: system2.XMLID,
-                                    actor: this,
-                                });
-                                let itemData2 = {
-                                    name: system2.NAME || system2.ALIAS || system2.XMLID,
-                                    type: power.type.includes("skill") ? "skill" : "power",
-                                    system: {
-                                        ...system2,
-                                        PARENTID: system.ID,
-                                        POSITION: parseInt(system2.POSITION),
-                                        sort: itemData.sort + 100 + parseInt(system2.POSITION),
-                                    },
-                                };
-                                itemsToCreate.push(itemData2);
-
-                                // Remove any POWER "modifiers" that we created items for
-                                itemData.system.POWER = (itemData.system.POWER || []).filter(
-                                    (p) => p.ID !== itemData2.system.ID,
-                                );
+                                // Remove attribute/property since we just created items for it
+                                delete system[key];
                             }
                         }
-                    } else {
-                        const item = new HeroSystem6eItem(itemData, {
-                            parent: this,
-                        });
-                        this.items.set(item.system.XMLID + item.system.POSITION, item);
-                        if (system.XMLID === "COMPOUNDPOWER") {
-                            const compoundItems = [];
-                            for (const value of Object.values(system)) {
-                                // We only care about arrays and objects (array of 1)
-                                if (typeof value === "object") {
-                                    const values = value.length ? value : [value];
-                                    for (const system2 of values) {
-                                        if (system2.XMLID) {
-                                            const power = getPowerInfo({
-                                                xmlid: system2.XMLID,
-                                                actor: this,
-                                            });
-                                            if (!power) {
-                                                await ui.notifications.error(
-                                                    `${this.name}/${itemData.name}/${system2.XMLID} failed to parse. It will not be available to this actor.  Please report.`,
-                                                    {
-                                                        console: true,
-                                                        permanent: true,
-                                                    },
-                                                );
-                                                continue;
-                                            }
-                                            compoundItems.push(system2);
-                                        }
-                                    }
-                                }
-                            }
+                        compoundItems.sort((a, b) => parseInt(a.POSITION) - parseInt(b.POSITION));
+                        for (const system2 of compoundItems) {
+                            const power = getPowerInfo({
+                                xmlid: system2.XMLID,
+                                actor: this,
+                            });
+                            let itemData2 = {
+                                name: system2.NAME || system2.ALIAS || system2.XMLID,
+                                type: power.type.includes("skill") ? "skill" : "power",
+                                system: {
+                                    ...system2,
+                                    PARENTID: system.ID,
+                                    POSITION: parseInt(system2.POSITION),
+                                    sort: itemData.sort + 100 + parseInt(system2.POSITION),
+                                },
+                            };
 
-                            compoundItems.sort((a, b) => parseInt(a.POSITION) - parseInt(b.POSITION));
-                            for (const system2 of compoundItems) {
-                                const power = getPowerInfo({
-                                    xmlid: system2.XMLID,
-                                    actor: this,
-                                });
-                                const itemData2 = {
-                                    name: system2.NAME || system2.ALIAS || system2.XMLID,
-                                    type: power.type.includes("skill") ? "skill" : "power",
-                                    system: {
-                                        ...system2,
-                                        PARENTID: system.ID,
-                                        POSITION: parseInt(system2.POSITION),
-                                    },
-                                };
+                            // Remove any POWER "modifiers" that we created items for
+                            // itemData.system.POWER = (itemData.system.POWER || []).filter(
+                            //     (p) => p.ID !== itemData2.system.ID,
+                            // );
+
+                            if (this.id) {
+                                itemsToCreate.push(itemData2);
+                            } else {
                                 const item = new HeroSystem6eItem(itemData2, {
                                     parent: this,
                                 });
@@ -1717,24 +1720,93 @@ export class HeroSystem6eActor extends Actor {
                             }
                         }
                     }
+                    // } else {
+                    //     const item = new HeroSystem6eItem(itemData, {
+                    //         parent: this,
+                    //     });
+                    //     this.items.set(item.system.XMLID + item.system.POSITION, item);
+                    //     if (system.XMLID === "COMPOUNDPOWER") {
+                    //         const compoundItems = [];
+                    //         for (const [key, value] of Object.entries(system)) {
+                    //             // We only care about arrays and objects (array of 1)
+                    //             if (typeof value === "object") {
+                    //                 debugger;
+                    //                 const values = value.length ? value : [value];
+                    //                 for (const system2 of values) {
+                    //                     if (system2.XMLID) {
+                    //                         const power = getPowerInfo({
+                    //                             xmlid: system2.XMLID,
+                    //                             actor: this,
+                    //                         });
+                    //                         if (!power) {
+                    //                             await ui.notifications.error(
+                    //                                 `${this.name}/${itemData.name}/${system2.XMLID} failed to parse. It will not be available to this actor.  Please report.`,
+                    //                                 {
+                    //                                     console: true,
+                    //                                     permanent: true,
+                    //                                 },
+                    //                             );
+                    //                             continue;
+                    //                         }
+                    //                         compoundItems.push(system2);
+                    //                     }
+                    //                 }
+                    //                 // Remove property since we just created an item.
+                    //                 delete system[key];
+                    //             }
+                    //         }
+
+                    //         compoundItems.sort((a, b) => parseInt(a.POSITION) - parseInt(b.POSITION));
+                    //         for (const system2 of compoundItems) {
+                    //             const power = getPowerInfo({
+                    //                 xmlid: system2.XMLID,
+                    //                 actor: this,
+                    //             });
+                    //             const itemData2 = {
+                    //                 name: system2.NAME || system2.ALIAS || system2.XMLID,
+                    //                 type: power.type.includes("skill") ? "skill" : "power",
+                    //                 system: {
+                    //                     ...system2,
+                    //                     PARENTID: system.ID,
+                    //                     POSITION: parseInt(system2.POSITION),
+                    //                 },
+                    //             };
+                    //             const item = new HeroSystem6eItem(itemData2, {
+                    //                 parent: this,
+                    //             });
+                    //             this.items.set(item.system.XMLID + item.system.POSITION, item);
+                    //         }
+                    //     }
+                    // }
+
+                    if (this.id) {
+                        itemsToCreate.push(itemData);
+                    } else {
+                        const item = new HeroSystem6eItem(itemData, {
+                            parent: this,
+                        });
+                        this.items.set(item.system.XMLID + item.system.POSITION, item);
+                    }
 
                     uploadPerformance.items ??= [];
                     uploadPerformance.items.push({ name: itemData.name, d: new Date() - uploadPerformance._d });
-                    uploadPerformance._d = new Date();
+                    uploadPerformance._d = new Date().getTime();
                 }
                 delete heroJson.CHARACTER[itemTag];
             }
         }
 
-        uploadPerformance.preItems = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.itemsToCreateActual = itemsToCreate.length;
+
+        uploadPerformance.preItems = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
         await this.createEmbeddedDocuments("Item", itemsToCreate, { render: false, renderSheet: false });
-        uploadPerformance.createItems = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.createItems = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         await Promise.all(itemPromiseArray);
-        uploadPerformance.itemPromiseArray = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.itemPromiseArray = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // Do CSLs last so we can property select the attacks
         // TODO: infinite loop of _postUpload until no changes?
@@ -1780,8 +1852,8 @@ export class HeroSystem6eActor extends Actor {
                 await ui.notifications.warn(`Unable to locate ${item.ALIAS} to consume charges after upload.`);
             }
         }
-        uploadPerformance.postUpload = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.postUpload = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         uploadProgressBar.advance(`${this.name}: Validating powers`);
 
@@ -1803,8 +1875,8 @@ export class HeroSystem6eActor extends Actor {
             }
         });
 
-        uploadPerformance.validate = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.validate = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // Warn about invalid adjustment targets
         for (const item of this.items.filter((item) => item.baseInfo?.type?.includes("adjustment"))) {
@@ -1833,8 +1905,8 @@ export class HeroSystem6eActor extends Actor {
             }
         }
 
-        uploadPerformance.invalidTargets = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.invalidTargets = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         uploadProgressBar.advance(`${this.name}: Uploading image`);
 
@@ -1888,8 +1960,8 @@ export class HeroSystem6eActor extends Actor {
             // If they really want the image to stay, they should put it in the HDC file.
             changes["img"] = CONST.DEFAULT_TOKEN;
         }
-        uploadPerformance.image = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.image = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         uploadProgressBar.advance(`${this.name}: Saving core changes`);
 
@@ -1911,13 +1983,22 @@ export class HeroSystem6eActor extends Actor {
         }
 
         await Promise.all(promiseArray);
-        uploadPerformance.nonItems = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+
+        uploadPerformance.nonItems = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // Set base values to HDC LEVELs and calculate costs of things.
         await this._postUpload({ render: false });
-        uploadPerformance.actorPostUpload = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+
+        // Ghosts fly (or anything with RUNNING=0 and FLIGHT)
+        if (this.system.characteristics?.running?.value === 0 && this.system.characteristics?.running?.core === 0) {
+            for (const flight of this.items.filter((i) => i.system.XMLID === "FLIGHT")) {
+                await flight.toggle();
+            }
+        }
+
+        uploadPerformance.actorPostUpload = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // Kluge to ensure everything has a SPD.
         // For example a BASE has an implied SPD of three
@@ -1952,8 +2033,8 @@ export class HeroSystem6eActor extends Actor {
             });
 
         uploadProgressBar.advance(`${this.name}: Restoring retained damage`);
-        uploadPerformance.postUpload2 = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.postUpload2 = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // Apply retained damage
         if (retainValuesOnUpload.body || retainValuesOnUpload.stun || retainValuesOnUpload.end) {
@@ -1975,8 +2056,8 @@ export class HeroSystem6eActor extends Actor {
         if (this.id) {
             await this.update({ "flags.-=uploading": null });
         }
-        uploadPerformance.retainedDamage = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.retainedDamage = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         // If we have control of this token, reacquire to update movement types
         const myToken = this.getActiveTokens()?.[0];
@@ -1984,12 +2065,12 @@ export class HeroSystem6eActor extends Actor {
             myToken.release();
             myToken.control();
         }
-        uploadPerformance.tokenControl = new Date() - uploadPerformance._d;
-        uploadPerformance._d = new Date();
+        uploadPerformance.tokenControl = new Date().getTime() - uploadPerformance._d;
+        uploadPerformance._d = new Date().getTime();
 
         uploadProgressBar.close(`Done uploading ${this.name}`);
 
-        uploadPerformance.totalTime = new Date() - uploadPerformance.startTime;
+        uploadPerformance.totalTime = new Date().getTime() - uploadPerformance.startTime;
 
         //console.log("Upload Performance", uploadPerformance);
 
@@ -1998,24 +2079,29 @@ export class HeroSystem6eActor extends Actor {
             ChatMessage.create({
                 style: CONST.CHAT_MESSAGE_STYLES.OTHER,
                 author: game.user._id,
-                content: `<b>${game.user.name}</b> uploaded <b>${this.name}</b>`,
+                content: `Took ${Math.ceil(uploadPerformance.totalTime / 1000)} seconds for <b>${game.user.name}</b> to upload <b>${this.name}</b>.`,
                 whisper: whisperUserTargetsForActor(this),
             });
         }
+
+        // Sanity check HDC character points vs our character points
+        // const basePoints = parseInt(this.system.CHARACTER.BASIC_CONFIGURATION.BASE_POINTS);
+        // const experience = parseInt(this.system.CHARACTER.BASIC_CONFIGURATION.EXPERIENCE);
+        // if (this.system.points != basePoints + experience) {
+        //     console.warn(`Calculated CP (${this.system.points} is different than HDC plan (${basePoints + experience})`);
+        // }
     }
 
-    async #addFreeStuff(uploadProgressBar) {
-        // Characters get a few things for free that are not in the HDC.
-        if (this.type === "pc" || this.type === "npc") {
-            uploadProgressBar.advance(`${this.name}: Adding non HDC items for PCs and NPCs`);
+    /**
+     * Characters get a few things for free that are not in the HDC.
+     * @returns
+     */
+    async addFreeStuff() {
+        await this.addPerception();
 
-            await this.addPerception();
-
-            // MANEUVERS
-            await this.addAttackPlaceholders();
-            await this.addHeroSystemManeuvers();
-            return;
-        }
+        // MANEUVERS
+        await this.addAttackPlaceholders();
+        await this.addHeroSystemManeuvers();
     }
 
     async addPerception() {
@@ -2043,7 +2129,7 @@ export class HeroSystem6eActor extends Actor {
             this.items.set(perceptionItem.system.XMLID, perceptionItem);
         }
 
-        await perceptionItem._postUpload({ applyEncumbrance: false });
+        return perceptionItem._postUpload({ applyEncumbrance: false });
     }
 
     async addAttackPlaceholders() {
@@ -2087,143 +2173,75 @@ export class HeroSystem6eActor extends Actor {
         await maneuverWeaponPlaceholderItem._postUpload();
     }
 
+    async addManeuver(maneuver) {
+        const name = maneuver.name;
+        const XMLID = maneuver.key;
+
+        const maneuverDetails = maneuver.maneuverDesc;
+        const PHASE = maneuverDetails.phase;
+        const OCV = maneuverDetails.ocv;
+        const DCV = maneuverDetails.dcv;
+        const EFFECT = maneuverDetails.effects;
+        const DC = maneuverDetails.dc;
+        const ADDSTR = maneuverDetails.addStr;
+        const USEWEAPON = maneuverDetails.useWeapon; // "No" if unarmed or not offensive maneuver
+        const WEAPONEFFECT = maneuverDetails.weaponEffect; // Not be present if not offensive maneuver
+
+        const itemData = {
+            name,
+            type: "maneuver",
+            system: {
+                PHASE,
+                OCV,
+                DCV,
+                DC,
+                EFFECT,
+                active: false, // TODO: This is probably not always true. It should, however, be generated in other means.
+                description: EFFECT,
+                XMLID,
+                // MARTIALARTS consists of a list of MANEUVERS, the MARTIALARTS MANEUVERS have more props than our basic ones.
+                // Adding in some of those props as we may enhance/rework the basic maneuvers in the future.
+                //  <MANEUVER XMLID="MANEUVER" ID="1705867725258" BASECOST="4.0" LEVELS="0" ALIAS="Block" POSITION="1"
+                //  MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes"
+                //  INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" CATEGORY="Hand To Hand" DISPLAY="Martial Block" OCV="+2"
+                //  DCV="+2" DC="0" PHASE="1/2" EFFECT="Block, Abort" ADDSTR="No" ACTIVECOST="20" DAMAGETYPE="0"
+                //  MAXSTR="0" STRMULT="1" USEWEAPON="Yes" WEAPONEFFECT="Block, Abort">
+                DISPLAY: name, // Not sure we should allow editing of basic maneuvers
+                ADDSTR,
+                USEWEAPON,
+                WEAPONEFFECT,
+            },
+        };
+
+        if (!itemData.name) {
+            console.error("Missing name", itemData);
+            return;
+        }
+
+        const item = this.id
+            ? await HeroSystem6eItem.create(itemData, {
+                  parent: this,
+              })
+            : new HeroSystem6eItem(itemData, {
+                  parent: this,
+              });
+
+        // Work around if temporary actor
+        if (!this.id) {
+            this.items.set(item.system.XMLID, item);
+        }
+
+        return item._postUpload();
+    }
+
     async addHeroSystemManeuvers() {
         const powerList = this.system.is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
         const maneuverPromises = powerList
             .filter((power) => power.type?.includes("maneuver"))
-            .map(async (maneuver) => {
-                const name = maneuver.name;
-                const XMLID = maneuver.key;
+            .map(async (maneuver) => this.addManeuver(maneuver));
 
-                const maneuverDetails = maneuver.maneuverDesc;
-                const PHASE = maneuverDetails.phase;
-                const OCV = maneuverDetails.ocv;
-                const DCV = maneuverDetails.dcv;
-                const EFFECT = maneuverDetails.effects;
-                const DC = maneuverDetails.dc;
-                const ADDSTR = maneuverDetails.addStr;
-                const USEWEAPON = maneuverDetails.useWeapon; // "No" if unarmed or not offensive maneuver
-                const WEAPONEFFECT = maneuverDetails.weaponEffect; // Not be present if not offensive maneuver
-
-                const itemData = {
-                    name,
-                    type: "maneuver",
-                    system: {
-                        PHASE,
-                        OCV,
-                        DCV,
-                        DC,
-                        EFFECT,
-                        active: false, // TODO: This is probably not always true. It should, however, be generated in other means.
-                        description: EFFECT,
-                        XMLID,
-                        // MARTIALARTS consists of a list of MANEUVERS, the MARTIALARTS MANEUVERS have more props than our basic ones.
-                        // Adding in some of those props as we may enhance/rework the basic maneuvers in the future.
-                        //  <MANEUVER XMLID="MANEUVER" ID="1705867725258" BASECOST="4.0" LEVELS="0" ALIAS="Block" POSITION="1"
-                        //  MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes"
-                        //  INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" CATEGORY="Hand To Hand" DISPLAY="Martial Block" OCV="+2"
-                        //  DCV="+2" DC="0" PHASE="1/2" EFFECT="Block, Abort" ADDSTR="No" ACTIVECOST="20" DAMAGETYPE="0"
-                        //  MAXSTR="0" STRMULT="1" USEWEAPON="Yes" WEAPONEFFECT="Block, Abort">
-                        DISPLAY: name, // Not sure we should allow editing of basic maneuvers
-                        ADDSTR,
-                        USEWEAPON,
-                        WEAPONEFFECT,
-                    },
-                };
-
-                if (!itemData.name) {
-                    console.error("Missing name", itemData);
-                    return;
-                }
-
-                const item = this.id
-                    ? await HeroSystem6eItem.create(itemData, {
-                          parent: this,
-                      })
-                    : new HeroSystem6eItem(itemData, {
-                          parent: this,
-                      });
-
-                // Work around if temporary actor
-                if (!this.id) {
-                    this.items.set(item.system.XMLID, item);
-                }
-
-                return item._postUpload();
-            });
-
-        await Promise.all(maneuverPromises);
+        return Promise.all(maneuverPromises);
     }
-
-    // async addHeroSystemManeuversBulk() {
-    //     const powerList = this.system.is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
-    //     const itemsToCreate = powerList
-    //         .filter((power) => power.type?.includes("maneuver"))
-    //         .map((maneuver) => {
-    //             const name = maneuver.name;
-    //             const XMLID = maneuver.key;
-    //             const maneuverDetails = maneuver.maneuverDesc;
-    //             const PHASE = maneuverDetails.phase;
-    //             const OCV = maneuverDetails.ocv;
-    //             const DCV = maneuverDetails.dcv;
-    //             const EFFECT = maneuverDetails.effects;
-    //             const DC = maneuverDetails.dc;
-    //             const ADDSTR = maneuverDetails.addStr;
-    //             const USEWEAPON = maneuverDetails.useWeapon; // "No" if unarmed or not offensive maneuver
-    //             const WEAPONEFFECT = maneuverDetails.weaponEffect; // Not be present if not offensive maneuver
-
-    //             const itemData = {
-    //                 name,
-    //                 type: "maneuver",
-    //                 system: {
-    //                     PHASE,
-    //                     OCV,
-    //                     DCV,
-    //                     DC,
-    //                     EFFECT,
-    //                     active: false, // TODO: This is probably not always true. It should, however, be generated in other means.
-    //                     description: EFFECT,
-    //                     XMLID,
-    //                     // MARTIALARTS consists of a list of MANEUVERS, the MARTIALARTS MANEUVERS have more props than our basic ones.
-    //                     // Adding in some of those props as we may enhance/rework the basic maneuvers in the future.
-    //                     //  <MANEUVER XMLID="MANEUVER" ID="1705867725258" BASECOST="4.0" LEVELS="0" ALIAS="Block" POSITION="1"
-    //                     //  MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes"
-    //                     //  INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" CATEGORY="Hand To Hand" DISPLAY="Martial Block" OCV="+2"
-    //                     //  DCV="+2" DC="0" PHASE="1/2" EFFECT="Block, Abort" ADDSTR="No" ACTIVECOST="20" DAMAGETYPE="0"
-    //                     //  MAXSTR="0" STRMULT="1" USEWEAPON="Yes" WEAPONEFFECT="Block, Abort">
-    //                     DISPLAY: name, // Not sure we should allow editing of basic maneuvers
-    //                     ADDSTR,
-    //                     USEWEAPON,
-    //                     WEAPONEFFECT,
-    //                 },
-    //             };
-
-    //             if (!itemData.name) {
-    //                 console.error("Missing name", itemData);
-    //                 return;
-    //             }
-
-    //             return itemData;
-    //         });
-
-    //     const itemsCreated = await this.createEmbeddedDocuments("Item", itemsToCreate, {
-    //         render: false,
-    //         renderSheet: false,
-    //     });
-
-    //     // _postUpload gets called on all items at end of upload, so not really needed.
-    //     // _postUpload gets called as a final migration, so not really needed.
-    //     // AARON has chosen to skip _postUpload here.
-
-    //     // const postUploadPromises = [];
-    //     for (const item of itemsCreated) {
-    //         //const preItem = foundry.utils.deepClone(item.system);
-    //         //postUploadPromises.push(item._postUpload());
-    //         item._postUpload();
-    //         //debugger;
-    //     }
-    //     // await Promise.all(postUploadPromises);
-    // }
 
     static _xmlToJsonNode(json, children) {
         if (children.length === 0) return;
@@ -2253,6 +2271,16 @@ export class HeroSystem6eActor extends Actor {
                             break;
                         default:
                             jsonChild[attribute.name] = attribute.value.trim();
+                    }
+                }
+
+                // There can be confusion if the item is a MODIFIER or ADDER (EXPLOSION 5e/6e and others).
+                // So keep track of the tagName, which we use in getPowerInfo to help filter when there are duplicate XMLID keys.
+                if (child.attributes.length > 0) {
+                    try {
+                        jsonChild.xmlTag = tagName;
+                    } catch (e) {
+                        console.error(e);
                     }
                 }
             }
@@ -2535,6 +2563,7 @@ export class HeroSystem6eActor extends Actor {
         const charPowerEntry = getPowerInfo({
             xmlid: key.toUpperCase(),
             actor: this,
+            xmlTag: key.toUpperCase(),
         });
 
         if (characteristic && charPowerEntry?.behaviors.includes("success")) {
@@ -2663,4 +2692,58 @@ export class HeroSystem6eActor extends Actor {
     applyActiveEffects(...args) {
         return super.applyActiveEffects(...args);
     }
+
+    /**
+     * Create a new Token document, not yet saved to the database, which represents the Actor.
+     * @param {object} [data={}]            Additional data, such as x, y, rotation, etc. for the created token data
+     * @param {object} [options={}]         The options passed to the TokenDocument constructor
+     * @returns {Promise<TokenDocument>}    The created TokenDocument instance
+     */
+    // async getTokenDocument(data = {}, options = {}) {
+    //     const tokenData = this.prototypeToken.toObject();
+    //     tokenData.actorId = this.id;
+
+    //     if (tokenData.randomImg && !data.texture?.src) {
+    //         let images = await this.getTokenImages();
+    //         if (images.length > 1 && this._lastWildcard) {
+    //             images = images.filter((i) => i !== this._lastWildcard);
+    //         }
+    //         const image = images[Math.floor(Math.random() * images.length)];
+    //         tokenData.texture.src = this._lastWildcard = image;
+    //     }
+
+    //     if (!tokenData.actorLink) {
+    //         if (tokenData.appendNumber) {
+    //             // Count how many tokens are already linked to this actor
+    //             const tokens = canvas.scene.tokens.filter((t) => t.actorId === this.id);
+    //             // let n = tokens.length + 1;
+    //             // tokenData.name = `${tokenData.name} (${n})`;
+
+    //             // And make sure we don't already have this token name in this scene
+    //             for (let n = tokens.length + 1; n < 100; n++) {
+    //                 const sisterToken = canvas.scene.tokens.find(
+    //                     (t) => t.actorId === this.id && t.name === `${tokenData.name} (${n})`,
+    //                 );
+    //                 if (!sisterToken) {
+    //                     tokenData.name = `${tokenData.name} (${n})`;
+    //                     break;
+    //                 }
+    //             }
+    //         }
+
+    //         if (tokenData.prependAdjective) {
+    //             const adjectives = Object.values(
+    //                 foundry.utils.getProperty(game.i18n.translations, CONFIG.Token.adjectivesPrefix) ||
+    //                     foundry.utils.getProperty(game.i18n._fallback, CONFIG.Token.adjectivesPrefix) ||
+    //                     {},
+    //             );
+    //             const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    //             tokenData.name = `${adjective} ${tokenData.name}`;
+    //         }
+    //     }
+
+    //     foundry.utils.mergeObject(tokenData, data);
+    //     const cls = getDocumentClass("Token");
+    //     return new cls(tokenData, options);
+    // }
 }

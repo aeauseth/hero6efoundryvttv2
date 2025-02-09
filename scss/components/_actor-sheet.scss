@@ -165,6 +165,10 @@
     background-color: #cfcec3;
 }
 
+// .herosystem6e.sheet.item table tr.active-effects.adders {
+//     background-color: blue;
+// }
+
 .actor-sheet table tr.sticky {
     position: sticky;
     top: 0;
@@ -186,8 +190,18 @@
 }
 
 .actor-sheet th.left,
-.actor-sheet td.left {
+.actor-sheet td.left,
+.sheet.item th.left,
+.sheet.item td.left {
     text-align: left;
+}
+
+.sheet.item tr.modifier-adder td.left {
+    width: 80%;
+}
+
+.sheet.item tr.from-parent {
+    font-style: italic;
 }
 
 .actor-sheet input.left {

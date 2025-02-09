@@ -294,7 +294,7 @@ export class HeroRoller {
             if (this._type === HeroRoller.ROLL_TYPE.NORMAL) {
                 this._noBody = true;
             } else {
-                console.error(`Doesn't make sense to make non normal attack STUN only`);
+                console.error(`Doesn't make sense to make non normal attack STUN only`, this);
             }
         }
         return this;
@@ -484,6 +484,7 @@ export class HeroRoller {
             this.#addOperatorTerm(value > 0 ? "+" : "-");
         }
 
+        // TODO: We can have negative values, why are we ABSing here?
         value = this._formulaTerms.length > 0 ? Math.abs(value) : value;
         this._formulaTerms.push(
             new NumericTerm({

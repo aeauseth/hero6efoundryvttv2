@@ -415,7 +415,6 @@ export class HeroSystem6eCombat extends Combat {
             await expireEffects(combatant.actor);
         } catch (e) {
             console.error(e);
-            //debugger;
         }
 
         // Stop holding
@@ -430,12 +429,6 @@ export class HeroSystem6eCombat extends Combat {
             combatant.actor.removeActiveEffect(ae);
         }
 
-        // Stop SET
-        const SET = combatant.actor.items.find((i) => i.system.XMLID === "SET");
-        if (SET?.system.active === true) {
-            await SET.toggle();
-        }
-
         // Stop BRACE
         const BRACE = combatant.actor.items.find((i) => i.system.XMLID === "BRACE");
         if (BRACE?.system.active === true) {
@@ -447,6 +440,20 @@ export class HeroSystem6eCombat extends Combat {
         if (HAYMAKER?.system.active === true) {
             await HAYMAKER.toggle();
         }
+
+        // Stop dodges and other maneuvers' active effects that expire automatically
+        const maneuverNextPhaseAes = combatant.actor.effects.filter(
+            (ae) => ae.flags?.type === "maneuverNextPhaseEffect",
+        );
+        const maneuverNextPhaseTogglePromises = maneuverNextPhaseAes
+            .filter((ae) => ae.flags.toggle)
+            .map((toggleAes) => fromUuidSync(toggleAes.flags.itemUuid).toggle());
+        const maneuverNextPhaseNonTogglePromises = maneuverNextPhaseAes
+            .filter((ae) => !ae.flags.toggle)
+            .map((maneuverAes) => maneuverAes.delete());
+        await Promise.all(maneuverNextPhaseTogglePromises, maneuverNextPhaseNonTogglePromises);
+
+        // PH: FIXME: stop abort under certain circumstances
 
         // Reset movement history
         if (window.dragRuler) {
@@ -489,7 +496,7 @@ export class HeroSystem6eCombat extends Combat {
                     item.baseInfo.duration !== "instant" && // Is the power non instant
                     ((parseInt(item.system.end || 0) > 0 && // Does the power use END?
                         !item.system.MODIFIER?.find((o) => o.XMLID === "COSTSEND" && o.OPTION === "ACTIVATE")) || // Does the power use END continuously?
-                        item.system.charges), // Does the power use charges?
+                        (item.system.charges && !item.system.charges.continuing)), // Does the power use charges but is not continuous (as that is tracked by an effect when made active)?
             )) {
                 const {
                     error,
@@ -853,7 +860,7 @@ export class HeroSystem6eCombat extends Combat {
     }
 
     async _onUpdate(...args) {
-        console.log(`%c combat._onUpdate`, "background: #229; color: #bada55", args);
+        //console.log(`%c combat._onUpdate`, "background: #229; color: #bada55", args);
         super._onUpdate(...args);
     }
 

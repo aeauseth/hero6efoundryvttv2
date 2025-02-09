@@ -50,7 +50,7 @@ export function registerUploadTests(quench) {
                     it("description", function () {
                         assert.equal(
                             item.system.description,
-                            "Naked Advantage for up to 70 Active points, Reduced Endurance (0 END; +1/2) (35 Active Points); Gestures (Requires both hands, -1/2), Visible (Tattoos of flames encompass the biceps and shoulders.  When this power is active, these flames appear to burn, emitting firelight.; -1/4)",
+                            "Naked Advantage for up to 70 Active points, Reduced Endurance (0 END; +1/2) (35 Active Points); Gestures (Requires both hands; -1/2), Visible (Tattoos of flames encompass the biceps and shoulders.  When this power is active, these flames appear to burn, emitting firelight.; -1/4)",
                         );
                     });
 
@@ -118,7 +118,7 @@ export function registerUploadTests(quench) {
                     it("description", function () {
                         assert.equal(
                             item.system.description,
-                            "Naked Advantage for up to 53 Active points of STR (STR), Area Of Effect (8m Radius; +1/2) (26 Active Points); Linked (Greater Power is Constant or in use most or all of the time, Lesser Power can only be used when character uses greater Power at full value, -1/2), Linked (Greater Power is Constant or in use most or all of the time, Lesser Power can only be used when character uses greater Power at full value, -1/2), Only In Alternate Identity (-1/4), Perceivable (-1/4)",
+                            "Naked Advantage for up to 53 Active points of STR (STR), Area Of Effect (8m Radius; +1/2) (26 Active Points); Linked (Greater Power is Constant or in use most or all of the time, Lesser Power can only be used when character uses greater Power at full value; -1/2), Linked (Greater Power is Constant or in use most or all of the time, Lesser Power can only be used when character uses greater Power at full value; -1/2), Only In Alternate Identity (-1/4), Perceivable (-1/4)",
                         );
                     });
 
@@ -714,7 +714,7 @@ export function registerUploadTests(quench) {
                         it("description", function () {
                             assert.equal(
                                 item.system.description,
-                                'Energy Blast 22d6 (ED), Area Of Effect (1" One Hex; +1/2) (165 Active Points); Activation Roll (15-; Burnout, Jammed, -1/2)',
+                                'Energy Blast 22d6 (ED), Area Of Effect (1" One Hex; +1/2) (165 Active Points); Activation Roll (15-; Burnout, Jammed; -1/2)',
                             );
                         });
 
@@ -779,7 +779,7 @@ export function registerUploadTests(quench) {
                         it("description", function () {
                             assert.equal(
                                 item.system.description,
-                                'Energy Blast 22d6 (ED), Area Of Effect (2" Radius; +3/4) (192 Active Points); Activation Roll (15-; Burnout, Jammed, -1/2)',
+                                'Energy Blast 22d6 (ED), Area Of Effect (2" Radius; +3/4) (192 Active Points); Activation Roll (15-; Burnout, Jammed; -1/2)',
                             );
                         });
 
@@ -1583,7 +1583,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 1);
+                            assert.equal(item.costPerLevel, 1);
                         });
 
                         it("end", function () {
@@ -1630,7 +1630,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 2);
+                            assert.equal(item.costPerLevel, 2);
                         });
 
                         it("end", function () {
@@ -1677,7 +1677,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 3);
+                            assert.equal(item.costPerLevel, 3);
                         });
 
                         it("end", function () {
@@ -1724,7 +1724,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 3);
+                            assert.equal(item.costPerLevel, 3);
                         });
 
                         it("end", function () {
@@ -1771,7 +1771,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 3);
+                            assert.equal(item.costPerLevel, 3);
                         });
 
                         it("end", function () {
@@ -1821,7 +1821,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 4);
+                            assert.equal(item.costPerLevel, 4);
                         });
 
                         it("end", function () {
@@ -1871,7 +1871,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 4);
+                            assert.equal(item.costPerLevel, 4);
                         });
 
                         it("end", function () {
@@ -1921,7 +1921,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 4);
+                            assert.equal(item.costPerLevel, 4);
                         });
 
                         it("end", function () {
@@ -1968,7 +1968,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 5);
+                            assert.equal(item.costPerLevel, 5);
                         });
 
                         it("end", function () {
@@ -2015,7 +2015,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 5);
+                            assert.equal(item.costPerLevel, 5);
                         });
 
                         it("end", function () {
@@ -2065,7 +2065,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 4);
+                            assert.equal(item.costPerLevel, 4);
                         });
 
                         it("end", function () {
@@ -2115,7 +2115,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 4);
+                            assert.equal(item.costPerLevel, 4);
                         });
 
                         it("end", function () {
@@ -2162,7 +2162,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 6);
+                            assert.equal(item.costPerLevel, 6);
                         });
 
                         it("end", function () {
@@ -2209,7 +2209,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 6);
+                            assert.equal(item.costPerLevel, 6);
                         });
 
                         it("end", function () {
@@ -2259,7 +2259,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("costPerLevel", function () {
-                            assert.equal(item.system.costPerLevel, 6);
+                            assert.equal(item.costPerLevel, 6);
                         });
 
                         it("end", function () {
@@ -2690,7 +2690,7 @@ export function registerUploadTests(quench) {
             describe("Martial Dodge", function () {
                 const contents = `
                     <MANEUVER XMLID="MANEUVER" ID="1691013321509" BASECOST="4.0" LEVELS="0" ALIAS="Martial Dodge" POSITION="0" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" CATEGORY="Hand To Hand" DISPLAY="Martial Dodge" OCV="--" DCV="+5" DC="0" PHASE="1/2" EFFECT="Dodge, Affects All Attacks, Abort" ADDSTR="No" ACTIVECOST="35" DAMAGETYPE="0" MAXSTR="0" STRMULT="1" USEWEAPON="No">
-                    <NOTES />
+                        <NOTES />
                     </MANEUVER>
                 `;
                 let item;
@@ -2729,9 +2729,11 @@ export function registerUploadTests(quench) {
                     assert.equal(item.system.activePoints, 4);
                 });
 
-                it("end", function () {
-                    assert.equal(item.system.end, "0");
-                });
+                // Can't test this as martial maneuvers don't cost END but regular maneuvers don't cost. There is not enough content in
+                // contents to distinguish between them
+                // it("end", function () {
+                //     assert.equal(item.system.end, "0");
+                // });
             });
 
             describe("Skill Levels", function () {
@@ -4197,7 +4199,7 @@ export function registerUploadTests(quench) {
                 it("description", function () {
                     assert.equal(
                         item.system.description,
-                        "Suppress Flight 5½d6, Armor Piercing (+1/2) (42 Active Points); Range Based On Strength (-1/4)",
+                        `Suppress Flight 5½d6, Armor Piercing (+1/2) (42 Active Points); Range Based On Strength (8", -1/4)`,
                     );
                 });
 
@@ -5626,7 +5628,7 @@ export function registerUploadTests(quench) {
                     it("description", function () {
                         assert.equal(
                             item.system.description,
-                            "Energy Blast 1d6 (ED) (5 Active Points); Range Based On Strength (-1/4)",
+                            `Energy Blast 1d6 (ED) (5 Active Points); Range Based On Strength (16m, -1/4)`,
                         );
                     });
 
@@ -5842,7 +5844,7 @@ export function registerUploadTests(quench) {
                     it("description", function () {
                         assert.equal(
                             item.system.description,
-                            "Ego Attack 1d6 (10 Active Points); Range Based On Strength (-1/4)",
+                            "Ego Attack 1d6 (10 Active Points); Range Based On Strength (16m, -1/4)",
                         );
                     });
 
@@ -6879,7 +6881,7 @@ export function registerUploadTests(quench) {
                     it("description", function () {
                         assert.equal(
                             item.system.description,
-                            "Barrier 6 rPD/6 rED/3 BODY(up to 5m long, and 5m tall, and 1m thick) (Dismissable), Limited Power (Damages Environment; +0), Last For One Hour or Until Destroyed (+0) (38 Active Points); 2 Charges (Recovers after 2 Hours of Study, -2), Requires A Roll (Magic Skill roll; -1/2), Increased Endurance Cost (x3 END; -1/2), Costs Endurance (Only Costs END to Activate; -1/4), Gestures (-1/4), IIF (Component - Dirt From The Elemental Plane of Earth; -1/4), Incantations (-1/4)",
+                            "Barrier 6 rPD/6 rED/3 BODY(up to 5m long, and 5m tall, and 1m thick) (Dismissable), Limited Power (Damages Environment; +0), Last For One Hour or Until Destroyed (+0) (38 Active Points); 2 Charges (Recovers after 2 Hours of Study; -2), Requires A Roll (Magic Skill roll; -1/2), Increased Endurance Cost (x3 END; -1/2), Costs Endurance (Only Costs END to Activate; -1/4), Gestures (-1/4), IIF (Component - Dirt From The Elemental Plane of Earth; -1/4), Incantations (-1/4)",
                         );
                     });
 
@@ -7647,11 +7649,100 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 69);
+                    assert.equal(item.system.activePoints, 0);
                 });
 
                 it("damage", function () {
                     assert.equal(item.system.damage, "11d6");
+                });
+            });
+
+            describe("POSSESSION", function () {
+                const contents = `
+                    <POWER XMLID="POSSESSION" ID="1737915263534" BASECOST="60.0" LEVELS="0" ALIAS="Possession" POSITION="1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                        <NOTES />
+                        <ADDER XMLID="MINDCONTROLEFFECT" ID="1737915448080" BASECOST="0.0" LEVELS="20" ALIAS="+20 Points of Mind Control effect" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="Yes" INCLUDEINBASE="Yes" DISPLAYINSTRING="No" GROUP="No" LVLCOST="1.0" LVLVAL="2.0" SELECTED="YES">
+                            <NOTES />
+                        </ADDER>
+                        <ADDER XMLID="TELEPATHYEFFECT" ID="1737915448081" BASECOST="0.0" LEVELS="10" ALIAS="+10 Points of Telepathy effect" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="Yes" INCLUDEINBASE="Yes" DISPLAYINSTRING="No" GROUP="No" LVLCOST="1.0" LVLVAL="2.0" SELECTED="YES">
+                            <NOTES />
+                        </ADDER>
+                    </POWER>
+                `;
+                let item;
+
+                before(async () => {
+                    const actor = new HeroSystem6eActor(
+                        {
+                            name: "Quench Actor",
+                            type: "pc",
+                        },
+                        {},
+                    );
+                    actor.system.is5e = false;
+                    await actor._postUpload();
+
+                    item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                        parent: actor,
+                    });
+                    await item._postUpload();
+                    actor.items.set(item.system.XMLID, item);
+                });
+
+                it("description", function () {
+                    assert.equal(
+                        item.system.description,
+                        "Possession (Mind Control Effect 60 points; Telepathy Effect 40 points)",
+                    );
+                });
+
+                it("realCost", function () {
+                    assert.equal(item.system.realCost, 75);
+                });
+
+                it("activePoints", function () {
+                    assert.equal(item.system.activePoints, 75);
+                });
+
+                it("damage", function () {
+                    assert.equal(item.system.damage, "60");
+                });
+            });
+
+            describe("REFLECTION", function () {
+                const contents = `
+                    <POWER XMLID="REFLECTION" ID="1709333998486" BASECOST="0.0" LEVELS="1" ALIAS="Reflection" POSITION="69" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                `;
+                let item;
+
+                before(async () => {
+                    const actor = new HeroSystem6eActor(
+                        {
+                            name: "Quench Actor",
+                            type: "pc",
+                        },
+                        {},
+                    );
+                    actor.system.is5e = false;
+                    await actor._postUpload();
+
+                    item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                        parent: actor,
+                    });
+                    await item._postUpload();
+                    actor.items.set(item.system.XMLID, item);
+                });
+
+                it("description", function () {
+                    assert.equal(item.system.description, "Reflection (1 Active Points' worth)");
+                });
+
+                it("realCost", function () {
+                    assert.equal(item.system.realCost, 2);
+                });
+
+                it("activePoints", function () {
+                    assert.equal(item.system.activePoints, 2);
                 });
             });
         },

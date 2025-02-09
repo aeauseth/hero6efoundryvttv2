@@ -141,6 +141,7 @@
         "StatusBleeding": "Bleeding",
         "StatusBlocking": "Blocking",
         "StatusDead": "Dead",
+        "StatusDesolidification": "Desolidification",
         "StatusDodging": "Dodging",
         "StatusEntangled": "Entangled",
         "StatusFear": "Fear",

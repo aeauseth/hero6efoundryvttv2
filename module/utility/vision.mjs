@@ -92,6 +92,7 @@ export function setPerceptionModes() {
             return (filter2.thickness = 1), filter2;
         }
         _canDetect(visionSource, target) {
+            if (target?.document?.hidden === true) return false;
             if (super._canDetect(visionSource, target)) return true; // handled by standard vision
             if (!target.document.hidden && !target.document.hasStatusEffect("invisible")) {
                 return true;
@@ -100,12 +101,63 @@ export function setPerceptionModes() {
             // Invisibility Fringe
             const INVISIBILITY = target?.actor?.items.find((i) => i.system.XMLID === "INVISIBILITY");
             if (INVISIBILITY && !INVISIBILITY.findModsByXmlid("NOFRINGE")) {
-                const distance = calculateDistanceBetween(visionSource.token, target);
+                const distance = calculateDistanceBetween(visionSource.token, target).distance;
                 if (distance < 2.1) {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// Override
+        _testLOS(visionSource, mode, target, test) {
+            // Kluge to let PARTIALLYPENETRATIVE see thru walls.
+            // Although DESOLIDIFICATION make you undetectable via touch group
+            // TODO: Make wall materials and check each wall to see if we can see thru it.
+            const DESOLIDIFICATION = target?.actor?.items.find(
+                (i) => i.isActive && i.system.XMLID === "DESOLIDIFICATION",
+            );
+            const FLIGHT = target?.actor?.items.find((i) => i.isActive && i.system.XMLID === "FLIGHT");
+            const hideFromTouchGroup = DESOLIDIFICATION || FLIGHT;
+            const PARTIALLYPENETRATIVE = visionSource.object?.actor?.items.find(
+                (i) =>
+                    i.isActive &&
+                    i.isSense &&
+                    i.isRangedSense &&
+                    i.adders.find((a) => a.XMLID === "PARTIALLYPENETRATIVE") &&
+                    (!hideFromTouchGroup || i.system.GROUP != "TOUCHGROUP"),
+            );
+            const PENETRATIVE =
+                !DESOLIDIFICATION &&
+                visionSource.object?.actor?.items.find(
+                    (i) =>
+                        i.isActive &&
+                        i.isSense &&
+                        i.isRangedSense &&
+                        i.adders.find((a) => a.XMLID === "PENETRATIVE") &&
+                        (!hideFromTouchGroup || i.system.GROUP != "TOUCHGROUP"),
+                );
+
+            if (!this.walls || PARTIALLYPENETRATIVE || PENETRATIVE)
+                return this._testAngle(visionSource, mode, target, test);
+            const type = visionSource.constructor.sourceType;
+            const isSight = type === "sight";
+            if (isSight && visionSource.blinded.darkness) return false;
+            if (!this.angle && visionSource.data.angle < 360) {
+                // Constrained by walls but not by vision angle
+                return !CONFIG.Canvas.polygonBackends[type].testCollision(
+                    { x: visionSource.x, y: visionSource.y },
+                    test.point,
+                    { type, mode: "any", source: visionSource, useThreshold: true, includeDarkness: isSight },
+                );
+            }
+            // Constrained by walls and vision angle
+            let hasLOS = test.los.get(visionSource);
+            if (hasLOS === undefined) {
+                hasLOS = visionSource.los.contains(test.point.x, test.point.y);
+                test.los.set(visionSource, hasLOS);
+            }
+            return hasLOS;
         }
     }
 

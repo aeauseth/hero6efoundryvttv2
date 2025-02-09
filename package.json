@@ -26,7 +26,6 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@foundryvtt/foundryvtt-cli": "^1.0.3",
     "@stylistic/eslint-plugin-js": "^2.13.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",

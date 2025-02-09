@@ -1,9 +1,29 @@
 # Releases
 
-## Version 4.0.15 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+## Version 4.0.16 20250208 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+
+- Improved default selection of conditional mental defenses/vulnerabilities. [#1782](https://github.com/dmdorman/hero6e-foundryvtt/issues/1695)
+- Fix issue where some ActiveEffects (AID/DRAIN/etc) were not expiring. [#1737](https://github.com/dmdorman/hero6e-foundryvtt/issues/1737)
+- Support for 5e PD/ED purchased as characteristics along with RESISTANT DEFENSES is not supported. Instead use ARMOR. We do not allow RESISTANT DEFENSES to exceed your natural PD/ED. A warning is shown every time the actor sheet is opened. [#1795](https://github.com/dmdorman/hero6e-foundryvtt/issues/1795)
+- Fixed martial flash effect application.
+- Generic "Roll Damage" button can now apply PD & ED damage to tokens. [#1614](https://github.com/dmdorman/hero6e-foundryvtt/issues/1614)
+- Add "Other Attacks" maneuver to 5e. [#1814](https://github.com/dmdorman/hero6e-foundryvtt/issues/1814)
+- Correct 5e explosion radius and DC falloff. [#1811](https://github.com/dmdorman/hero6e-foundryvtt/issues/1811)
+- Zero BODY entangles have no effect.
+- Two entangles now result in highest BODY entangle +1. [#1825](https://github.com/dmdorman/hero6e-foundryvtt/issues/1825)
+- Called shot to the chest now, correctly, has a -3 OCV.
+- Continuing charges no longer use charges per phase. [#1823](https://github.com/dmdorman/hero6e-foundryvtt/issues/1823)
+- Fixed issue where the final fade of AID/DRAIN wasn't adjusting VALUE properly. [#1854](https://github.com/dmdorman/hero6e-foundryvtt/issues/1854)
+- Overhauled and simplified the code that determines costs, modifies, adders, etc. Several cost corrections. Slightly improved UI when you edit an item.
+
+## Version 4.0.15 20250125
 
 - PD and ED from AID is now applying to defenses. [#1695](https://github.com/dmdorman/hero6e-foundryvtt/issues/1695)
 - Fixed Penalty Skill Levels for range. [#1734](https://github.com/dmdorman/hero6e-foundryvtt/issues/1734)
+- AoE with Hit Locations no longer crashes, however all targets incorrectly have same hit location. [#1767](https://github.com/dmdorman/hero6e-foundryvtt/issues/1767)
+- Improved default FoundryVTT appendNumber. Adding single tokens to a scene that appends a number to the token now ensure duplicate token names are not created. Does not change the default FoundryVTT behavior for adding multiple tokens during a paste operation.
+- Combat maneuvers which don't use STR now use 1 END.
+- Automatons now have perception and maneuvers again. [#1756](https://github.com/dmdorman/hero6e-foundryvtt/issues/1756)
 
 ## Version 4.0.14 20250119
 

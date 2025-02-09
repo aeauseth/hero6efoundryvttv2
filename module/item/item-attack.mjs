@@ -19,8 +19,11 @@ import { calculateVelocityInSystemUnits } from "../ruler.mjs";
 import { Attack } from "../utility/attack.mjs";
 import { calculateDistanceBetween, calculateRangePenaltyFromDistanceInMetres } from "../utility/range.mjs";
 import { overrideCanAct } from "../settings/settings-helpers.mjs";
+import { activateManeuver } from "./maneuver.mjs";
+import { HeroSystem6eActor } from "../actor/actor.mjs";
 
-export async function chatListeners(html) {
+export async function chatListeners(_html) {
+    const html = $(_html); // v13 compatibility
     html.on("click", "button.roll-damage", this._onRollDamage.bind(this));
     html.on("click", "button.apply-damage", this._onApplyDamage.bind(this));
     html.on("click", "button.rollAoe-damage", this._onRollAoeDamage.bind(this));
@@ -106,20 +109,22 @@ export async function collectActionDataBeforeToHitOptions(item) {
         data.velocitySystemUnits = getSystemDisplayUnits(item.is5e);
     }
 
-    const aoe = item.getAoeModifier();
-
-    // TODO: This needs to be considered. AOE does not preclude hit locations.
-    if (game.settings.get(HEROSYS.module, "hit locations") && !item.system.noHitLocations && !aoe) {
-        data.useHitLoc = true;
-        //data.hitLoc = CONFIG.HERO.hitLocations;
-        data.hitLocSide =
-            game.settings.get(HEROSYS.module, "hitLocTracking") === "all" ? CONFIG.HERO.hitLocationSide : null;
-    }
-
     await new ItemAttackFormApplication(data).render(true);
 }
 
 export async function processActionToHit(item, formData) {
+    const haymakerManeuverActive = item.actor?.items.find(
+        (item) => item.type === "maneuver" && item.system.XMLID === "HAYMAKER" && item.system.active,
+    );
+    if (haymakerManeuverActive) {
+        // Can haymaker anything except for maneuvers because it is a maneuver itself. The strike manuever is the 1 exception.
+        if (item.type === "martialart" || (item.type === "maneuver" && item.system.XMLID !== "STRIKE")) {
+            return ui.notifications.warn("Haymaker cannot be combined with another maneuver except Strike.", {
+                localize: true,
+            });
+        }
+    }
+
     if (item.getAoeModifier()) {
         await doAoeActionToHit(item, formData);
     } else {
@@ -151,7 +156,7 @@ export async function doAoeActionToHit(item, options) {
         return ui.notifications.error(`Attack AOE template was not found.`);
     }
 
-    const distanceToken = calculateDistanceBetween(aoeTemplate, token);
+    const distanceToken = calculateDistanceBetween(aoeTemplate, token).distance;
     let dcvTargetNumber = 0;
     if (distanceToken > (actor.system.is5e ? 1 : 2)) {
         dcvTargetNumber = 3;
@@ -166,7 +171,7 @@ export async function doAoeActionToHit(item, options) {
         .makeSuccessRoll()
         .addNumber(11, "Base to hit")
         .addNumber(hitCharacteristic, item.system.uses)
-        .addNumber(parseInt(options.ocvMod) || 0, "OCV modifier")
+        .addNumber(Math.max(0, parseInt(options.ocvMod) || 0), "OCV modifier")
         .addNumber(-parseInt(setManeuver?.baseInfo?.maneuverDesc?.ocv || 0), "Set Maneuver");
 
     if (item.system.range === CONFIG.HERO.RANGE_TYPES.SELF) {
@@ -216,6 +221,7 @@ export async function doAoeActionToHit(item, options) {
         }
     }
 
+    // FIXME: Why do we have this? We don't do anything with it.
     let dcv = parseInt(item.system.dcv || 0);
 
     const cvModifiers = action.current.cvModifiers;
@@ -279,11 +285,6 @@ export async function doAoeActionToHit(item, options) {
         );
         cvModifiers.push(cvMod);
     });
-    // Haymaker -5 DCV
-    const haymakerManeuver = actor.items.find((o) => o.type == "maneuver" && o.name === "Haymaker" && o.isActive);
-    if (haymakerManeuver) {
-        dcv -= 5;
-    }
 
     cvModifiers.forEach((cvModifier) => {
         if (cvModifier.cvMod.ocv) {
@@ -505,9 +506,9 @@ export async function doSingleTargetActionToHit(item, options) {
 
     const itemData = item.system;
 
-    const hitCharacteristic = actor.system.characteristics[itemData.uses]?.value;
-    if (!hitCharacteristic) {
-        return ui.notifications.error(
+    const hitCharacteristic = Math.max(0, actor.system.characteristics[itemData.uses]?.value);
+    if (!getCharacteristicInfoArrayForActor(actor).find((o) => o.key === itemData.uses.toUpperCase())) {
+        ui.notifications.warn(
             `<b>${item.actor.name}</b> does not have <b>${itemData.uses.toUpperCase()}</b>. ${item.actor.type === "base2" ? `Consider creating a COMPUTER` : ``}`,
         );
     }
@@ -517,9 +518,7 @@ export async function doSingleTargetActionToHit(item, options) {
     const adjustment = getPowerInfo({
         item: item,
     })?.type?.includes("adjustment");
-    const senseAffecting = getPowerInfo({
-        item: item,
-    })?.type?.includes("sense-affecting");
+    const senseAffecting = item.isSenseAffecting();
 
     // TODO: Much of this looks similar to the AOE stuff above. Any way to combine?
     // -------------------------------------------------
@@ -572,7 +571,7 @@ export async function doSingleTargetActionToHit(item, options) {
         }
 
         const target = targets[0];
-        const distance = token ? calculateDistanceBetween(token, target) : 0;
+        const distance = token ? calculateDistanceBetween(token, target).distance : 0;
         const rangePenalty = -calculateRangePenaltyFromDistanceInMetres(distance);
 
         // PENALTY_SKILL_LEVELS (range)
@@ -748,8 +747,8 @@ export async function doSingleTargetActionToHit(item, options) {
     // If AOE then sort by distance from center
     if (explosion) {
         targetsArray.sort(function (a, b) {
-            const distanceA = calculateDistanceBetween(aoeTemplate, a);
-            const distanceB = calculateDistanceBetween(aoeTemplate, b);
+            const distanceA = calculateDistanceBetween(aoeTemplate, a).distance;
+            const distanceB = calculateDistanceBetween(aoeTemplate, b).distance;
             return distanceA - distanceB;
         });
     }
@@ -769,7 +768,7 @@ export async function doSingleTargetActionToHit(item, options) {
         // Mind Scan defers DMCV so use 3 for now
         if (isNaN(targetDefenseValue) || target.actor.type === "base2") {
             const _token = actor.token || actor.getActiveTokens()[0];
-            if (!target.actor || calculateDistanceBetween(_token, target) > 2) {
+            if (!target.actor || calculateDistanceBetween(_token, target).distance > 2) {
                 targetDefenseValue = 3;
             } else {
                 targetDefenseValue = 0;
@@ -814,7 +813,7 @@ export async function doSingleTargetActionToHit(item, options) {
         if (aoeModifier) {
             // Distance from aoeTemplate origin to target/token center
             if (aoeTemplate && target.id) {
-                const distanceInMetres = calculateDistanceBetween(aoeTemplate, target.center);
+                const distanceInMetres = calculateDistanceBetween(aoeTemplate, target.center).distance;
                 by += ` (${getRoundedDownDistanceInSystemUnits(distanceInMetres, item.actor)}${getSystemDisplayUnits(
                     item.actor.is5e,
                 )} from template origin)`;
@@ -928,7 +927,7 @@ export async function doSingleTargetActionToHit(item, options) {
         return;
     }
 
-    // Block (which is a repeatable abort) has a different to-hit behaviour
+    // Block (which is a repeatable abort) has a different to-hit behavior
     const blockIndex = item.system.EFFECT?.toLowerCase().indexOf("block");
     if (blockIndex > -1) {
         if (targetData.length === 1) {
@@ -941,7 +940,7 @@ export async function doSingleTargetActionToHit(item, options) {
     }
 
     if (["maneuver", "martialart"].includes(item.type)) {
-        item.activateManeuver();
+        activateManeuver(item);
     }
 
     const cardData = {
@@ -1341,6 +1340,8 @@ async function _rollApplyKnockback(token, knockbackDice) {
     for (const vuln of conditionalDefenses.filter(
         (o) => o.system.XMLID === "VULNERABILITY" && !ignoreDefenseIds.includes(o.id),
     )) {
+        damageData.VulnDesc ??= [];
+        damageData.VulnDesc.push(vuln.conditionalDefenseShortDescription);
         if (vuln.system.MODIFIER) {
             for (const modifier of vuln.system.MODIFIER || []) {
                 switch (modifier.OPTIONID) {
@@ -1521,15 +1522,11 @@ export async function _onRollDamage(event) {
         item: item,
     })?.type?.includes("adjustment");
     // Sense affecting power or maneuver with FLASHDC
-    const senseAffecting =
-        !!getPowerInfo({
-            item: item,
-        })?.type?.includes("sense-affecting") ||
-        (item.system.EFFECT && item.system.EFFECT.search(/\[FLASHDC\]/) > -1);
+    const senseAffecting = item.isSenseAffecting();
     const isKilling = item.doesKillingDamage;
     const isEntangle = item.system.XMLID === "ENTANGLE";
-    const isNormalAttack = !senseAffecting && !adjustment && !isKilling;
-    const isKillingAttack = !senseAffecting && !adjustment && isKilling;
+    const isNormalAttack = !isEntangle && !senseAffecting && !adjustment && !isKilling;
+    const isKillingAttack = !isEntangle && !senseAffecting && !adjustment && isKilling;
     const isEffectBasedAttack = isBodyBasedEffectRoll(item) || isStunBasedEffectRoll(item);
 
     const increasedMultiplierLevels = parseInt(item.findModsByXmlid("INCREASEDSTUNMULTIPLIER")?.LEVELS || 0);
@@ -1740,7 +1737,7 @@ export async function _onRollMindScanEffectRoll(event) {
     const targetEgo = targetsEgo + egoAdder;
 
     const adjustment = item.baseInfo?.type?.includes("adjustment");
-    const senseAffecting = item.baseInfo?.type?.includes("sense-affecting");
+    const senseAffecting = item.isSenseAffecting();
 
     const useStandardEffect = item.system.USESTANDARDEFFECT || false;
 
@@ -1886,6 +1883,40 @@ export async function _onApplyDamage(event) {
             return ui.notifications.warn(`You must select at least one token before applying damage.`);
         }
 
+        const item = fromUuidSync(damageData.itemId);
+        const action = damageData.actionData ? JSON.parse(damageData.actionData) : null;
+
+        if (!item && action?.damageType) {
+            action.defense = await Dialog.wait({
+                title: "Generic Damage",
+                content: `You used the generic "Roll Damage" button. Select the defense you want applied.`,
+                buttons: {
+                    PD: {
+                        label: "PD",
+                        callback: () => {
+                            return "PD";
+                        },
+                    },
+                    ED: {
+                        label: "ED",
+                        callback: () => {
+                            return "ED";
+                        },
+                    },
+                    // MD: {
+                    //     label: "MD",
+                    //     callback: () => {
+                    //         return "MD";
+                    //     },
+                    // },
+                },
+                close: () => {
+                    return null;
+                },
+            });
+            damageData.actionData = JSON.stringify(action);
+        }
+
         for (const token of canvas.tokens.controlled) {
             await _onApplyDamageToSpecificToken(toHitData, damageData, {
                 tokenId: token.id,
@@ -1914,7 +1945,40 @@ export async function _onApplyDamageToSpecificToken(toHitData, damageData, targe
         );
     }
 
-    const item = fromUuidSync(damageData.itemId);
+    const action = damageData.actionData ? JSON.parse(damageData.actionData) : null;
+    let item = fromUuidSync(damageData.itemId);
+
+    // Generic Damage Roll - create a fake item
+    if (!item && action.damageType) {
+        let xml;
+        switch (action.defense) {
+            case "PD":
+            case "ED": {
+                const _xmlid = action.damageType === "KILLING" ? "RKA" : "ENERGYBLAST";
+                xml = `<POWER XMLID="${_xmlid}" ID="1735535975123" BASECOST="0.0" LEVELS="0" ALIAS="Generic Damage" INPUT="${action.defense}">
+                    </POWER>`;
+                break;
+            }
+            case null:
+                return;
+            default:
+                ui.notifications.error(`Generic ${action.defense} damage is not supported.`);
+                return;
+        }
+
+        const actor = new HeroSystem6eActor({
+            name: `Generic Actor`,
+            type: "npc",
+        });
+        actor.system.is5e = token?.actor?.is5e;
+        await actor._postUpload();
+        item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(xml, actor), {
+            parent: actor,
+        });
+        await item._postUpload();
+        actor.items.set(item.system.XMLID, item);
+    }
+
     if (!item) {
         // This typically happens when the attack id stored in the damage card no longer exists on the actor.
         // For example if the attack item was deleted or the HDC was uploaded again.
@@ -1931,21 +1995,51 @@ export async function _onApplyDamageToSpecificToken(toHitData, damageData, targe
     if (explosion) {
         // Distance from center
         if (aoeTemplate) {
+            if (
+                game.scenes.current.grid.type === CONST.GRID_TYPES.SQUARE &&
+                game.settings.get("core", "gridDiagonals") !== CONST.GRID_DIAGONALS.EXACT
+            ) {
+                ui.notifications.warn(
+                    'The Core FoundryVTT setting, "Square Grid Diagonals", needs to be "Exact (√2)" for correct measurement and behavior for this scene because it has square grid.',
+                );
+            }
+
             // Explosion
             // Simple rules is to remove the hightest dice term for each
             // hex distance from center. Works fine when radius = dice,
             // but that isn't always the case.
 
-            // Remove highest terms based on distance
-            const distance = calculateDistanceBetween(aoeTemplate, token.object.center);
-            const pct = distance / aoeTemplate.distance;
+            let distance;
+            let pct;
 
-            // TODO: This assumes that the number of terms equals the DC/5 AP. This is
-            //       true for normal attacks but not always.
-            // TODO: This ignores explosion modifiers for DC falloff.
-            const termsToRemove = Math.floor(pct * (damageRoller.getBaseTerms().length - 1));
+            // 5e distance measurements are not the same as 6e which just uses euclidian measurements. If the game
+            // is being played with 5e measurements use them to figure the distance correctly.
+            const HexTemplates = game.settings.get(HEROSYS.module, "HexTemplates");
+            const hexGrid = !(
+                game.scenes.current.grid.type === CONST.GRID_TYPES.GRIDLESS ||
+                game.scenes.current.grid.type === CONST.GRID_TYPES.SQUARE
+            );
 
+            if (HexTemplates && hexGrid) {
+                const gridSizeInMeters = game.scenes.current.grid.distance;
+                distance = calculateDistanceBetween(aoeTemplate, token.object.center).gridSpaces * gridSizeInMeters;
+
+                // NOTE: The grid size is half a hex smaller since the centre hex counts as 1" so template is 1m smaller (see item-attack-application.mjs)
+                pct = distance / (aoeTemplate.distance + 1);
+            } else {
+                distance = calculateDistanceBetween(aoeTemplate, token.object.center).distance;
+                pct = distance / aoeTemplate.distance;
+            }
+
+            // Remove highest N terms
+            // TODO: We could improve this by dropping part terms for situations where we have >5AP/die
+            const originalNumberOfTerms = damageRoller.getFullBaseTerms().base.length;
+            const termsToRemove = Math.floor(pct * originalNumberOfTerms);
             damageRoller.removeNHighestRankTerms(termsToRemove);
+        } else {
+            ui.notifications.warn(
+                `No Area Of Effect template was found, will apply FULL EFFECT to ${targetToken.name}.`,
+            );
         }
     }
 
@@ -1954,7 +2048,6 @@ export async function _onApplyDamageToSpecificToken(toHitData, damageData, targe
     const baseDamageRoller = damageRoller.clone();
 
     const automation = game.settings.get(HEROSYS.module, "automation");
-    const action = damageData.actionData ? JSON.parse(damageData.actionData) : null;
 
     if (item.system.XMLID === "ENTANGLE") {
         return _onApplyEntangleToSpecificToken(item, token, damageRoller, action);
@@ -2017,6 +2110,11 @@ export async function _onApplyDamageToSpecificToken(toHitData, damageData, targe
     // Check for conditional defenses
     const { ignoreDefenseIds, conditionalDefenses } = await getConditionalDefenses(token, item, avad);
 
+    // If we had conditional defenses and showed the UI to select them, but canceled, getConditionalDefenses returns null values
+    if (ignoreDefenseIds === null) {
+        return;
+    }
+
     // Some defenses require a roll not just to active, but on each use.  6e EVERYPHASE.  5e ACTIVATIONROLL
     const defenseEveryPhase = token.actor.items.filter(
         (o) =>
@@ -2073,6 +2171,8 @@ export async function _onApplyDamageToSpecificToken(toHitData, damageData, targe
     for (const vuln of conditionalDefenses.filter(
         (o) => o.system.XMLID === "VULNERABILITY" && !ignoreDefenseIds.includes(o.id),
     )) {
+        damageData.VulnDesc ??= [];
+        damageData.VulnDesc.push(vuln.conditionalDefenseShortDescription);
         if (vuln.system.MODIFIER) {
             for (const modifier of vuln.system.MODIFIER || []) {
                 switch (modifier.OPTIONID) {
@@ -2154,10 +2254,7 @@ export async function _onApplyDamageToSpecificToken(toHitData, damageData, targe
     if (adjustment) {
         return _onApplyAdjustmentToSpecificToken(item, token, damageDetail, defense, defenseTags, action);
     }
-    const senseAffecting =
-        getPowerInfo({
-            item: item,
-        })?.type?.includes("sense-affecting") || item.system.EFFECT?.includes("FLASHDC");
+    const senseAffecting = item.isSenseAffecting();
     if (senseAffecting) {
         return _onApplySenseAffectingToSpecificToken(item, token, damageDetail, defense);
     }
@@ -2336,6 +2433,42 @@ export async function _onApplyEntangleToSpecificToken(item, token, originalRoll)
     const entangleDefense = item.baseInfo.defense(item);
     let body = originalRoll.getEntangleTotal();
 
+    if (body <= 0) {
+        const cardData = {
+            item: item,
+
+            // Incoming Damage Information
+            incomingDamageSummary: originalRoll.getTotalSummary(),
+            incomingAnnotatedDamageTerms: originalRoll.getAnnotatedTermsSummary(),
+
+            // dice rolls
+            roller: originalRoll,
+
+            // damage info
+            effects: `${token.name} is not affected by the 0 BODY entangle.`,
+
+            // misc
+            attackTags: getAttackTags(item),
+            targetToken: token,
+        };
+
+        // render card
+        const template = `systems/${HEROSYS.module}/templates/chat/apply-entangle-card.hbs`;
+        const cardHtml = await renderTemplate(template, cardData);
+        const speaker = ChatMessage.getSpeaker({ actor: item.actor });
+        speaker.alias = item.actor.name;
+
+        const chatData = {
+            style: CONST.CHAT_MESSAGE_STYLES.OOC,
+            author: game.user._id,
+            content: cardHtml,
+            speaker: speaker,
+        };
+
+        ChatMessage.create(chatData);
+        return;
+    }
+
     // Entangle Active Effect
     // Get current or a base Entangle Effect
     // If a character is affected by more than one Entangle, use the
@@ -2353,7 +2486,7 @@ export async function _onApplyEntangleToSpecificToken(item, token, originalRoll)
                 ? `${entangleDefense.rMD} rMD`
                 : `${entangleDefense.rPD} rPD/${entangleDefense.rED} rED`
         }`),
-            (body = Math.max(body, prevBody + 1));
+            (body = Math.max(body, prevBody) + 1);
     }
     const effectData = {
         id: "entangled",
@@ -2813,26 +2946,38 @@ async function _onApplySenseAffectingToSpecificToken(senseAffectingItem, token, 
     // TODO: Need loop for multiple sense groups.
     // TODO: Flash defense should target approprate sense group
     let senseDisabledEffect = HeroSystem6eActorActiveEffects.statusEffectsObj.sightSenseDisabledEffect;
-    switch (senseAffectingItem.system.OPTIONID) {
+
+    // OPTIONID comes from FLASH POWER, INPUT comes from Martial Flash
+    const targetGroup = senseAffectingItem.system.OPTIONID || senseAffectingItem.system.INPUT;
+    switch (targetGroup) {
         case "SIGHTGROUP":
+        case "Sight":
             break; // This is already the default
         case "HEARINGGROUP":
+        case "Hearing":
             senseDisabledEffect = HeroSystem6eActorActiveEffects.statusEffectsObj.hearingSenseDisabledEffect;
             break;
         case "MENTALGROUP":
+        case "Mental":
             senseDisabledEffect = HeroSystem6eActorActiveEffects.statusEffectsObj.mentalSenseDisabledEffect;
             break;
         case "RADIOGROUP":
+        case "Radio":
             senseDisabledEffect = HeroSystem6eActorActiveEffects.statusEffectsObj.radioSenseDisabledEffect;
             break;
         case "SMELLGROUP":
+        case "Smell/Taste":
             senseDisabledEffect = HeroSystem6eActorActiveEffects.statusEffectsObj.smellTasteSenseDisabledEffect;
             break;
         case "TOUCHGROUP":
+        case "Touch":
             senseDisabledEffect = HeroSystem6eActorActiveEffects.statusEffectsObj.touchSenseDisabledEffect;
             break;
+        case "Unusual":
+            ui.notifications.warn(`FLASHing ${targetGroup} is unsupported`);
+            break;
         default:
-            ui.notifications.warn(`Unable to determine FLASH effect for ${senseAffectingItem.system.OPTIONID}`);
+            ui.notifications.warn(`Unable to determine FLASH effect for ${targetGroup}`);
     }
 
     // Create new ActiveEffect
@@ -2899,9 +3044,7 @@ async function _calcDamage(heroRoller, item, options) {
     const adjustmentPower = getPowerInfo({
         item: item,
     })?.type?.includes("adjustment");
-    const senseAffectingPower = getPowerInfo({
-        item: item,
-    })?.type?.includes("sense-affecting");
+    const senseAffectingPower = item.isSenseAffecting();
     const entangle = item.system.XMLID === "ENTANGLE";
     const bodyBasedEffectRollItem = isBodyBasedEffectRoll(item);
     const stunBasedEffectRollItem = isStunBasedEffectRoll(item);
@@ -2944,7 +3087,7 @@ async function _calcDamage(heroRoller, item, options) {
         stun = heroRoller.getStunTotal();
 
         // TODO: Doesn't handle a 1 point killing attack which is explicitly called out as doing 1 penetrating BODY.
-        if (itemData.killing) {
+        if (item.doesKillingDamage) {
             bodyForPenetrating = (await heroRoller.cloneWhileModifyingType(HeroRoller.ROLL_TYPE.NORMAL)).getBodyTotal();
         } else {
             bodyForPenetrating = body;
@@ -2953,14 +3096,15 @@ async function _calcDamage(heroRoller, item, options) {
         // Knocked out targets take double STUN damage from attacks
         const targetActor = (game.scenes.current.tokens.get(options.targetTokenId) || options.targetToken)?.actor;
         if (targetActor?.statuses.has("knockedOut")) {
-            effects += "Knocked Out x2 STUN; ";
+            const preStun = stun;
             stun *= 2;
+            effects += `Knocked Out x2 STUN (${preStun}x2=${stun});`;
         }
     }
 
     const noHitLocationsPower = !!item.system.noHitLocations;
     const useHitLocations = game.settings.get(HEROSYS.module, "hit locations") && !noHitLocationsPower;
-    const hasStunMultiplierRoll = itemData.killing && !useHitLocations;
+    const hasStunMultiplierRoll = item.doesKillingDamage && !useHitLocations;
 
     const stunMultiplier = hasStunMultiplierRoll ? heroRoller.getStunMultiplier() : 1;
 
@@ -2992,14 +3136,17 @@ async function _calcDamage(heroRoller, item, options) {
 
     // VULNERABILITY
     if (options.vulnStunMultiplier) {
-        const vulnStunDamage = Math.floor(stun * (options.vulnStunMultiplier - 1));
-        stun += vulnStunDamage;
-        effects += `Vunlerability x${options.vulnStunMultiplier} STUN (${vulnStunDamage});`;
+        const preStun = stun;
+        stun = Math.floor(stun * options.vulnStunMultiplier);
+        effects += `Vunlerability x${options.vulnStunMultiplier} STUN (${preStun}x${options.vulnStunMultiplier}=${stun});`;
     }
     if (options.vulnBodyMultiplier) {
-        const vulnBodyDamage = Math.floor(stun * (options.vulnBodyMultiplier - 1));
-        body += vulnBodyDamage;
-        effects += `Vunlerability x${options.vulnBodyMultiplier} BODY (${vulnBodyDamage});`;
+        const preBody = body;
+        body = Math.floor(body * options.vulnBodyMultiplier);
+        effects += `Vunlerability x${options.vulnBodyMultiplier} BODY (${preBody}x${options.vulnBodyMultiplier}=${body});`;
+    }
+    for (const desc of options.VulnDesc || []) {
+        effects += ` ${desc};`;
     }
 
     let bodyDamage = body;
@@ -3013,7 +3160,7 @@ async function _calcDamage(heroRoller, item, options) {
     // kludge: Apply body defense twice.
     let REDUCEDPENETRATION = item.findModsByXmlid("REDUCEDPENETRATION");
     if (REDUCEDPENETRATION) {
-        if (item.killing) {
+        if (item.doesKillingDamage) {
             body = Math.max(0, body - (options.resistantValue || 0));
         }
         body = Math.max(0, body - (options.defenseValue || 0));
@@ -3033,7 +3180,7 @@ async function _calcDamage(heroRoller, item, options) {
     // -------------------------------------------------
     // determine effective damage
     // -------------------------------------------------
-    if (itemData.killing) {
+    if (item.doesKillingDamage) {
         stun = stun - (options.defenseValue || 0) - (options.resistantValue || 0);
         body = body - (options.resistantValue || 0);
     } else {
@@ -3049,7 +3196,7 @@ async function _calcDamage(heroRoller, item, options) {
         const hitLocationBodyMultiplier = heroRoller.getHitLocation().bodyMultiplier;
         const hitLocationStunMultiplier = heroRoller.getHitLocation().stunMultiplier;
 
-        if (itemData.killing) {
+        if (item.doesKillingDamage) {
             // Killing attacks apply hit location multiplier after resistant damage protection has been subtracted
             // Location : [x Stun, x N Stun, x Body, OCV modifier]
             body = RoundFavorPlayerDown(body * hitLocationBodyMultiplier);
@@ -3072,10 +3219,10 @@ async function _calcDamage(heroRoller, item, options) {
     }
 
     // Penetrating attack minimum damage
-    if (itemData.killing && penetratingBody > body) {
+    if (item.doesKillingDamage && penetratingBody > body) {
         body = penetratingBody;
         effects += "penetrating damage; ";
-    } else if (!itemData.killing && penetratingBody > stun) {
+    } else if (!item.doesKillingDamage && penetratingBody > stun) {
         stun = penetratingBody;
         effects += "penetrating damage; ";
     }

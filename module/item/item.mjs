@@ -5,7 +5,7 @@ import {
     userInteractiveVerifyOptionallyPromptThenSpendResources,
 } from "../item/item-attack.mjs";
 import { createSkillPopOutFromItem } from "../item/skill.mjs";
-import { enforceManeuverLimits } from "../item/manuever.mjs";
+import { activateManeuver, deactivateManeuver, enforceManeuverLimits } from "./maneuver.mjs";
 import {
     adjustmentSourcesPermissive,
     adjustmentSourcesStrict,
@@ -24,7 +24,7 @@ import {
     calculateStrengthMinimumForItem,
     combatSkillLevelsForAttack,
     dicePartsToEffectFormula,
-    getEffectForumulaFromItem,
+    getEffectFormulaFromItem,
     getFullyQualifiedEffectFormulaFromItem,
 } from "../utility/damage.mjs";
 import { getSystemDisplayUnits } from "../utility/units.mjs";
@@ -34,6 +34,9 @@ import { HeroSystem6eActorActiveEffects } from "../actor/actor-active-effects.mj
 import { Attack } from "../utility/attack.mjs";
 import { getItemDefenseVsAttack } from "../utility/defense.mjs";
 import { overrideCanAct } from "../settings/settings-helpers.mjs";
+import { HeroSystem6eAdder } from "./adder.mjs";
+import { HeroSystem6eModifier } from "./modifier.mjs";
+import { HeroSystem6ePower } from "./powers.mjs";
 
 export function initializeItemHandlebarsHelpers() {
     Handlebars.registerHelper("itemFullDescription", itemFullDescription);
@@ -123,11 +126,11 @@ function filterItem(item, filterString) {
     return false;
 }
 
-function itemHasBehaviours(item, ...desiredBehavorArgs) {
-    const desiredBehaviors = [...desiredBehavorArgs];
-    for (const desiredBehavior of desiredBehaviors) {
+function itemHasBehaviours(item, ...desiredBehaviourArgs) {
+    const desiredBehaviours = [...desiredBehaviourArgs];
+    for (const desiredbehaviour of desiredBehaviours) {
         // Unfortunately handlebars seems to pass metadata in the last argument as an object. We use only strings.
-        if (typeof desiredBehavior === "string" && item.baseInfo.behaviors.includes(desiredBehavior)) {
+        if (typeof desiredbehaviour === "string" && item.baseInfo.behaviors.includes(desiredbehaviour)) {
             return true;
         }
     }
@@ -216,8 +219,68 @@ export class HeroSystem6eItem extends Item {
      * Augment the basic Item data model with additional dynamic data.
      */
 
-    prepareData() {
-        super.prepareData();
+    // prepareData() {
+    //     super.prepareData();
+    // }
+
+    calcItemPointsNew() {
+        const performanceStart = new Date().getTime();
+        let changed = false;
+        //super.prepareDerivedData();
+
+        if (this.actor?.is5e === undefined) {
+            //console.warn(`${this.actor.name}/${this.name}: Skipping prepareDerivedData because is5e === undefined`);
+            return false;
+        }
+
+        // Base points plus adders
+        const _basePointsPlusAdders = this._basePoints + this._addersCost;
+        if (_basePointsPlusAdders !== this.system.basePointsPlusAdders) {
+            changed = true;
+            // if (this.system.basePointsPlusAdders) {
+            //     console.warn(
+            //         `${this.actor.name}/${this.name}/${this.system.XMLID} prepareDerivedData basePointsPlusAdders. Legacy (${this.system.basePointsPlusAdders}) vs new (${_basePointsPlusAdders})`,
+            //     );
+            // }
+        }
+        this.system.basePointsPlusAdders = _basePointsPlusAdders;
+        this.system.basePointsPlusAddersForActivePoints = _basePointsPlusAdders - this._negativeCustomAddersCost;
+
+        //calcActivePoints
+        // Active Points = (Base Points + cost of any Adders) x (1 + total value of all Advantages)
+        const _activePoints = this._activePoints;
+        if (_activePoints !== this.system.activePoints) {
+            changed = true;
+            // if (this.system.activePoints) {
+            //     console.warn(
+            //         `${this.actor.name}/${this.name}/${this.system.XMLID} prepareDerivedData activePoints. Legacy (${this.system.activePoints}) vs new (${_activePoints})`,
+            //     );
+            // }
+        }
+        this.system.activePoints = _activePoints;
+        this.system._activePointsWithoutEndMods = this._activePointsForEnd;
+        this.system.activePointsDc = this._activePointsDcAffecting;
+        this.system._advantages = this._advantageCost;
+        this.system._advantagesDc = this._advantagesAffectingDc;
+
+        //calcRealCost
+        const _realCost = this._realCost;
+        if (_realCost !== this.system.realCost) {
+            changed = true;
+            // if (this.system.realCost) {
+            //     console.warn(
+            //         `${this.actor.name}/${this.name}/${this.system.XMLID} prepareDerivedData realCost. Legacy (${this.system.realCost}) vs new (${_realCost})`,
+            //     );
+            // }
+            // system.realCost = _realCost + costSuffix;
+            this.system.realCost = _realCost;
+        }
+
+        const performanceDuration = new Date().getTime() - performanceStart;
+        if (performanceDuration > 1000) {
+            console.warn(`Performance concern. Took ${performanceDuration} to prepareDerivedData`, this);
+        }
+        return changed;
     }
 
     async _onUpdate(changed, options, userId) {
@@ -311,6 +374,7 @@ export class HeroSystem6eItem extends Item {
     hasSuccessRoll() {
         const powerInfo = getPowerInfo({
             item: this,
+            xmlTag: this.system.xmlTag,
         });
         return (
             powerInfo?.behaviors.includes("success") ||
@@ -322,7 +386,7 @@ export class HeroSystem6eItem extends Item {
         if (!this.actor.canAct(true, event)) return;
 
         if (this.baseInfo.behaviors.includes("dice") || this.baseInfo.behaviors.includes("to-hit")) {
-            // FIXME: Martial manuevers all share the MANEUVER XMLID. Need to extract out things from that (and fix the broken things).
+            // FIXME: Martial maneuvers all share the MANEUVER XMLID. Need to extract out things from that (and fix the broken things).
             switch (this.system.XMLID) {
                 case "AID":
                 case "BLOCK":
@@ -397,7 +461,9 @@ export class HeroSystem6eItem extends Item {
                 this.updateRoll();
                 return createSkillPopOutFromItem(this, this.actor);
             } else {
-                ui.notifications.warn(`${this.name} roll (${hasSuccessRoll}/${isSkill}) is not supported`);
+                ui.notifications.warn(
+                    `${this.actor.name}: ${this.name} roll (${hasSuccessRoll}/${isSkill}) is not supported`,
+                );
             }
         }
     }
@@ -521,108 +587,6 @@ export class HeroSystem6eItem extends Item {
     }
 
     /**
-     * Activate a basic, optional, or martial maneuver
-     */
-    activateManeuver() {
-        function addDcvTraitToChanges(maneuverDcvChange) {
-            if (maneuverDcvChange !== 0) {
-                return {
-                    key: "system.characteristics.dcv.value",
-                    value: maneuverDcvChange,
-                    mode: CONST.ACTIVE_EFFECT_MODES.ADD,
-                };
-            }
-        }
-
-        function addOcvTraitToChanges(maneuverOcvChange) {
-            if (maneuverOcvChange !== 0) {
-                return {
-                    key: "system.characteristics.ocv.value",
-                    value: maneuverOcvChange,
-                    mode: CONST.ACTIVE_EFFECT_MODES.ADD,
-                };
-            }
-        }
-
-        // TODO: Can the actor activate this maneuver?
-
-        const maneuverDcvTrait = parseInt(this.system.DCV === "--" ? 0 : this.system.DCV || 0);
-        const maneuverOcvTrait = parseInt(this.system.OCV === "--" ? 0 : this.system.OCV || 0);
-
-        // Enable the effect if there is one
-        const effect = this.system.EFFECT?.toLowerCase();
-        if (effect) {
-            const maneuverHasAbortTrait = effect.indexOf("abort") > -1;
-            const maneuverHasDodgeTrait = effect.indexOf("dodge") > -1;
-            const maneuverHasBlockTrait = effect.indexOf("block") > -1;
-
-            const currentCombatActorId = game.combat?.combatants.find(
-                (combatant) => combatant.tokenId === game.combat.current?.tokenId,
-            )?.actorId;
-            const thisActorsCombatTurn =
-                game.combat?.active && currentCombatActorId != undefined && currentCombatActorId === this.actor?.id;
-
-            // Abort effect - If in combat and not our turn then this must be an abort
-            if (maneuverHasAbortTrait && game.combat?.active && !thisActorsCombatTurn) {
-                this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.abortEffect);
-            }
-
-            // Dodge effect
-            if (maneuverHasDodgeTrait) {
-                const dodgeStatusEffect = foundry.utils.deepClone(
-                    HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect,
-                );
-                dodgeStatusEffect.name = this.name ? `${this.name} (${this.system.XMLID})` : `${this.system.XMLID}`;
-                dodgeStatusEffect.changes = [
-                    addDcvTraitToChanges(maneuverDcvTrait),
-                    addOcvTraitToChanges(maneuverOcvTrait),
-                ].filter(Boolean);
-                this.actor.addActiveEffect(dodgeStatusEffect);
-            }
-
-            // Block effect
-            if (maneuverHasBlockTrait) {
-                const blockStatusEffect = foundry.utils.deepClone(
-                    HeroSystem6eActorActiveEffects.statusEffectsObj.blockEffect,
-                );
-                blockStatusEffect.name = this.name ? `${this.name} (${this.system.XMLID})` : `${this.system.XMLID}`;
-                blockStatusEffect.changes = [
-                    addDcvTraitToChanges(maneuverDcvTrait),
-                    addOcvTraitToChanges(maneuverOcvTrait),
-                ].filter(Boolean);
-                this.actor.addActiveEffect(blockStatusEffect);
-            }
-        }
-
-        // Turn on any status effects that we have implemented
-        if (this.system.XMLID === "BRACE") {
-            this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect);
-        } else if (this.system.XMLID === "HAYMAKER") {
-            this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect);
-        }
-    }
-
-    /**
-     * Deactivate a basic, optional, or martial maneuver
-     */
-    deactivateManeuver() {
-        const effect = this.system.EFFECT?.toLowerCase();
-        if (effect) {
-            const maneuverHasDodgeTrait = effect.indexOf("dodge") > -1;
-            if (maneuverHasDodgeTrait) {
-                this.actor.removeActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect);
-            }
-        }
-
-        // Turn off any status effects that we have implemented
-        if (this.system.XMLID === "BRACE") {
-            this.actor.removeActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect);
-        } else if (this.system.XMLID === "HAYMAKER") {
-            this.actor.removeActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect);
-        }
-    }
-
-    /**
      *
      * @param {Event} [event]
      * @returns {Promise<any>}
@@ -694,8 +658,10 @@ export class HeroSystem6eItem extends Item {
                 }
             } else if (this.system.XMLID === "FLIGHT" || this.system.XMLID === "GLIDING") {
                 this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.flyingEffect);
+            } else if (this.system.XMLID === "DESOLIDIFICATION") {
+                this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.desolidificationEffect);
             } else if (["maneuver", "martialart"].includes(item.type)) {
-                await this.activateManeuver();
+                await activateManeuver(this);
             }
         } else {
             // Let GM know power was deactivated
@@ -723,8 +689,12 @@ export class HeroSystem6eItem extends Item {
                 if (this.actor.statuses.has("fly")) {
                     await this.actor.removeActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.flyingEffect);
                 }
+            } else if (this.system.XMLID === "DESOLIDIFICATION") {
+                await this.actor.removeActiveEffect(
+                    HeroSystem6eActorActiveEffects.statusEffectsObj.desolidificationEffect,
+                );
             } else if (["maneuver", "martialart"].includes(item.type)) {
-                await this.deactivateManeuver();
+                await deactivateManeuver(this);
             }
         }
 
@@ -788,7 +758,7 @@ export class HeroSystem6eItem extends Item {
 
         // If we have control of this token, re-acquire to update movement types
         const myToken = this.actor?.getActiveTokens()?.[0];
-        if (canvas.tokens.controlled?.find((t) => t.id == myToken.id)) {
+        if (canvas.tokens.controlled?.find((t) => t.id == myToken?.id)) {
             myToken.release();
             myToken.control();
         }
@@ -799,8 +769,25 @@ export class HeroSystem6eItem extends Item {
             return false;
         }
 
+        if (this.system.XMLID.startsWith("__")) {
+            return false;
+        }
+
         // Power must be turned on
-        if (this.system.active === false) return false;
+        if (this.baseInfo?.behaviors.includes("activatable") && !this.system.active) {
+            return false;
+        }
+
+        // Combat Maneuvers and Martial Arts are only perceivable when used
+        if (["maneuver", "martialarts"].includes(this.type)) {
+            return false;
+        }
+
+        // If you roll dice the power isn't perceivable just by looking at you.
+        // The power must be rolled to be perceivable.
+        if (this.baseInfo?.type.includes("attack") || this.baseInfo?.behaviors.includes("to-hit")) {
+            return false;
+        }
 
         // Only In ALternate Identity
         if (this.findModsByXmlid("OIHID") && this.actor.system.heroicIdentity === false) return false;
@@ -825,40 +812,35 @@ export class HeroSystem6eItem extends Item {
             return true; // 5e?
         }
 
-        // Parent that's visible?
-        // if (this.parentItem) {
-        //     const VISIBLE = this.parentItem.system.MODIFIER?.find((o) => o.XMLID === "VISIBLE");
-        //     if (VISIBLE) {
-        //         if (VISIBLE?.OPTION.endsWith("OBVIOUS")) {
-        //             return true;
-        //         } else if (VISIBLE?.OPTION.endsWith("INOBVIOUS")) {
-        //             return perceptionSuccess;
-        //         }
-        //     }
-        // }
+        // Default values
+        if (this.baseInfo?.perceivability?.toLowerCase() === "imperceptible") {
+            return false;
+        } else if (this.baseInfo?.perceivability?.toLowerCase() === "obvious") {
+            return true;
+        } else if (this.baseInfo?.perceivability?.toLowerCase() === "inobvious") {
+            return perceptionSuccess;
+        }
+
+        // Movement Powers are Inobvious most of the time
+        if (this.baseInfo?.type.includes("movement")) {
+            return perceptionSuccess;
+        }
+
+        // MULTIPOWERs are likely not preceivable by default
+        if (["MULTIPOWER"].includes(this.system.XMLID)) {
+            return false;
+        }
 
         if (
-            !this.baseInfo?.perceivability &&
-            !["skill", "disadvantage", "perk"].includes(this.type) &&
-            !this.baseInfo?.type.includes("characteristic") &&
-            !this.baseInfo?.type.includes("passive") // passive sense
+            ["skill", "disadvantage", "perk"].includes(this.type) ||
+            this.baseInfo?.type.includes("characteristic") ||
+            this.baseInfo?.type.includes("passive") // passive sense
         ) {
-            console.warn(`Missing perceivability: for ${this.system.XMLID}`, this);
+            return false;
         }
 
         if (this.baseInfo?.duration?.toLowerCase() === "instant") {
             return false;
-        }
-
-        if (!this.baseInfo?.perceivability) {
-            // TODO: Should it say that it's not perceivable if we haven't set it.
-            return false;
-        } else if (this.baseInfo?.perceivability.toLowerCase() === "imperceptible") {
-            return false;
-        } else if (this.baseInfo?.perceivability.toLowerCase() === "obvious") {
-            return true;
-        } else if (this.baseInfo?.perceivability.toLowerCase() === "inobvious") {
-            return perceptionSuccess;
         }
 
         if (["INVISIBILITY"].includes(this.system.XMLID)) {
@@ -867,6 +849,7 @@ export class HeroSystem6eItem extends Item {
 
         if (game.settings.get(game.system.id, "alphaTesting")) {
             ui.notifications.warn(`${this.name} has undetermined perceivability`);
+            console.log(this);
         }
 
         return false;
@@ -891,13 +874,22 @@ export class HeroSystem6eItem extends Item {
 
             // recurse part
             for (const mod of this.modifiers || this.MODIFIER || []) {
-                if (recursiveFindByXmlid.call(mod, xmlid)) return mod;
+                const mod2 = recursiveFindByXmlid.call(mod, xmlid);
+                if (mod2) {
+                    return mod2;
+                }
             }
             for (const adder of this.adders || this.ADDER || []) {
-                if (recursiveFindByXmlid.call(adder, xmlid)) return adder;
+                const adder2 = recursiveFindByXmlid.call(adder, xmlid);
+                if (adder2) {
+                    return adder2;
+                }
             }
             for (const power of this.powers || this.POWER || []) {
-                if (recursiveFindByXmlid.call(power, xmlid)) return power;
+                const power2 = recursiveFindByXmlid.call(power, xmlid);
+                if (power2) {
+                    return power2;
+                }
             }
         }
 
@@ -1053,17 +1045,22 @@ export class HeroSystem6eItem extends Item {
     }
 
     // An attempt to cache getPowerInfo for performance reasons.
-    #baseInfo = getPowerInfo({ item: this });
+    //_baseInfo ??= getPowerInfo({ item: this, xmlTag: this.system.xmlTag });
     getBaseInfo() {
         console.warn("Use baseInfo instead of getBaseInfo");
-        return this.#baseInfo;
+        return this.baseInfo;
     }
     get baseInfo() {
-        return this.#baseInfo;
+        // cache getPowerInfo
+        this._baseInfo ??= getPowerInfo({ item: this, xmlTag: this.system.xmlTag });
+        return this._baseInfo;
     }
 
     get is5e() {
-        return this.actor?.is5e || this.system?.is5e;
+        if (this.actor?.is5e !== undefined) {
+            return this.actor.is5e;
+        }
+        return this.system?.is5e;
     }
 
     get dc() {
@@ -1077,6 +1074,18 @@ export class HeroSystem6eItem extends Item {
     // PH: FIXME: Need to check that this works for maneuvers. They do have an ACTIVECOST field although ours might not.
     get activePointsForDc() {
         return this.system.activePointsDc;
+    }
+
+    activePointsWithoutAoeAdvantage(aoeModifier) {
+        // FIXME: This is not quite correct as it item.system.activePoints are already rounded so this can
+        //        come up short. We need a raw active cost and build up the advantage multipliers from there.
+        //        Make sure the value is at least basePointsPlusAdders but this is just a kludge to handle most cases.
+        const activePointsWithoutAoeAdvantage = Math.max(
+            this.system.basePointsPlusAdders,
+            this.system.activePoints / (1 + aoeModifier.BASECOST_total),
+        );
+
+        return activePointsWithoutAoeAdvantage;
     }
 
     /**
@@ -1104,15 +1113,8 @@ export class HeroSystem6eItem extends Item {
 
         // 5e has a calculated size
         if (is5e) {
+            const activePointsWithoutAoeAdvantage = this.activePointsWithoutAoeAdvantage(modifier);
             if (modifier.XMLID === "AOE") {
-                // not counting the Area Of Effect Advantage.
-                // TODO: This is not quite correct as it item.system.activePoints are already rounded so this can
-                //       come up short. We need a raw active cost and build up the advantage multipliers from there.
-                //       Make sure the value is at least basePointsPlusAdders but this is just a kludge to handle most cases.
-                const activePointsWithoutAoeAdvantage = Math.max(
-                    this.system.basePointsPlusAdders,
-                    this.system.activePoints / (1 + modifier.BASECOST_total),
-                );
                 switch (modifier.OPTIONID) {
                     case "CONE":
                         levels = RoundFavorPlayerUp(1 + activePointsWithoutAoeAdvantage / 5);
@@ -1157,7 +1159,11 @@ export class HeroSystem6eItem extends Item {
                 }
                 dcFalloff = modifier.LEVELS ? parseInt(modifier.LEVELS) : dcFalloff;
 
-                levels = this.dc * dcFalloff;
+                // The description in FRed is poorly written as it talks about AP of the power but it doesn't exclude
+                // the contribution of the explosion advantage itself although its example does. We will remove the explosion contribution to
+                // the power's DC.
+                const effectiveDc = Math.floor(activePointsWithoutAoeAdvantage / 5);
+                levels = effectiveDc * dcFalloff;
             }
         } else {
             levels = parseInt(modifier.LEVELS || 0);
@@ -1260,7 +1266,8 @@ export class HeroSystem6eItem extends Item {
         return originalRange === this.system.range;
     }
 
-    AoeAttackParameters(options) {
+    // FIXME: Take this function out back and kill it. It's too similar to buildAoeAttackParameters
+    aoeAttackParameters(options) {
         const aoeModifier = this.getAoeModifier();
         if (aoeModifier) {
             const is5e = !!this.actor?.system?.is5e;
@@ -1289,16 +1296,16 @@ export class HeroSystem6eItem extends Item {
                     effectiveItemData.calcItemPoints();
                 }
 
-                if (aoeModifier.XMLID === "AOE") {
-                    // not counting the Area Of Effect Advantage.
-                    // TODO: This is not quite correct as it item.system.activePoints are already rounded so this can
-                    //       come up short. We need a raw active cost and build up the advantage multipliers from there.
-                    //       Make sure the value is at least basePointsPlusAdders but this is just a kludge to handle most cases.
+                // not counting the Area Of Effect Advantage.
+                // TODO: This is not quite correct as item.system.activePoints are already rounded so this can
+                //       come up short. We need a raw active cost and build up the advantage multipliers from there.
+                //       Make sure the value is at least basePointsPlusAdders but this is just a kludge to handle most cases.
+                const activePointsWithoutAoeAdvantage = Math.max(
+                    effectiveItemData.system.basePointsPlusAdders,
+                    effectiveItemData.system.activePoints / (1 + aoeModifier.BASECOST_total),
+                );
 
-                    const activePointsWithoutAoeAdvantage = Math.max(
-                        effectiveItemData.system.basePointsPlusAdders,
-                        effectiveItemData.system.activePoints / (1 + aoeModifier.BASECOST_total),
-                    );
+                if (aoeModifier.XMLID === "AOE") {
                     switch (aoeModifier.OPTIONID) {
                         case "CONE":
                             levels = RoundFavorPlayerUp(1 + activePointsWithoutAoeAdvantage / 5);
@@ -1345,7 +1352,8 @@ export class HeroSystem6eItem extends Item {
                         ? parseInt(options?.LEVELS || aoeModifier.LEVELS)
                         : dcFalloff;
 
-                    levels = this.dc * dcFalloff;
+                    const effectiveDc = Math.floor(activePointsWithoutAoeAdvantage / 5);
+                    levels = effectiveDc * dcFalloff;
                 }
             } else {
                 levels = parseInt(options?.LEVELS || aoeModifier.LEVELS);
@@ -1436,14 +1444,14 @@ export class HeroSystem6eItem extends Item {
             return true;
         }
 
-        // FIXME: This should not be required as the behaviour should be marked correctly.
+        // FIXME: This should not be required as the behavior should be marked correctly.
         if (this.baseInfo?.type?.includes("sense")) {
             return true;
         }
 
-        // FIXME: This should not be required as the behaviour should be marked correctly.
+        // FIXME: This should not be required as the behavior should be marked correctly.
         // Talent/Skill/Perk as Powers are technically toggleable
-        if (this.type === "power" && ["talent", "skill", "perk"].find((o) => this.#baseInfo?.type.includes(o))) {
+        if (this.type === "power" && ["talent", "skill", "perk"].find((o) => this.baseInfo?.type.includes(o))) {
             return true;
         }
 
@@ -1762,7 +1770,7 @@ export class HeroSystem6eItem extends Item {
 
             this.updateRoll();
 
-            changed = this.determinePointCosts() || changed;
+            changed = this.determinePointCosts() || changed; // Moved to prepareDerivedData
 
             // CHARGES
             const CHARGES = this.findModsByXmlid("CHARGES");
@@ -1770,6 +1778,7 @@ export class HeroSystem6eItem extends Item {
                 this.system.charges = {
                     ...this.system.charges,
                     max: parseInt(CHARGES.OPTION_ALIAS),
+                    value: parseInt(CHARGES.OPTION_ALIAS),
                     clipsMax: Math.pow(
                         parseInt((CHARGES.ADDER || []).find((o) => o.XMLID === "CLIPS")?.LEVELS || 1),
                         2,
@@ -1782,10 +1791,10 @@ export class HeroSystem6eItem extends Item {
                 };
 
                 // The first time through, on creation, there will be no value (number of charges) defined.
-                if (this.system.charges?.value == null) {
-                    this.system.charges.value = this.system.charges.max;
-                    changed = true;
-                }
+                // if (this.system.charges?.value == null) {
+                //     this.system.charges.value = this.system.charges.max;
+                //     changed = true;
+                // }
             } else {
                 // When CHARGES is manually deleted
                 if (this.system.charges) {
@@ -1932,7 +1941,7 @@ export class HeroSystem6eItem extends Item {
                             o.rollsToHit() &&
                             (!o.baseInfo.behaviors.includes("optional-maneuver") ||
                                 game.settings.get(HEROSYS.module, "optionalManeuvers")) &&
-                            !o.system.XMLID.startsWith("__"), // TODO: Should we allow __STRENGTHDAMAGE to have a "to-hit" behaviour when it isn't player facing?
+                            !o.system.XMLID.startsWith("__"), // TODO: Should we allow __STRENGTHDAMAGE to have a "to-hit" behavior when it isn't player facing?
                     )) {
                         let addMe = false;
 
@@ -1974,6 +1983,7 @@ export class HeroSystem6eItem extends Item {
                                 }
 
                                 switch (this.system.OPTIONID) {
+                                    case "SINGLESINGLE": // Depricated ?
                                     case "SINGLE":
                                         if (count === 0) {
                                             // Is this part of a framework/compound power/list?
@@ -2472,6 +2482,7 @@ export class HeroSystem6eItem extends Item {
     }
 
     static itemDataFromXml(xml, actor) {
+        const performanceStart = new Date().getTime();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xml, "text/xml");
         const heroJson = {};
@@ -2514,11 +2525,25 @@ export class HeroSystem6eItem extends Item {
                     : [heroJson[itemSubTag]]) {
                     itemData = {
                         name: system?.NAME || system?.ALIAS || system?.XMLID || itemTag, // simplistic name for now
-                        type: powerList.filter((o) => o.type?.includes("characteristic")).map((o) => o.key)
-                            ? "power"
-                            : itemTag.toLowerCase().replace(/s$/, ""),
-                        system: { ...system, is5e: itemData.system.is5e },
+                        type:
+                            powerList
+                                .filter((o) => o.type?.includes("characteristic"))
+                                .map((o) => o.key)
+                                .includes(system.XMLID) || ["MULTIPOWER", "ELEMENTAL_CONTROL"].includes(system.XMLID)
+                                ? "power"
+                                : itemTag.toLowerCase().replace(/s$/, ""),
+                        system: { ...system, is5e: itemData.system.is5e, xmlTag: itemSubTag },
                     };
+
+                    // Skill Enhancers
+                    if (["JACK_OF_ALL_TRADES", "LINGUIST", "SCIENTIST", "SCHOLAR", "TRAVELER"].includes(system.XMLID)) {
+                        itemData.type = "skill";
+                    }
+
+                    // Perk Enhancers
+                    if (["WELL_CONNECTED"].includes(system.XMLID)) {
+                        itemData.type = "perk";
+                    }
 
                     return itemData;
                 }
@@ -2532,6 +2557,13 @@ export class HeroSystem6eItem extends Item {
                 is5e: itemData.system.is5e,
             };
             itemData.name = itemData.system?.ALIAS || itemData.system?.XMLID;
+        }
+
+        const performanceDuration = new Date().getTime() - performanceStart;
+        if (performanceDuration > 1000) {
+            console.warn(
+                `${this.actor?.name}/${this.name}/${this.system.XMLID}: Performance concernt. Took ${performanceDuration} seconds to upload.`,
+            );
         }
 
         return itemData;
@@ -2587,7 +2619,11 @@ export class HeroSystem6eItem extends Item {
     }
 
     get modifiers() {
-        const _modifiers = this.system.MODIFIER || [];
+        let _modifiers = [];
+        for (const _mod of this.system.MODIFIER || []) {
+            //_modifiers.push(_mod);
+            _modifiers.push(new HeroSystem6eModifier(_mod, { item: this, _itemUuid: this.uuid }));
+        }
         if (this.parentItem) {
             // Include common modifiers from parent that are not private.
             // <i>Crossbow:</i>  Multipower, 50-point reserve,  (50 Active Points); all slots OAF (-1)
@@ -2596,15 +2632,31 @@ export class HeroSystem6eItem extends Item {
                 if (!_modifiers.find((mod) => mod.ID === pMod.ID)) {
                     // We may want the parent reference at some point (like for ingame editing of items)
                     pMod.parentId ??= this.parentItem.system.ID;
-                    _modifiers.push(pMod);
+
+                    // Sometimes the same modifiers is applied to item and items parent, we only keep the parent one
+                    _modifiers = _modifiers.filter((mod) => mod.XMLID !== pMod.XMLID);
+                    _modifiers.push(new HeroSystem6eModifier(pMod, { item: this }));
                 }
             }
         }
+
         return _modifiers;
     }
 
+    get advantages() {
+        return this.modifiers.filter((o) => o.cost >= 0);
+    }
+
+    get limitations() {
+        return this.modifiers.filter((o) => o.cost < 0);
+    }
+
     get adders() {
-        return this.system.ADDER || [];
+        const _addres = [];
+        for (const _adderJson of this.system.ADDER || []) {
+            _addres.push(new HeroSystem6eAdder(_adderJson, { item: this, parent: this }));
+        }
+        return _addres;
     }
 
     get powers() {
@@ -2614,28 +2666,55 @@ export class HeroSystem6eItem extends Item {
         // A quick sanity check warns of this issue and removes the offending POWER from the array.
         // There was an issue where findModsByXmlid(, "STRMINIMUM") would return the COMPOUNDPOWER instead of the RKA (Oceana Silverheart.HDC)
         let powersList = this.system.POWER || [];
-        for (let p of powersList) {
-            const childDuplicate = this.childItems.find((c) => c.system.ID === p.ID);
-            if (childDuplicate) {
-                console.warn(
-                    `${this.actor.name}:${p.ALIAS} is and ITEM (${this.name}). It also has a POWER modifier entry that shouldn't be there. The offending POWER modifier has been temporarily removed and should not cause any issues. Re-uploading the HDC file will permenantly resolve this issue.`,
-                );
-                this.system.POWER = powersList.filter((p) => !this.childItems.find((c) => c.system.ID === p.ID));
+        try {
+            for (let p of powersList) {
+                const childDuplicate = this.childItems.find((c) => c.system.ID === p.ID);
+                if (childDuplicate) {
+                    console.warn(
+                        `${this.actor.name}:${p.ALIAS} is an ITEM (${this.name}). It also has a POWER modifier entry that shouldn't be there. The offending POWER modifier has been temporarily removed and should not cause any issues. Re-uploading the HDC file should resolve this issue.`,
+                    );
+                    this.system.POWER = powersList.filter((p) => !this.childItems.find((c) => c.system.ID === p.ID));
+                }
             }
+            powersList = powersList.filter((p) => !this.childItems.find((c) => c.system.ID === p.ID));
+
+            const _powers = [];
+            for (const _powerJson of powersList) {
+                _powers.push(new HeroSystem6ePower(_powerJson, { item: this, parent: this }));
+            }
+            return _powers;
+        } catch (e) {
+            console.error(e);
+            return [];
         }
-        powersList = powersList.filter((p) => !this.childItems.find((c) => c.system.ID === p.ID));
-        return powersList;
     }
 
     calcItemPoints() {
-        let changed = false;
-        changed = this.calcBasePointsPlusAdders() || changed;
-        changed = this.calcActivePoints() || changed;
-        changed = this.calcRealCost() || changed;
-        return changed;
+        // console.warn(`Cost calculations moved to prepareDerivedData. Should no longer call this function`);
+        // return false;
+
+        return this.calcItemPointsNew();
+
+        //     let changed = false;
+        //     changed = this.calcBasePointsPlusAdders() || changed;
+        //     changed = this.calcActivePoints() || changed;
+        //     changed = this.calcRealCost() || changed;
+        //     // if (this.system.basePointsPlusAdders != this._basePoints + this._addersCost) {
+        //     //     console.warn(
+        //     //         `${this.actor?.name}/${this.name}/${this.system.XMLID}: cost mismatch between legacy (${this.system.basePointsPlusAdders}) ` +
+        //     //             `and new calculations (${this._basePoints} + ${this._addersCost} = ${this._basePoints + this._addersCost})`,
+        //     //         this,
+        //     //     );
+        //     // }
+        //     return changed;
     }
 
     calcBasePointsPlusAdders() {
+        // const oldValue = this.system.basePointsPlusAdders;
+        // this.system.basePointsPlusAdders = this._basePoints + this._addersCost;
+        // this.system.basePointsPlusAddersForActivePoints = this.system.basePointsPlusAdders;
+        // return oldValue != this.system.basePointsPlusAdders;
+
         const system = this.system;
         const actor = this.actor;
 
@@ -2659,6 +2738,7 @@ export class HeroSystem6eItem extends Item {
         const configPowerInfo = getPowerInfo({
             item: this,
             actor: actor,
+            xmlTag: this.system.xmlTag,
         });
 
         // Base Cost is typically extracted directly from HDC
@@ -2711,10 +2791,16 @@ export class HeroSystem6eItem extends Item {
             cost *= multiplier;
         }
 
+        // Cost override
+        if (typeof this.baseInfo?.cost === "function") {
+            cost = this.baseInfo.cost(this);
+            baseCost = 0;
+        }
+
         // ADDERS
         let adderCost = 0;
         let negativeCustomAdderCosts = 0;
-        for (const adder of system.ADDER || []) {
+        for (const adder of this.system.ADDER || []) {
             // Some adders kindly provide a base cost. Some, however, are 0 and so fallback to the LVLCOST and hope it's provided
             const adderBaseCost = parseInt(adder.BASECOST || adder.LVLCOST) || 0;
 
@@ -2722,11 +2808,12 @@ export class HeroSystem6eItem extends Item {
                 //TRANSPORT_FAMILIARITY
                 const adderCostPerLevel = parseFloat(adder.LVLCOST || 0) / parseFloat(adder.LVLVAL || 1) || 1;
                 const adderLevels = parseInt(adder.LEVELS);
-                adder.BASECOST_total = adderBaseCost + Math.ceil(adderCostPerLevel * adderLevels);
 
                 // WEAPONSMITH (selections over 1 cost only 1)
                 if (this.system.XMLID === "WEAPONSMITH" && adderCost > 0) {
                     adder.BASECOST_total = 1;
+                } else {
+                    adder.BASECOST_total = adderBaseCost + Math.ceil(adderCostPerLevel * adderLevels);
                 }
             } else {
                 adder.BASECOST_total = 0;
@@ -2797,47 +2884,41 @@ export class HeroSystem6eItem extends Item {
 
         cost += adderCost;
 
-        // Cost override
-        if (typeof this.baseInfo?.cost === "function") {
-            cost = this.baseInfo.cost(this);
-            baseCost = 0;
-        }
-
         // INDEPENDENT ADVANTAGE (aka Naked Advantage)
         // NAKEDMODIFIER uses PRIVATE=="No" to indicate NAKED modifier
-        if (configPowerInfo?.privateAsAdder && system.MODIFIER) {
-            let advantages = 0;
-            for (const modifier of this.modifiers.filter((o) => !o.PRIVATE)) {
-                const modPowerInfo = getPowerInfo({
-                    item: modifier,
-                    actor: this.actor,
-                });
+        // if (configPowerInfo?.privateAsAdder && system.MODIFIER) {
+        //     let advantages = 0;
+        //     for (const modifier of this.modifiers.filter((o) => !o.PRIVATE)) {
+        //         const modPowerInfo = getPowerInfo({
+        //             item: modifier,
+        //             actor: this.actor,
+        //         });
 
-                if (!modPowerInfo) {
-                    console.warn("Missing modPowerInfo", modifier);
-                }
+        //         if (!modPowerInfo) {
+        //             console.warn("Missing modPowerInfo", modifier);
+        //         }
 
-                // Is there a cost function
-                let modCost = modPowerInfo?.cost ? modPowerInfo.cost(modifier, this) : 0;
+        //         // Is there a cost function
+        //         let modCost = modPowerInfo?.cost ? modPowerInfo.cost(modifier, this) : 0;
 
-                // If not use a the default cost formula
-                if (!modCost) {
-                    const modifierBaseCost = parseFloat(modifier.BASECOST) || 0;
-                    modCost += modifierBaseCost;
+        //         // If not use a the default cost formula
+        //         if (!modCost) {
+        //             const modifierBaseCost = parseFloat(modifier.BASECOST) || 0;
+        //             modCost += modifierBaseCost;
 
-                    // TODO: Add all modifiers into the system so that we can simplify this
-                    const modifierCostPerLevel =
-                        typeof modPowerInfo?.costPerLevel === "function"
-                            ? modPowerInfo.costPerLevel(modifier)
-                            : modPowerInfo?.costPerLevel || 0;
-                    modCost += parseFloat(modifier.LEVELS || 0) * modifierCostPerLevel;
-                }
+        //             // TODO: Add all modifiers into the system so that we can simplify this
+        //             const modifierCostPerLevel =
+        //                 typeof modPowerInfo?.costPerLevel === "function"
+        //                     ? modPowerInfo.costPerLevel(modifier)
+        //                     : modPowerInfo?.costPerLevel || 0;
+        //             modCost += parseFloat(modifier.LEVELS || 0) * modifierCostPerLevel;
+        //         }
 
-                modifier.BASECOST_total = modCost;
-                advantages += modCost;
-            }
-            cost = cost * advantages;
-        }
+        //         modifier.BASECOST_total = modCost;
+        //         advantages += modCost;
+        //     }
+        //     cost = cost * advantages;
+        // }
 
         // COMPOUNDPOWER itself costs 0, other ITEMS will handle COMPOUNDPOWER sub-powers
         if (this.system.XMLID === "COMPOUNDPOWER") {
@@ -2868,6 +2949,7 @@ export class HeroSystem6eItem extends Item {
                 item: modifier,
                 actor: this.actor,
                 is5e: this.system.is5e,
+                xmlTag: "MODIFIER",
             });
 
             // This may be a limitation with an unusual BASECOST (for example REQUIRESASKILLROLL 14-)
@@ -2896,6 +2978,14 @@ export class HeroSystem6eItem extends Item {
                         : modPowerInfo?.costPerLevel || 0;
                 modCost += parseFloat(modifier.LEVELS || 0) * modifierCostPerLevel;
             }
+
+            // if (modifier.cost !== undefined) {
+            //     if (modCost != modifier.cost) {
+            //         console.error(`HeroSystem6eModifier ${modifier.XMLID} as cost mismatch`, modCost, modifier);
+            //     } else {
+            //         modCost = modifier.cost;
+            //     }
+            // }
 
             _myAdvantage += modCost;
 
@@ -2929,8 +3019,11 @@ export class HeroSystem6eItem extends Item {
                     actor: this.actor,
                 });
 
-                if (!adderPowerInfo) {
-                    console.warn(`Missing powerInfo for adder ${adder.XMLID}`, adder);
+                if (!adderPowerInfo && !modifier.BASECOST) {
+                    console.warn(
+                        `${this.actor?.name}: ${this.name}/${this.system.XMLID}/${modifier.XMLID} is missing powerInfo for adder ${adder.XMLID}`,
+                        adder,
+                    );
                 }
 
                 let adderCost = adderPowerInfo?.cost ? adderPowerInfo.cost(adder, this) : 0;
@@ -2956,7 +3049,7 @@ export class HeroSystem6eItem extends Item {
             // No negative advantages and minimum is 1/4
             _myAdvantage = Math.max(minAdvantage, _myAdvantage);
             advantages += _myAdvantage;
-            modifier.BASECOST_total = _myAdvantage;
+            //modifier.BASECOST_total = _myAdvantage;
 
             // For attacks with Advantages, determine the DCs by
             // making a special Active Point calculation that only counts
@@ -2964,13 +3057,28 @@ export class HeroSystem6eItem extends Item {
             const modifierInfo = getModifierInfo({
                 xmlid: modifier.XMLID,
                 item: this,
+                xmlTag: "MODIFIER",
             });
-            if (modifierInfo?.dcAffecting(modifier)) {
-                advantagesAffectingDc += Math.max(0, _myAdvantage);
+            if (modifierInfo && !modifierInfo?.dcAffecting) {
+                console.error(
+                    `${this.actor?.name}/${this.name}/${this.system.XMLID}/${modifier.XMLID}: Missing dcAffecting function in config.mjs`,
+                );
+            } else {
+                if (modifierInfo?.dcAffecting(modifier)) {
+                    advantagesAffectingDc += Math.max(0, _myAdvantage);
+                }
             }
 
             // Save _myAdvantage
             modifier.advantage = _myAdvantage;
+
+            // Check old vs new cost code
+            if (modifier.cost !== _myAdvantage) {
+                console.warn(
+                    `${this.actor?.name}/${this.name}/${this.system.XMLID}/${modifier.ALIAS}: modifier.cost (${modifier.cost} !== _myAdvantage (${_myAdvantage})`,
+                    modifier,
+                );
+            }
         }
 
         const _activePoints = system.basePointsPlusAddersForActivePoints * (1 + advantages);
@@ -3005,13 +3113,12 @@ export class HeroSystem6eItem extends Item {
         for (const modifier of modifiers) {
             let _myLimitation = 0;
 
-            const modPowerInfo = getPowerInfo({
-                item: modifier,
-                actor: this.actor,
-                is5e: this.is5e,
-            });
-            if (!modPowerInfo) {
-                console.warn(`Missing powerInfo for modifier ${modifier.XMLID}`, modifier);
+            const modPowerInfo = modifier.baseInfo;
+            if (!modPowerInfo && !modifier.BASECOST) {
+                console.warn(
+                    `${this.actor?.name}/${this.name}/${this.system.XMLID} is missing powerInfo for modifier ${modifier.XMLID}`,
+                    modifier,
+                );
             }
 
             // Is there a cost function
@@ -3040,7 +3147,10 @@ export class HeroSystem6eItem extends Item {
                 });
 
                 if (!adderPowerInfo) {
-                    console.warn(`Missing powerInfo for adder ${adder.XMLID}`, adder);
+                    console.info(
+                        `${this.actor?.name}: ${this.name}/${this.system?.XMLID}/${modifier.XMLID} is missing powerInfo for adder ${adder.XMLID}`,
+                        adder,
+                    );
                 }
 
                 let adderCost = adderPowerInfo?.cost ? adderPowerInfo.cost(adder, this) : 0;
@@ -3063,18 +3173,19 @@ export class HeroSystem6eItem extends Item {
             }
 
             // There are some special cases with the increased endurance modifier not found in the HDC's XML
-            if (modifier.XMLID === "INCREASEDEND") {
-                // If cost is only for activation, then increased end is worth 1/2.
-                const activationOnlyEndCost = modifiers.find(
-                    (otherModifier) =>
-                        (otherModifier.XMLID === "COSTSEND" &&
-                            otherModifier.OPTION_ALIAS === "Only Costs END to Activate") ||
-                        otherModifier.XMLID === "COSTSENDONLYTOACTIVATE",
-                );
-                if (activationOnlyEndCost) {
-                    _myLimitation = _myLimitation / 2;
-                }
-            }
+            // INCREASEDEND moved to config.mjs
+            // if (modifier.XMLID === "INCREASEDEND") {
+            //     // If cost is only for activation, then increased end is worth 1/2.
+            //     const activationOnlyEndCost = modifiers.find(
+            //         (otherModifier) =>
+            //             (otherModifier.XMLID === "COSTSEND" &&
+            //                 otherModifier.OPTION_ALIAS === "Only Costs END to Activate") ||
+            //             otherModifier.XMLID === "COSTSENDONLYTOACTIVATE",
+            //     );
+            //     if (activationOnlyEndCost) {
+            //         _myLimitation = _myLimitation / 2;
+            //     }
+            // }
 
             // We are only intertested in limitations and some limitations can turn into advantages (or at least -0 limitations),
             // like charges, once adders are applied.
@@ -3084,7 +3195,7 @@ export class HeroSystem6eItem extends Item {
 
             // NOTE: REQUIRESASKILLROLL The minimum value is -1/4, regardless of modifiers.
             if (_myLimitation > -0.25) {
-                console.warn(`${modifier.XMLID} Limitation clamped to -1/4`, modifier, this);
+                console.info(`${modifier.XMLID} Limitation clamped to -1/4`, modifier, this);
                 _myLimitation = -0.25;
                 system.title =
                     (system.title || "") +
@@ -3154,10 +3265,25 @@ export class HeroSystem6eItem extends Item {
         return changed;
     }
 
+    /**
+     * Returns the base cost of an item. It's possible that it costs more beyond there (e.g. STR added etc)
+     * @returns number
+     */
+    getBaseEndCost() {
+        // PERKS, TALENTS, COMPLICATIONS, and martial maneuvers do not use endurance.
+        if (["perk", "talent", "complication", "martialart"].includes(this.type)) {
+            return 0;
+        }
+
+        // Combat maneuvers cost 1 END and everything else is based on active points
+        const endCost = this.type === "maneuver" ? 1 : RoundFavorPlayerDown((this.system.activePoints || 0) / 10);
+
+        return Math.max(1, endCost);
+    }
+
     updateItemDescription() {
         // Description (eventual goal is to largely match Hero Designer)
         const system = this.system;
-        const type = this.type;
         const is5e = !!this.actor?.system.is5e;
 
         // Reset the description and build it up again.
@@ -3245,7 +3371,7 @@ export class HeroSystem6eItem extends Item {
 
             case "MINDSCAN":
                 {
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
                     system.description = `${diceFormula} ${system.ALIAS}`;
                 }
                 break;
@@ -3287,7 +3413,7 @@ export class HeroSystem6eItem extends Item {
             case "ABSORPTION":
                 {
                     const reduceAndEnhanceTargets = this.splitAdjustmentSourceAndTarget();
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
 
                     system.description = `${system.ALIAS} ${is5e ? `${diceFormula}` : `${system.value} BODY`} (${
                         system.OPTION_ALIAS
@@ -3307,7 +3433,7 @@ export class HeroSystem6eItem extends Item {
             case "HEALING":
                 {
                     const reduceAndEnhanceTargets = this.splitAdjustmentSourceAndTarget();
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
 
                     system.description = `${system.ALIAS} ${
                         reduceAndEnhanceTargets.valid
@@ -3322,7 +3448,7 @@ export class HeroSystem6eItem extends Item {
             case "TRANSFER":
                 {
                     const reduceAndEnhanceTargets = this.splitAdjustmentSourceAndTarget();
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
 
                     system.description = `${system.ALIAS} ${diceFormula} from ${
                         reduceAndEnhanceTargets.valid ? reduceAndEnhanceTargets.reduces : "unknown"
@@ -3332,7 +3458,7 @@ export class HeroSystem6eItem extends Item {
 
             case "TRANSFORM":
                 {
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
                     system.description = `${system.OPTION_ALIAS} ${system.ALIAS} ${diceFormula}`;
                 }
                 break;
@@ -3472,14 +3598,14 @@ export class HeroSystem6eItem extends Item {
             case "EGOATTACK":
             case "MINDCONTROL":
                 {
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
                     system.description = `${system.ALIAS} ${diceFormula}`;
                 }
                 break;
 
             case "HANDTOHANDATTACK":
                 {
-                    const diceFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const diceFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
                     system.description = `${system.ALIAS} +${diceFormula}${diceFormula === "1" || diceFormula === "0" ? " point" : ""}`;
                 }
                 break;
@@ -3704,7 +3830,7 @@ export class HeroSystem6eItem extends Item {
                         system.description += " and " + _singles.slice(-1);
                     }
 
-                    const damageFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                    const damageFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
                     system.description += ` ${system.ALIAS} ${damageFormula}`;
                 }
                 break;
@@ -3848,8 +3974,20 @@ export class HeroSystem6eItem extends Item {
                 system.description = `${system.ALIAS}`;
                 break;
 
+            case "POSSESSION":
+                {
+                    system.description = `${system.ALIAS}`;
+                }
+
+                break;
+
             default:
                 {
+                    if (this.baseInfo?.descriptionFactory) {
+                        system.description = this.baseInfo.descriptionFactory(this);
+                        break;
+                    }
+
                     if (configPowerInfo?.type?.includes("characteristic")) {
                         system.description = "+" + system.value + " " + system.ALIAS;
                         break;
@@ -3876,7 +4014,7 @@ export class HeroSystem6eItem extends Item {
 
                     // Provide dice if this is an attack
                     if (this.baseInfo.behaviors.includes("dice")) {
-                        const damageFormula = getEffectForumulaFromItem(this, { ignoreDeadlyBlow: true });
+                        const damageFormula = getEffectFormulaFromItem(this, { ignoreDeadlyBlow: true });
                         if (damageFormula !== "0") {
                             if (system.description.indexOf(damageFormula) === -1) {
                                 system.description = ` ${damageFormula} ${system.class || ""}`;
@@ -3886,10 +4024,10 @@ export class HeroSystem6eItem extends Item {
 
                     // Add a success roll, if it has one, but only for skills, talents, or perks
                     if (configPowerInfo?.behaviors?.includes("success")) {
-                        // PH: FIXME: Why is this not based purely on behaviour?
+                        // PH: FIXME: Why is this not based purely on behavior?
                         if (!["skill", "talent", "perk"].includes(this.type)) {
                             console.error(
-                                `${this.name}/${this.system.XMLID} has a success behavior but isn't a skill, talent, or perk`,
+                                `${this.actor?.name}: ${this.name}/${this.system.XMLID} has a success behavior but isn't a skill, talent, or perk`,
                             );
                         }
                         system.description += ` ${system.roll}`;
@@ -3938,205 +4076,213 @@ export class HeroSystem6eItem extends Item {
             }
         }
 
-        if (system.ADDER?.length > 0 || _adderArray.length > 0) {
-            for (const adder of system?.ADDER || []) {
-                switch (adder.XMLID) {
-                    case "HEALEDBY":
-                        {
-                            _adderArray.push(`${adder.ALIAS} ${adder.OPTION_ALIAS || "unknown"}`);
-                        }
-                        break;
+        for (const adder of this.adders) {
+            switch (adder.XMLID) {
+                case "HEALEDBY":
+                    {
+                        _adderArray.push(`${adder.ALIAS} ${adder.OPTION_ALIAS || "unknown"}`);
+                    }
+                    break;
 
-                    case "DIMENSIONS":
-                        system.description += `, ${adder.ALIAS}`;
-                        break;
+                case "DIMENSIONS":
+                    system.description += `, ${adder.ALIAS}`;
+                    break;
 
-                    case "ATTACK":
-                    case "EATING":
-                    case "EXTENDEDBREATHING":
-                    case "IMMUNITY":
-                    case "LONGEVITY":
-                    case "RECOGNIZED":
-                    case "SLEEPING":
-                    case "USEFUL":
-                        if (system.XMLID === "VULNERABILITY") {
-                            system.description += ` (${adder.OPTION_ALIAS})`.replace("((", "("); // Unclear why there is a parand in the OPTION_ALIAS
-                            break;
-                        }
-                        _adderArray.push(`${adder.ALIAS} ${adder.OPTION_ALIAS}`);
+                case "ATTACK":
+                case "EATING":
+                case "EXTENDEDBREATHING":
+                case "IMMUNITY":
+                case "LONGEVITY":
+                case "RECOGNIZED":
+                case "SLEEPING":
+                case "USEFUL":
+                    if (system.XMLID === "VULNERABILITY") {
+                        system.description += ` (${adder.OPTION_ALIAS})`.replace("((", "("); // Unclear why there is a parand in the OPTION_ALIAS
                         break;
+                    }
+                    _adderArray.push(`${adder.ALIAS} ${adder.OPTION_ALIAS}`);
+                    break;
 
-                    case "ADDITIONALPD":
-                    case "ADDITIONALED":
-                    case "DEFBONUS":
-                        break;
+                case "ADDITIONALPD":
+                case "ADDITIONALED":
+                case "DEFBONUS":
+                    break;
 
-                    case "DAMAGE":
-                        // Unfortunately DAMAGE is used as an adder for both SUSCEPTIBILITY and CHANGEENVIRONMENT. They do not
-                        // share a structure.
-                        if (powerXmlId === "CHANGEENVIRONMENT") {
-                            _adderArray.push(`, ${adder.ALIAS}`);
-                        } else {
-                            _adderArray.push(adder.OPTION_ALIAS.replace("(", ""));
-                        }
-                        break;
-
-                    case "APPEARANCE":
-                    case "AREA":
-                    case "CAPABILITIES":
-                    case "CHANCETOGO":
-                    case "CHANCETORECOVER":
-                    case "CIRCUMSTANCES":
-                    case "CONCEALABILITY":
-                    case "CONDITION":
-                    case "DESCRIPTION":
-                    case "DICE":
-                    case "EFFECT":
-                    case "EFFECTS":
-                    case "FIERCENESS":
-                    case "HOWWELL":
-                    case "HOWWIDE":
-                    case "IMPAIRS":
-                    case "INTENSITY":
-                    case "KNOWLEDGE":
-                    case "LEVEL":
-                    case "MOTIVATION":
-                    case "OCCUR":
-                    case "OCCURS":
-                    case "POWER":
-                    case "REACTION":
-                    case "SENSING":
-                    case "SENSITIVITY":
-                    case "SITUATION":
-                    case "SUBSTANCE":
-                    case "TIME":
-                    case "USEFULNESS":
+                case "DAMAGE":
+                    // Unfortunately DAMAGE is used as an adder for both SUSCEPTIBILITY and CHANGEENVIRONMENT. They do not
+                    // share a structure.
+                    if (powerXmlId === "CHANGEENVIRONMENT") {
+                        _adderArray.push(`, ${adder.ALIAS}`);
+                    } else {
                         _adderArray.push(adder.OPTION_ALIAS.replace("(", ""));
-                        break;
+                    }
+                    break;
 
-                    case "PHYSICAL":
-                    case "ENERGY":
-                    case "MENTAL":
-                        // Damage Negation (-1 DCs Energy)
-                        if (system.XMLID === "DAMAGENEGATION") {
-                            if (parseInt(adder.LEVELS) != 0)
-                                _adderArray.push(
-                                    "-" + parseInt(adder.LEVELS) + " DCs " + adder.ALIAS.replace(" DCs", ""),
-                                );
-                        } else {
-                            if (parseInt(adder.LEVELS) != 0)
-                                _adderArray.push("-" + parseInt(adder.LEVELS) + " " + adder.ALIAS);
+                case "APPEARANCE":
+                case "AREA":
+                case "CAPABILITIES":
+                case "CHANCETOGO":
+                case "CHANCETORECOVER":
+                case "CIRCUMSTANCES":
+                case "CONCEALABILITY":
+                case "CONDITION":
+                case "DESCRIPTION":
+                case "DICE":
+                case "EFFECT":
+                case "EFFECTS":
+                case "FIERCENESS":
+                case "HOWWELL":
+                case "HOWWIDE":
+                case "IMPAIRS":
+                case "INTENSITY":
+                case "KNOWLEDGE":
+                case "LEVEL":
+                case "MOTIVATION":
+                case "OCCUR":
+                case "OCCURS":
+                case "POWER":
+                case "REACTION":
+                case "SENSING":
+                case "SENSITIVITY":
+                case "SITUATION":
+                case "SUBSTANCE":
+                case "TIME":
+                case "USEFULNESS":
+                    _adderArray.push(adder.OPTION_ALIAS.replace("(", ""));
+                    break;
+
+                case "PHYSICAL":
+                case "ENERGY":
+                case "MENTAL":
+                    // Damage Negation (-1 DCs Energy)
+                    if (system.XMLID === "DAMAGENEGATION") {
+                        if (parseInt(adder.LEVELS) != 0)
+                            _adderArray.push("-" + parseInt(adder.LEVELS) + " DCs " + adder.ALIAS.replace(" DCs", ""));
+                    } else {
+                        if (parseInt(adder.LEVELS) != 0)
+                            _adderArray.push("-" + parseInt(adder.LEVELS) + " " + adder.ALIAS);
+                    }
+                    break;
+
+                case "PLUSONEPIP":
+                case "MINUSONEPIP":
+                case "PLUSONEHALFDIE":
+                    // Don't show the +1, 1/2d6, 1d6-1 modifier as it's already included in the description's dice formula
+                    break;
+
+                case "COMMONMOTORIZED":
+                case "RIDINGANIMALS":
+                    // Both of these Transport Familiarity adders may contain subadders. If they do, then use the subadders
+                    // otherwise use the adder.
+                    if (adder.SELECTED) {
+                        _adderArray.push(adder.ALIAS);
+                    } else {
+                        for (const adder2 of adder?.ADDER || []) {
+                            _adderArray.push(adder2.ALIAS);
                         }
-                        break;
+                    }
+                    break;
 
-                    case "PLUSONEPIP":
-                    case "MINUSONEPIP":
-                    case "PLUSONEHALFDIE":
-                        // Don't show the +1, 1/2d6, 1d6-1 modifier as it's already included in the description's dice formula
-                        break;
+                case "INCREASEDMAX":
+                    // Typical ALIAS would be "Increased Maximum (+34 points)". Provide total as well.
+                    // Can Add Maximum Of 34 Points
+                    system.description += `, Can Add Maximum Of ${determineMaxAdjustment(this)} Points`;
+                    break;
 
-                    case "COMMONMOTORIZED":
-                    case "RIDINGANIMALS":
-                        // Both of these Transport Familiarity adders may contain subadders. If they do, then use the subadders
-                        // otherwise use the adder.
-                        if (adder.SELECTED) {
-                            _adderArray.push(adder.ALIAS);
-                        } else {
-                            for (const adder2 of adder?.ADDER || []) {
-                                _adderArray.push(adder2.ALIAS);
-                            }
-                        }
-                        break;
+                case "ADDER":
+                    // This is likely a CSL adder that we use to specificy which attacks the CSL applies to.
+                    // If the CLS applies to ALL attacks, don't bother to list them all.
+                    if (this.system.XMLID === "COMBAT_LEVELS" && this.system.OPTIONID === "ALL") break;
+                    if (this.system.XMLID === "MENTAL_COMBAT_LEVELS" && this.system.OPTIONID === "ALL") break;
+                    if (this.system.XMLID === "PENALTY_SKILL_LEVELS" && this.system.OPTIONID === "ALL") break;
 
-                    case "INCREASEDMAX":
-                        // Typical ALIAS would be "Increased Maximum (+34 points)". Provide total as well.
-                        // Can Add Maximum Of 34 Points
-                        system.description += `, Can Add Maximum Of ${determineMaxAdjustment(this)} Points`;
-                        break;
+                    // Otherwise add it to the list of ADDERS as normal.
+                    if (adder.ALIAS.trim()) {
+                        _adderArray.push(adder.ALIAS);
+                    }
+                    break;
 
-                    case "ADDER":
-                        // This is likely a CSL adder that we use to specificy which attacks the CSL applies to.
-                        // If the CLS applies to ALL attacks, don't bother to list them all.
-                        if (this.system.XMLID === "COMBAT_LEVELS" && this.system.OPTIONID === "ALL") break;
-                        if (this.system.XMLID === "MENTAL_COMBAT_LEVELS" && this.system.OPTIONID === "ALL") break;
-                        if (this.system.XMLID === "PENALTY_SKILL_LEVELS" && this.system.OPTIONID === "ALL") break;
+                case "MINDCONTROLEFFECT":
+                    {
+                        const mindControlEffect = 40 + (parseInt(adder.LEVELS) || 0);
+                        _adderArray.push(`Mind Control Effect ${mindControlEffect} points`);
+                    }
+                    break;
 
-                        // Otherwise add it to the list of ADDERS as normal.
-                        if (adder.ALIAS.trim()) {
-                            _adderArray.push(adder.ALIAS);
-                        }
-                        break;
+                case "TELEPATHYEFFECT":
+                    {
+                        const telepathyEffect = 30 + (parseInt(adder.LEVELS) || 0);
+                        _adderArray.push(`Telepathy Effect ${telepathyEffect} points`);
+                    }
+                    break;
 
-                    default:
-                        if (adder.ALIAS.trim()) {
-                            _adderArray.push(adder.ALIAS);
-                        }
-                        break;
-                }
+                default:
+                    if (adder.ALIAS.trim()) {
+                        _adderArray.push(adder.ALIAS);
+                    }
+                    break;
             }
+        }
 
-            if (_adderArray.length > 0) {
-                switch (powerXmlId) {
-                    case "TRANSPORT_FAMILIARITY":
-                        system.description += _adderArray.sort().join(", ");
-                        break;
+        if (_adderArray.length > 0) {
+            switch (powerXmlId) {
+                case "TRANSPORT_FAMILIARITY":
+                    system.description += _adderArray.sort().join(", ");
+                    break;
 
-                    case "DARKNESS":
-                    case "INVISIBILITY":
-                        {
-                            system.description += system.ALIAS + " to ";
-                            // Groups
-                            let _groups = _adderArray.filter((o) => o.indexOf("Group") > -1);
-                            if (_groups.length === 1) {
-                                system.description += _groups[0];
-                            } else {
-                                system.description += _groups
-                                    .slice(0, -1)
-                                    .join(", ")
-                                    .replace(/ Group/g, "");
-                                system.description += " and " + _groups.slice(-1) + "s";
-                            }
-
-                            // singles
-                            let _singles = _adderArray.filter((o) => o.indexOf("Group") === -1);
-                            // spacing
-                            if (_groups.length > 0 && _singles.length > 0) {
-                                system.description += ", ";
-                            }
-
-                            if (_singles.length === 1) {
-                                system.description += _singles[0];
-                            } else if (_singles.length > 1) {
-                                system.description += _singles.slice(0, -1).join(", ");
-                                system.description += " and " + _singles.slice(-1);
-                            }
+                case "DARKNESS":
+                case "INVISIBILITY":
+                    {
+                        system.description += system.ALIAS + " to ";
+                        // Groups
+                        let _groups = _adderArray.filter((o) => o.indexOf("Group") > -1);
+                        if (_groups.length === 1) {
+                            system.description += _groups[0];
+                        } else {
+                            system.description += _groups
+                                .slice(0, -1)
+                                .join(", ")
+                                .replace(/ Group/g, "");
+                            system.description += " and " + _groups.slice(-1) + "s";
                         }
 
-                        // DARKNESS radius
-                        // Darkness to Hearing Group 16m radius
-                        if (powerXmlId === "DARKNESS") {
-                            system.description += ` ${system.LEVELS}${getSystemDisplayUnits(this.is5e)} radius`;
+                        // singles
+                        let _singles = _adderArray.filter((o) => o.indexOf("Group") === -1);
+                        // spacing
+                        if (_groups.length > 0 && _singles.length > 0) {
+                            system.description += ", ";
                         }
 
-                        break;
+                        if (_singles.length === 1) {
+                            system.description += _singles[0];
+                        } else if (_singles.length > 1) {
+                            system.description += _singles.slice(0, -1).join(", ");
+                            system.description += " and " + _singles.slice(-1);
+                        }
+                    }
 
-                    case "FLASH":
-                        // The senses are already in the description
-                        system.description +=
-                            " (" +
-                            _adderArray
-                                .filter(
-                                    (o) => !o.match(/(GROUP|NORMAL|SENSE|MINDSCAN|HRRP|RADAR|RADIO|MIND|AWARENESS)/i),
-                                )
-                                .join("; ") +
-                            ")";
-                        system.description = system.description.replace("()", "");
-                        break;
+                    // DARKNESS radius
+                    // Darkness to Hearing Group 16m radius
+                    if (powerXmlId === "DARKNESS") {
+                        system.description += ` ${system.LEVELS}${getSystemDisplayUnits(this.is5e)} radius`;
+                    }
 
-                    default:
-                        system.description += " (" + _adderArray.join("; ") + ")";
-                        break;
-                }
+                    break;
+
+                case "FLASH":
+                    // The senses are already in the description
+                    system.description +=
+                        " (" +
+                        _adderArray
+                            .filter((o) => !o.match(/(GROUP|NORMAL|SENSE|MINDSCAN|HRRP|RADAR|RADIO|MIND|AWARENESS)/i))
+                            .join("; ") +
+                        ")";
+                    system.description = system.description.replace("()", "");
+                    break;
+
+                default:
+                    system.description += " (" + _adderArray.join("; ") + ")";
+                    break;
             }
         }
 
@@ -4162,19 +4308,18 @@ export class HeroSystem6eItem extends Item {
         }
 
         // Advantages sorted low to high
-        for (let modifier of this.modifiers
-            .filter((o) => o.BASECOST_total >= 0)
+        for (let modifier of this.advantages
             .sort((a, b) => {
                 return a.BASECOST_total - b.BASECOST_total;
+            })
+            .sort((a, b) => {
+                return a.cost - b.cost;
             })) {
             // This might be a limitation with an unusually positive value
-            const modPowerInfo = getPowerInfo({
-                item: modifier,
-                actor: this.actor,
-            });
-            if (modPowerInfo?.minimumLimitation) {
-                continue;
-            }
+            // const modPowerInfo = modifier.baseInfo;
+            // if (modPowerInfo?.minimumLimitation) {
+            //     continue;
+            // }
 
             system.description += this.createPowerDescriptionModifier(modifier);
         }
@@ -4187,10 +4332,12 @@ export class HeroSystem6eItem extends Item {
         }
 
         // MULTIPOWER slots typically include limitations
-        const modifiers = this.modifiers
-            .filter((o) => o.BASECOST_total < 0)
+        const modifiers = this.limitations
             .sort((a, b) => {
                 return a.BASECOST_total - b.BASECOST_total;
+            })
+            .sort((a, b) => {
+                return a.cost - b.cost;
             });
 
         // Disadvantages sorted low to high
@@ -4206,7 +4353,7 @@ export class HeroSystem6eItem extends Item {
             .trim();
 
         // Endurance
-        system.end = Math.max(1, RoundFavorPlayerDown(system.activePoints / 10) || 0);
+        system.end = this.getBaseEndCost();
         const increasedEnd = this.findModsByXmlid("INCREASEDEND");
         if (increasedEnd) {
             system.end *= parseInt(increasedEnd.OPTION.replace("x", ""));
@@ -4249,15 +4396,11 @@ export class HeroSystem6eItem extends Item {
         if (configPowerInfo && configPowerInfo.type?.includes("movement")) {
             system.end = 0;
         }
-
-        // PERKS, TALENTS, COMPLICATIONS do not use endurance.
-        if (["perk", "talent", "complication"]?.includes(type)) {
-            system.end = 0;
-        }
     }
 
     createPowerDescriptionModifier(modifier) {
         const item = this;
+        const modifierInfo = modifier.baseInfo;
         const system = item.system;
         let result = "";
 
@@ -4321,7 +4464,11 @@ export class HeroSystem6eItem extends Item {
                 break;
 
             default:
-                if (modifier.ALIAS) result += ", " + modifier.ALIAS || "?";
+                if (modifierInfo?.descriptionFactory) {
+                    result += `, ${modifierInfo.descriptionFactory(modifier)}`;
+                } else {
+                    if (modifier.ALIAS) result += ", " + modifier.ALIAS || "?";
+                }
                 break;
         }
 
@@ -4382,6 +4529,12 @@ export class HeroSystem6eItem extends Item {
                     break;
                 case "FOCUS":
                     break;
+                case "TRIGGER":
+                    // All the important stuff is in the TRIGGER adders
+                    break;
+                case "DOUBLEKB":
+                    // ALIAS already has what we need
+                    break;
                 case "CONDITIONALPOWER":
                     result += `${modifier.OPTION_ALIAS}; (`;
                     break;
@@ -4399,27 +4552,60 @@ export class HeroSystem6eItem extends Item {
             result += modifier.COMMENTS + "; ";
         }
 
-        for (const adder of modifier.ADDER || []) {
-            switch (adder.XMLID) {
-                case "DOUBLELENGTH":
-                case "DOUBLEWIDTH":
-                case "DOUBLEHEIGHT":
-                case "DOUBLEAREA":
-                    // These adders relate to AOE and so are displayed as a part of that
-                    break;
+        switch (modifier.XMLID) {
+            case "AOE":
+                for (const adder of modifier.adders) {
+                    switch (adder.XMLID) {
+                        case "DOUBLELENGTH":
+                        case "DOUBLEWIDTH":
+                        case "DOUBLEHEIGHT":
+                        case "DOUBLEAREA":
+                            // These adders relate to AOE and so are displayed as a part of that
+                            break;
 
-                case "BREAKABILITY":
-                    result += `${adder.OPTION_ALIAS} `;
-                    break;
+                        case "EXPLOSION":
+                            result += adder.ALIAS + "; ";
 
-                case "EXPLOSION":
-                    result += adder.ALIAS + "; ";
-
-                    break;
-                default:
-                    result += adder.ALIAS + ", ";
+                            break;
+                        default:
+                            result += adder.ALIAS + ", ";
+                    }
+                }
+                break;
+            default: {
+                const addersDescription = modifier.addersDescription;
+                if (addersDescription) {
+                    result += `${modifier.addersDescription}; `;
+                }
             }
         }
+
+        // for (const adder of modifier.adders) {
+        //     switch (adder.XMLID) {
+        //         case "DOUBLELENGTH":
+        //         case "DOUBLEWIDTH":
+        //         case "DOUBLEHEIGHT":
+        //         case "DOUBLEAREA":
+        //             // These adders relate to AOE and so are displayed as a part of that
+        //             break;
+
+        //         case "BREAKABILITY":
+        //             result += `${adder.OPTION_ALIAS} `;
+        //             break;
+
+        //         // case "ACTIVATION":
+        //         // case "RESET":
+        //         //     result += `${adder.OPTION_ALIAS}, `;
+        //         //     break;
+
+        //         case "EXPLOSION":
+        //             result += adder.ALIAS + "; ";
+
+        //             break;
+        //         default:
+        //             result += adder.ALIAS + ", ";
+        //     }
+        // }
 
         if (modifier.XMLID === "FOCUS") {
             // Sometimes the focus description is in the ALIAS, sometimes it is in the COMMENTS
@@ -4427,6 +4613,10 @@ export class HeroSystem6eItem extends Item {
                 .replace(/ {2}/g, " ")
                 .replace("( ", "(")
                 .replace("(; ", "(");
+        }
+
+        if (modifierInfo?.descriptionModifierFactory) {
+            result += modifierInfo.descriptionModifierFactory(modifier, item);
         }
 
         let fraction = "";
@@ -4481,11 +4671,11 @@ export class HeroSystem6eItem extends Item {
             result = result.replace(`Focus (${modifier.OPTION}; `, `${modifier.OPTION} (`);
         }
 
-        const configPowerInfo = getPowerInfo({
-            xmlid: system.XMLID,
-            actor: item?.actor,
-            is5e: this.is5e,
-        });
+        const configPowerInfo = this.baseInfo; //getPowerInfo({
+        //     xmlid: system.XMLID,
+        //     actor: item?.actor,
+        //     is5e: this.is5e,
+        // });
 
         // All Slots? This may be a slot in a framework if so get parent
         if (configPowerInfo && configPowerInfo.type?.includes("framework")) {
@@ -4529,6 +4719,12 @@ export class HeroSystem6eItem extends Item {
         this.system.dcv = dcv;
 
         this.system.noHitLocations = false;
+
+        if (["maneuver", "martialart"].includes(this.type)) {
+            if (this.system.EFFECT && this.system.EFFECT.search(/\[FLASHDC\]/) > -1) {
+                this.system.noHitLocations = true;
+            }
+        }
 
         this.system.areaOfEffect = { type: "none", value: 0 };
 
@@ -4671,7 +4867,8 @@ export class HeroSystem6eItem extends Item {
             xmlid === "MINDCONTROL" ||
             xmlid === "MENTALILLUSIONS" ||
             xmlid === "MINDSCAN" ||
-            xmlid === "TELEPATHY"
+            xmlid === "TELEPATHY" ||
+            xmlid === "POSSESSION"
         ) {
             this.system.knockbackMultiplier = 0;
             this.system.usesStrength = false;
@@ -5109,7 +5306,7 @@ export class HeroSystem6eItem extends Item {
         // the character's characteristics/powers (i.e. they can't create new characteristics or powers). All others just
         // have to match actual possible characteristics/powers.
         const validator =
-            this.system.XMLID === "AID" ||
+            //this.system.XMLID === "AID" || //You can AID another person that has a power you don't have
             this.system.XMLID === "ABSORPTION" ||
             this.system.XMLID === "SUCCOR" ||
             (this.system.XMLID === "TRANSFER" && mustBeStrict)
@@ -5329,7 +5526,7 @@ export class HeroSystem6eItem extends Item {
         }
 
         // Flash
-        if (this.baseInfo?.type.includes("sense-affecting")) {
+        if (this.isSenseAffecting()) {
             return "FLASHDEFENSE";
         }
 
@@ -5417,19 +5614,38 @@ export class HeroSystem6eItem extends Item {
     }
 
     get doesKillingDamage() {
-        if (this.system.KILLING === true) {
-            return true;
-        } else if (this.system.KILLING === false) {
+        // Preferred Methods to determine KILLING
+        if (this.system.XMLID.startsWith("__")) {
             return false;
-        } else if (this.system.WEAPONEFFECT?.includes("KILLING")) {
-            return true;
+        } else if (this.baseInfo.doesKillingDamage != undefined) {
+            return this.baseInfo.doesKillingDamage;
+        } else if (this.baseInfo.nonDmgEffect) {
+            return false;
+        } else if (this.isSenseAffecting()) {
+            return false;
+        } else if (this.baseInfo.type.includes("adjustment")) {
+            return false;
+        } else if (this.baseInfo.type.includes("mental")) {
+            return false;
+        } else if (this.system.WEAPONEFFECT) {
+            return this.system.WEAPONEFFECT.includes("KILLING");
+        } else if (this.system.EFFECT) {
+            return this.system.EFFECT.includes("KILLING"); // Pretty sure there are no KILLING Combat Maneuvers
+        } else if (this.type === "disadvantage") {
+            return false;
+        } else if (this.baseInfo.type.includes("disadvantage")) {
+            return false;
         }
 
-        // Legacy check
-        else if (this.system.killing) {
-            // TODO: We should get off the system.killing drug.
-            console.warn(`Unable to determine KILLING property for ${this.name}`);
+        // Legacy KILLING support
+        console.warn(
+            `${this.actor.name}: Unable to determine KILLING property for ${this.system.XMLID}/${this.name}, using legacy values.`,
+        );
+        if (this.system.killing === true) {
             return true;
+        }
+        if (this.system.killing === false) {
+            return false;
         }
 
         return false;
@@ -5535,11 +5751,187 @@ export class HeroSystem6eItem extends Item {
         // Notice that we are only looking for DRAINS on "this" item.  If there are more than one item with the same XMLID then we don't know which item is getting the drain.
         for (const ae of this.effects) {
             //console.log(ae);
-            _adjustedLevels += parseInt(ae.changes?.[0].value || 0);
+            for (const change of ae.changes) {
+                if (change.key.match(new RegExp(this.system.XMLID, "i"))) {
+                    _adjustedLevels += parseInt(change.value || 0);
+                }
+            }
+        }
+
+        if (this.actor) {
+            for (const ae of this.actor.temporaryEffects) {
+                //console.log(ae);
+                for (const change of ae.changes) {
+                    if (change.key.match(new RegExp(this.system.XMLID, "i"))) {
+                        _adjustedLevels += parseInt(change.value || 0);
+                    }
+                }
+            }
         }
 
         // TODO: Should we be MAXing it here, or when we apply the defense?
         return Math.max(0, _adjustedLevels);
+    }
+
+    get conditionalDefenseShortDescription() {
+        let shortDesc = this.name;
+        if (this.system.XMLID === "VULNERABILITY") {
+            shortDesc += ` (${this.system.INPUT})`;
+        }
+        const ONLYAGAINSTLIMITEDTYPE = this.findModsByXmlid("ONLYAGAINSTLIMITEDTYPE");
+        if (ONLYAGAINSTLIMITEDTYPE) {
+            shortDesc += ` (${ONLYAGAINSTLIMITEDTYPE.ALIAS})`;
+        }
+        return shortDesc;
+    }
+
+    /**
+     * Is the item a sense affecting power or maneuver?
+     *
+     * @returns {boolean}
+     */
+    isSenseAffecting() {
+        return (
+            !!this.baseInfo?.type?.includes("sense-affecting") ||
+            (this.system.EFFECT && this.system.EFFECT.search(/\[FLASHDC\]/) > -1)
+        );
+    }
+
+    get _basePoints() {
+        if (!this.system.XMLID) return 0;
+        if (this.system.XMLID.startsWith("__")) return 0;
+        if (this.system.EVERYMAN) return 0;
+        if (this.system.NATIVE_TONGUE) return 0;
+
+        // Custom basePoints
+        if (this.baseInfo?.cost) {
+            return this.baseInfo?.cost(this);
+        }
+
+        const baseCost = parseFloat(this.system.BASECOST) || 0;
+        let _basePoints = baseCost;
+
+        const costPerLevel = this.baseInfo?.costPerLevel(this) || 0;
+        const levels = parseInt(this.system.LEVELS) || 0;
+        _basePoints += levels * costPerLevel;
+
+        return _basePoints;
+    }
+
+    get _addersCost() {
+        let _cost = 0;
+
+        for (const adder of this.adders) {
+            _cost += adder.cost;
+        }
+
+        // ENDURANCERESERVEREC is a power, we can treat it like an adder
+        for (const power of this.powers) {
+            _cost += power.cost;
+        }
+
+        return _cost;
+    }
+
+    get _negativeCustomAddersCost() {
+        let _cost = 0;
+
+        for (const adder of this.adders.filter((a) => a.cost < 0)) {
+            _cost += adder.cost;
+        }
+        return _cost;
+    }
+
+    get _advantageCost() {
+        let _cost = 0;
+        for (const advantage of this.advantages) {
+            _cost += advantage.cost;
+        }
+        return _cost;
+    }
+
+    get _advantageCostWithoutEnd() {
+        let _cost = 0;
+        for (const advantage of this.advantages.filter((a) => a.XMLID !== "REDUCEDEND")) {
+            _cost += advantage.cost;
+        }
+        return _cost;
+    }
+
+    get _activePoints() {
+        // Active Points = (Base Points + cost of any Adders) x (1 + total value of all Advantages)
+        if (this.baseInfo?.activePoints) {
+            return this.baseInfo.activePoints(this);
+        }
+        return RoundFavorPlayerDown((this._basePoints + this._addersCost) * (1 + this._advantageCost));
+    }
+
+    get _activePointsForEnd() {
+        //return RoundFavorPlayerDown((this._basePoints + this._addersCost) * (1 + this._advantageCostWithoutEnd));
+        return RoundFavorPlayerDown(
+            (this._basePoints + this._addersCost - this._negativeCustomAddersCost) *
+                (1 + this._advantageCostWithoutEnd),
+        );
+    }
+
+    get _advantagesAffectingDc() {
+        let _cost = 0;
+        for (const advantage of this.advantages.filter((a) => a.baseInfo?.dcAffecting)) {
+            _cost += advantage.cost;
+        }
+        return _cost;
+    }
+
+    get _activePointsDcAffecting() {
+        //return RoundFavorPlayerDown((this._basePoints + this._addersCost) * (1 + this._advantagesAffectingDc));
+        return RoundFavorPlayerDown(
+            (this._basePoints + this._addersCost - this._negativeCustomAddersCost) * (1 + this._advantagesAffectingDc),
+        );
+    }
+
+    get _limitationCost() {
+        let _cost = 0;
+        for (const limitation of this.limitations) {
+            _cost += limitation.cost;
+        }
+        return -_cost;
+    }
+
+    get _realCost() {
+        // Real Cost = Active Cost / (1 + total value of all Limitations)
+        let _cost = this._activePoints;
+
+        // Skill Enhancer
+        if (this.parentItem?.baseInfo?.type.includes("enhancer")) {
+            _cost = Math.max(1, _cost - 1);
+        }
+
+        // Power cost in Power Framework is applied before limitations
+        let costSuffix = "";
+        if (this.parentItem) {
+            if (this.parentItem.system.XMLID === "MULTIPOWER") {
+                // Fixed
+                if (this.system.ULTRA_SLOT) {
+                    costSuffix = this.actor?.system.is5e ? "u" : "f";
+                    _cost = _cost / 10.0;
+                }
+
+                // Variable
+                else {
+                    costSuffix = this.actor?.system.is5e ? "m" : "v";
+                    _cost = _cost / 5.0;
+                }
+            } else if (this.parentItem.system.XMLID === "ELEMENTAL_CONTROL") {
+                const baseCost = (this.parentItem.system.BASECOST = parseFloat(this.parentItem.system.BASECOST));
+                _cost = Math.max(baseCost, _cost - baseCost);
+            }
+        }
+        _cost = RoundFavorPlayerDown(_cost / (1 + this._limitationCost));
+        return _cost + costSuffix;
+    }
+
+    get costPerLevel() {
+        return this.baseInfo?.costPerLevel(this);
     }
 }
 

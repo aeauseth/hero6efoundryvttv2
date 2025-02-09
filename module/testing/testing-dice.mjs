@@ -47,7 +47,7 @@ class RollMock extends Roll {
 
     static fromTerms(terms, options) {
         const newTerms = terms.map((term) => {
-            // Replace all Die with a DieClass that will always return an expected behaviour when rolling
+            // Replace all Die with a DieClass that will always return an expected behavior when rolling
             if (term instanceof Die) {
                 return new this.DieClass({
                     number: term.number,

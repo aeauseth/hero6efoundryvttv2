@@ -30,10 +30,6 @@ export function calculateRangePenaltyFromDistanceInMetres(distanceInMetres, acto
  * @returns {number} distanceInMetres
  */
 export function calculateDistanceBetween(origin, target) {
-    // Note: canvas.grid.measureDistance is deprecated as of Foundry v12. When we add better support for
-    // templates here, also consider updating to use the new api (canvas.grid.measurePath)
-
-    // https://foundryvtt.com/api/classes/foundry.grid.BaseGrid.html#measurePath
     const path = [];
     try {
         path.push({ x: origin.x, y: origin.y });
@@ -41,8 +37,8 @@ export function calculateDistanceBetween(origin, target) {
     } catch (e) {
         console.error(e, origin, target);
     }
-    const _distanceMeasurePath = canvas.grid.measurePath(path);
-    const originalMeasureDistance = RoundFavorPlayerDown(_distanceMeasurePath.distance);
+    const distanceMeasurePath = canvas.grid.measurePath(path);
+    const originalMeasureDistance = RoundFavorPlayerDown(distanceMeasurePath.distance);
 
     // We don't yet support measuring 3D distance between a token and a template volume, so we
     // return the original distance
@@ -50,13 +46,21 @@ export function calculateDistanceBetween(origin, target) {
         origin._object instanceof HeroSystem6eMeasuredTemplate ||
         target._object instanceof HeroSystem6eMeasuredTemplate;
     if (templateInvolved) {
-        return originalMeasureDistance;
+        return {
+            distance: originalMeasureDistance,
+            cost: distanceMeasurePath.cost,
+            gridSpaces: distanceMeasurePath.spaces,
+        };
     }
 
     const originElevation = origin.document ? origin.document.elevation || 0 : origin.elevation || 0;
     const targetElevation = target.document ? target.document.elevation || 0 : target.elevation || 0;
     if (originElevation === targetElevation) {
-        return originalMeasureDistance;
+        return {
+            distance: originalMeasureDistance,
+            cost: distanceMeasurePath.cost,
+            gridSpaces: distanceMeasurePath.spaces,
+        };
     }
 
     // We need to decide on an actor to use for the system units. Since both objects being measured are tokens,
@@ -66,5 +70,9 @@ export function calculateDistanceBetween(origin, target) {
         Math.pow(originElevation - targetElevation, 2) + Math.pow(originalMeasureDistance, 2),
     );
 
-    return getRoundedFavorPlayerDownDistanceInSystemUnits(threeDDistance, rulesActor);
+    return {
+        distance: getRoundedFavorPlayerDownDistanceInSystemUnits(threeDDistance, rulesActor),
+        cost: 0, // FIXME: to be implemented
+        gridSpaces: 0, // FIXME: to be implemented
+    };
 }

@@ -97,35 +97,6 @@ export class HeroRuler extends Ruler {
 
         Hooks.once("ready", function () {
             Hooks.on("controlToken", that._controlToken.bind(that));
-
-            // Known compatibility issues with DragRuler and FoundryVTT V12
-            // Don't even bother recommending it's use at this time.
-            if (
-                game.modules.get("drag-ruler")?.active &&
-                foundry.utils.isNewerVersion("1.14.2", game.modules.get("drag-ruler").version)
-            ) {
-                return ui.notifications.error(
-                    "You should upgrade the DragRuler module to version 1.14.2 or later to avoid known incompatibilities.",
-                    { console: true, permanent: true },
-                );
-            }
-
-            // We recommend using Drag Ruler
-            if (!game.modules.get("drag-ruler")?.active) {
-                ui.notifications.warn(game.i18n.localize("Warning.DragRuler.Active"));
-            }
-            return;
-
-            // We recommend using Drag Ruler
-            // if (!game.modules.get("drag-ruler")) {
-            //     ui.notifications.warn(game.i18n.localize("Warning.DragRuler.Install"));
-            //     return;
-            // }
-
-            // We recommend using Drag Ruler
-            // if (!game.modules.get("drag-ruler")?.active) {
-            //     ui.notifications.warn(game.i18n.localize("Warning.DragRuler.Active"));
-            // }
         });
 
         if (!game.modules.get("drag-ruler")?.active) {

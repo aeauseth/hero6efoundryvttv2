@@ -103,6 +103,26 @@ export async function migrateWorld() {
     );
     console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.0.14`, "background: #1111FF; color: #FFFFFF");
 
+    await migrateToVersion(
+        "4.0.15",
+        lastMigration,
+        getAllActorsInGame().filter((actor) => actor.type === "automaton"),
+        "adding freebees for Automatons",
+        async (actor) => await addManeuversForAutomaton(actor),
+    );
+    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.0.15`, "background: #1111FF; color: #FFFFFF");
+
+    await migrateToVersion(
+        "4.0.16",
+        lastMigration,
+        getAllActorsInGame().filter(
+            (actor) => actor.system.is5e && (actor.type === "automaton" || actor.type === "pc" || actor.type === "npc"),
+        ),
+        "adding other attacks for 5e automaton, pc, and npc",
+        async (actor) => await addOtherAttacksManeuversForAutomatonPcNpc(actor),
+    );
+    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.0.16`, "background: #1111FF; color: #FFFFFF");
+
     // Always rebuild the database for all actors by recreating actors and all their items (description, cost, etc)
     _start = Date.now();
     await migrateToVersion(
@@ -142,14 +162,59 @@ async function replaceActorsBuiltInManeuvers(actor) {
 
         timer.maneuversStart = Date.now();
         await actor.addHeroSystemManeuvers();
-        //await actor.addHeroSystemManeuversBulk();
         timer.maneuversEnd = Date.now();
-
-        // console.log(
-        //     `${timer.deleteEnd - timer.deleteStart} ${timer.placeholdersEnd - timer.placeholdersStart} ${timer.maneuversEnd - timer.maneuversStart}`,
-        // );
     } catch (e) {
         const msg = `Migration of maneuvers to 4.0.14 failed for ${actor?.name}. Please report.`;
+        console.error(msg, e);
+        if (game.user.isGM && game.settings.get(game.system.id, "alphaTesting")) {
+            await ui.notifications.warn(msg);
+        }
+    }
+}
+
+/**
+ * Automatons had maneuvers stripped out in 4.0.14's migration. Add them back in.
+ * @param {*} actor
+ * @returns
+ */
+async function addManeuversForAutomaton(actor) {
+    try {
+        if (!actor) return false;
+
+        // Delete perception if it has it so that we can start with a blank slate.
+        await actor.items.find((item) => item.system.XMLID === "PERCEPTION")?.delete();
+
+        // Add perception and maneuvers
+        await actor.addFreeStuff();
+    } catch (e) {
+        const msg = `Adding freebees to Automaton in 4.0.15 failed for ${actor?.name}. Please report.`;
+        console.error(msg, e);
+        if (game.user.isGM && game.settings.get(game.system.id, "alphaTesting")) {
+            await ui.notifications.warn(msg);
+        }
+    }
+}
+
+/**
+ * 5e Automatons, NPCs, and PCs were missing the OTHERATTACKS maneuver accidentally.
+ * @param {*} actor
+ * @returns
+ */
+async function addOtherAttacksManeuversForAutomatonPcNpc(actor) {
+    try {
+        if (!actor) return false;
+
+        // If doesn't already have this maneuver
+        const alreadyHasOtherAttacksManeuver = actor.items.find((item) => item.system.XMLID === "OTHERATTACKS");
+        if (alreadyHasOtherAttacksManeuver) {
+            return false;
+        }
+
+        // Add the maneuver
+        const otherAttacksManeuver = CONFIG.HERO.powers5e.find((power) => power.key === "OTHERATTACKS");
+        await actor.addManeuver(otherAttacksManeuver);
+    } catch (e) {
+        const msg = `Adding OTHERATTACKS in 4.0.16 failed for ${actor?.name}. Please report.`;
         console.error(msg, e);
         if (game.user.isGM && game.settings.get(game.system.id, "alphaTesting")) {
             await ui.notifications.warn(msg);

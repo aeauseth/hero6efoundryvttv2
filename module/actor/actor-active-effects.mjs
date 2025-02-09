@@ -205,7 +205,7 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                 name: game.i18n.localize("EFFECT.StatusTargeted"),
                 img: "icons/svg/target.svg",
             },
-            holdingEffect: {
+            holdingAndActionEffect: {
                 id: "holding",
                 name: game.i18n.localize("EFFECT.HoldingAnAction"),
                 img: `icons/svg/clockwork.svg`,
@@ -264,6 +264,11 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                         mode: CONST.ACTIVE_EFFECT_MODES.MULTIPLY,
                     },
                 ],
+            },
+            desolidificationEffect: {
+                id: "desolidification",
+                name: game.i18n.localize("EFFECT.StatusDesolidification"),
+                img: `icons/svg/mystery-man.svg`,
             },
             dodgeEffect: {
                 id: "dodge",

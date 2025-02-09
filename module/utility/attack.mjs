@@ -306,7 +306,7 @@ export class Attack {
             results: [], // todo: for attacks that roll one effect and apply to multiple targets do something different here
         };
 
-        target.range = calculateDistanceBetween(system.attackerToken, targetedToken);
+        target.range = calculateDistanceBetween(system.attackerToken, targetedToken).distance;
         if (item) {
             target.cvModifiers.push(
                 Attack.makeCvModifier(Attack.getRangeModifier(item, target.range), "RANGE", "Range Mod"),

@@ -1,6 +1,5 @@
 import { HEROSYS } from "../herosystem6e.mjs";
-import { HeroSystem6eItem } from "./item.mjs";
-import { editSubItem, deleteSubItem } from "../powers/powers.mjs";
+//import { HeroSystem6eItem } from "./item.mjs";
 import { adjustmentSourcesPermissive, adjustmentSourcesStrict } from "../utility/adjustment.mjs";
 import { ItemModifierFormApplication } from "../item/item-modifier-application.mjs";
 
@@ -225,7 +224,7 @@ export class HeroSystem6eItemSheet extends ItemSheet {
                         !o.system.XMLID.startsWith("__"),
                 )) {
                     // Check if there is an adder (if so attack is checked)
-                    const adder = (this.item.system.ADDER || []).find((o) => o.ALIAS == attack.name);
+                    const adder = this.item.adders.find((o) => o.ALIAS == attack.name);
 
                     data.attacks.push({
                         id: attack.id,
@@ -260,15 +259,6 @@ export class HeroSystem6eItemSheet extends ItemSheet {
 
         // Roll handlers, click handlers, etc. would go here.
         html.find(".rollable").click(this._onSheetAction.bind(this));
-
-        // Add sub 'Item'
-        html.find(".item-create").click(this._onSubItemCreate.bind(this));
-
-        // Update Inventory Item
-        html.find(".item-edit").click(this._onEditItem.bind(this));
-
-        // Delete Inventory Item
-        html.find(".item-delete").click(this._onDeleteItem.bind(this));
 
         // Active Effects
         html.find(".effect-create").click(this._onEffectCreate.bind(this));
@@ -624,77 +614,6 @@ export class HeroSystem6eItemSheet extends ItemSheet {
         if (this.item.actor) {
             await this.item.actor.CalcActorRealAndActivePoints();
         }
-    }
-
-    async _onSubItemCreate(event) {
-        event.preventDefault();
-        const header = event.currentTarget;
-        // Get the type of item to create.
-        const type = header.dataset.type;
-        // Grab any data associated with this control.
-        const data = foundry.utils.duplicate(header.dataset);
-        // Initialize a default name.
-        const name = `New ${type.capitalize()}`;
-
-        if (type === "effect") {
-            if (!this.actor) {
-                return ui.notifications.warn(`Active Effects not handled on items not associated with an actor.`);
-            }
-
-            // Active Effects are quirky.
-            // It appears in v10 that you cannot createEmbeddedDocuments on an Item already
-            // embedded in an Actor.
-            // If an Item with AEs is added to an actor, all the AEs on that item
-            // are transferred to the actor.
-            // Only AEs on actors are used.
-            // If you modify an AE on an item already embedded to an actor
-            // the actor doesn't receive the updates.
-            // The AEs on actor/item are not linked.
-            // There is a work around, by keeping track of the AE origin
-
-            let activeEffect = new ActiveEffect().toObject();
-            activeEffect.label = "New Effect";
-            activeEffect.origin = this.item.uuid;
-
-            await this.actor.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
-
-            // This will update the AE effects on an Item that is attached to an actor
-            // but since the updated AEs don't transfer to the actor automatically, seems pointless.
-            // You could manually update the corresponding actor as well, perhaps a future feature.
-            // await this.item.update({
-            //   effects:
-            //     [
-            //       activeEffect
-            //     ]
-            // })
-
-            return;
-        }
-
-        // Prepare the item object.
-        const itemData = {
-            name,
-            type,
-            data,
-        };
-        const newItem = new HeroSystem6eItem(itemData);
-
-        const id = Date.now().toString(32) + Math.random().toString(16).substring(2);
-        const changes = {};
-        changes[`system.subItems.${type}.${id}.system`] = newItem.system;
-        changes[`system.subItems.${type}.${id}.img`] = this.item.img;
-        changes[`system.subItems.${type}.${id}.name`] = name;
-        changes[`system.subItems.${type}.${id}._id`] = this.item._id + "-" + id;
-
-        return await this.item.update(changes);
-    }
-
-    async _onEditItem(event) {
-        await editSubItem(event, this.item);
-    }
-
-    async _onDeleteItem(event) {
-        await deleteSubItem(event, this.item);
     }
 
     async _onEffectCreate(event) {

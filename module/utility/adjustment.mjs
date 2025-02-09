@@ -23,7 +23,13 @@ export function adjustmentSourcesPermissive(actor, is5e) {
 
     const powerList = is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
     const powers = powerList.filter(
-        (power) => !power.type?.includes("skill") && !power.type?.includes("perk") && !power.type?.includes("talent"),
+        (power) =>
+            !power.type?.includes("skill") &&
+            !power.type?.includes("perk") &&
+            !power.type?.includes("talent") &&
+            power?.xmlTag !== "ADDER" &&
+            power?.xmlTag !== "DISAD" &&
+            power?.xmlTag !== "MODIFIER",
     );
 
     for (const power of powers) {
@@ -109,6 +115,7 @@ export function defensivePowerAdjustmentMultiplier(XMLID, actor, is5e) {
         xmlid: XMLID,
         actor: actor,
         is5e: is5e,
+        xmlTag: "POWER",
     });
     if (!configPowerInfo) {
         if (actor) {
@@ -239,11 +246,15 @@ function _createAEChangeBlock(targetCharOrPower, targetSystem, item) {
     let key =
         targetSystem.system.characteristics?.[targetCharOrPower.toLowerCase()] != null
             ? `system.characteristics.${targetCharOrPower.toLowerCase()}.max`
-            : "system.max";
+            : targetSystem?.system?.XMLID?.toLowerCase() || "system.max";
 
     // It would be nice to show the HEALING max values, but we really don't want them added
     if (item?.system.XMLID === "HEALING") {
         key = targetCharOrPower.toLowerCase();
+    }
+
+    if (key === "system.max") {
+        console.error(`Unknown key for active effect`);
     }
 
     return {
@@ -381,7 +392,7 @@ export async function performAdjustment(
 
     const isHealing = attackItem.system.XMLID === "HEALING";
     let targetUpperCaseName = nameOfCharOrPower.toUpperCase();
-    const potentialCharacteristic = nameOfCharOrPower.toLowerCase();
+    let potentialCharacteristic = nameOfCharOrPower.toLowerCase();
     const simplifiedHealing =
         attackItem.system.INPUT.match(/simplified/i) &&
         ["BODY", "STUN"].includes(potentialCharacteristic.toUpperCase());
@@ -396,17 +407,18 @@ export async function performAdjustment(
     // a character’s Combat Value derived from DEX, and
     // so forth).
     if (targetActor.is5e) {
-        switch (nameOfCharOrPower.toLowerCase()) {
+        switch (potentialCharacteristic.toLowerCase()) {
             case "ocv":
             case "dcv":
-                console.warn(`${nameOfCharOrPower.toUpperCase()} is invalid for a 5e actor, using DEX instead.`);
-                nameOfCharOrPower = "dex";
-
+                console.warn(`${potentialCharacteristic.toUpperCase()} is invalid for a 5e actor, using DEX instead.`);
+                potentialCharacteristic = nameOfCharOrPower = "dex";
+                targetUpperCaseName = nameOfCharOrPower.toUpperCase();
                 break;
             case "omcv":
             case "dmcv":
-                console.warn(`${nameOfCharOrPower.toUpperCase()} is invalid for a 5e actor, using EGO instead.`);
-                nameOfCharOrPower = "ego";
+                console.warn(`${potentialCharacteristic.toUpperCase()} is invalid for a 5e actor, using EGO instead.`);
+                potentialCharacteristic = nameOfCharOrPower = "ego";
+                targetUpperCaseName = nameOfCharOrPower.toUpperCase();
                 break;
         }
     }
@@ -662,13 +674,14 @@ export async function performAdjustment(
             const costPerActivePoint2 = determineCostPerActivePoint(char, null, targetActor);
             change.value = Math.trunc(activeEffect.flags.adjustmentActivePoints / costPerActivePoint2);
             adjustmentDamageThisApplicationArray[i] =
-                existingEffect.changes[0].value - adjustmentDamageThisApplicationArray[i];
+                existingEffect.changes[i].value - adjustmentDamageThisApplicationArray[i];
             i++;
         }
         adjustmentDamageThisApplication = existingEffect.changes[0].value - adjustmentDamageThisApplication;
 
         if (activeEffect.flags.adjustmentActivePoints === 0 && !CONFIG.debug.adjustmentFadeKeep) {
             isEffectFinished = true;
+            await existingEffect.update({ name: "pending delete", changes: existingEffect.changes });
             await updateCharacteristicValue(activeEffect, { targetSystem, previousChanges });
             await existingEffect.delete();
             const chatCard = _generateAdjustmentChatCard({
@@ -782,14 +795,21 @@ export async function performAdjustment(
 
             thisAttackActivePointAdjustmentNotAppliedDueToMax = 0;
             //totalActivePointAffectedDifference = activeEffect.flags.adjustmentActivePoints;
-            adjustmentDamageThisApplication = activeEffect.changes[0].value;
+            adjustmentDamageThisApplication = change.value; //activeEffect.changes[0].value;
         }
     }
 
     // Add new activeEffect
     if (!existingEffect && activeEffect.flags.adjustmentActivePoints !== 0) {
         updateEffectName(activeEffect);
-        const createdEffects = await targetSystem.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
+        const createdEffects = await targetActor.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
+
+        if (!createdEffects[0].duration.startTime) {
+            console.warn(
+                `${targetSystem?.name}: ${createdEffects[0].name} has no duration.startTime and will likely never expire.`,
+                createdEffects[0],
+            );
+        }
 
         if (!isHealing) {
             await recalcEffectBasedOnTotalApForXmlid(createdEffects[0]);

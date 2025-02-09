@@ -39,19 +39,20 @@
 
     {{#each adjustments as | adj |}}
         <div class="card-section adjustment-summary" title="click to show/hide details">
+            
+            {{#if (lt adj.adjustmentDamageThisApplication 0)}}
+                {{abs adj.adjustmentDamageThisApplication}} {{adj.adjustmentTarget}} lost. 
+            {{else}}
+                {{#if (eq adj.adjustmentDamageThisApplication 0)}}
+                    No effect on {{adj.adjustmentTarget}}.
+                {{else}}
+                    {{abs adj.adjustmentDamageThisApplication}} {{adj.adjustmentTarget}} gained.
+                {{/if}}
+            {{/if}}
+            {{!-- <i class="fal fa-circle-info"></i> --}}
+            
             {{#if adj.isEffectFinished}}
                 The {{adj.attackItem.system.XMLID}} effects of {{adj.adjustmentTarget}} have ended.
-            {{else}}
-                {{#if (lt adj.adjustmentDamageThisApplication 0)}}
-                    {{abs adj.adjustmentDamageThisApplication}} {{adj.adjustmentTarget}} lost. 
-                {{else}}
-                    {{#if (eq adj.adjustmentDamageThisApplication 0)}}
-                        No effect on {{adj.adjustmentTarget}}.
-                    {{else}}
-                        {{abs adj.adjustmentDamageThisApplication}} {{adj.adjustmentTarget}} gained.
-                    {{/if}}
-                {{/if}}
-                {{!-- <i class="fal fa-circle-info"></i> --}}
             {{/if}}
             
             {{#unless adj.isEffectFinished}}

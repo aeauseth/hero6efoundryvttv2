@@ -64,7 +64,7 @@
                     data-roller="{{../rollerJSON}}"
                     data-target-tokens="{{toJsonArray target}}"
                 >
-                    {{#if ../nonDmgEffect}}
+                    {{#if (or ../nonDmgEffect ../senseAffecting)}}
                         Apply {{../item.system.XMLID}} to <b>{{target.name}}</b>
                     {{else}}
                         {{#if target.subTarget}}
@@ -84,7 +84,7 @@
                     data-roller="{{rollerJSON}}"
                     data-target-tokens="{{toJSON targetTokens}}"
                 >
-                    {{#if nonDmgEffect}}
+                    {{#if (or nonDmgEffect senseAffecting)}}
                         Apply {{item.system.XMLID}} to <b>ALL</b>
                     {{else}}
                         Apply Damage to <b>ALL</b>
