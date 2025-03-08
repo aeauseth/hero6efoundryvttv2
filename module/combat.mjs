@@ -9,49 +9,70 @@ export class HeroSystem6eCombat extends Combat {
     constructor(data, context) {
         super(data, context);
 
-        this.previous = this.previous || {
-            combatantId: null,
-        };
+        data.flags = { turnNumber: 0, segmentNumber: 12 };
+
+        //this.segmentNumber = 12;
     }
 
     async rollInitiative(ids) {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | rollInitiative`, ids);
-        }
         ids = typeof ids === "string" ? [ids] : ids;
-        //const currentId = this.combatant?.id;
-        // Iterate over Combatants, performing an initiative roll for each
-        const updates = [];
-        for (const id of ids) {
-            // Get Combatant data (non-strictly)
-            const combatant = this.combatants.get(id);
-            if (!combatant?.isOwner) continue;
 
-            // Produce an initiative roll for the Combatant
-            const characteristic = combatant.actor?.system?.initiativeCharacteristic || "dex";
-            const initValue = combatant.actor?.system.characteristics[characteristic]?.value || 0;
-            if (combatant.flags.initiative != initValue || combatant.flags.initiativeCharacteristic != characteristic) {
-                // monks-combat-marker shows error with tokenDocument.object is nul..
-                // tokenDocument is supposed to have an object.
-                // Unclear why it is missing sometimes.
-                // KLUGE: Do not update initiative when tokenDocument.object is missing.
-                if (combatant.token.object) {
-                    updates.push({
-                        _id: id,
-                        "flags.initiative": initValue,
-                        "flags.initiativeCharacteristic": characteristic,
-                    });
-                }
-            }
+        let updList = [];
+        for (let cId = 0; cId < ids.length; cId++) {
+            const c = this.combatants.get(ids[cId]);
+            this.computeInitiative(c, updList);
         }
-        if (!updates.length) return this;
 
-        // Update multiple combatants
-        if (updates) {
-            await this.updateEmbeddedDocuments("Combatant", updates);
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
         }
 
         return this;
+    }
+
+    async rebuildInitiative() {
+        let updList = [];
+        for (let c of this.combatants) {
+            this.computeInitiative(c, updList);
+        }
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
+            for (let c of updList) {
+                if (c.initiative != 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    computeInitiative(c, updList) {
+        if (!this.isOwner) return;
+        let id = c._id || c.id;
+        let hasSegment = c.actor.hasPhase(this.flags.segmentNumber);
+        let isOnHold = false; //c.actor.getHoldAction();
+        let isOnAbort = false; //c.actor.getAbortAction();
+        let name = c.actor.name;
+        if (hasSegment || isOnHold || isOnAbort) {
+            let baseInit = c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
+            if (isOnHold) {
+                if (hasSegment) {
+                    // On hold + current segment -> auto-disable on hold
+                    c.actor.disableHoldAction();
+                } else {
+                    name = c.actor.name + " (H)";
+                }
+            }
+            if (isOnAbort) {
+                name = c.actor.name + " (A)";
+                if (c.actor.incAbortActionCount()) {
+                    c.actor.disableAbortAction();
+                }
+            }
+            updList.push({ _id: id, name: name, initiative: baseInit, holdAction: c.holdAction });
+        } else {
+            updList.push({ _id: id, name: name, initiative: 0, holdAction: c.holdAction });
+        }
     }
 
     /**
@@ -118,166 +139,8 @@ export class HeroSystem6eCombat extends Combat {
     }
 
     async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | _onCreateDescendantDocuments`);
-        }
-
-        // Automatically roll initiative for all combatants created in the combat tracker.
-        // We could use rollAll() here, but rollInitiative is probably more efficient.
-        await this.rollInitiative(documents.map((o) => o.id));
-
-        // Get current combatant and try to maintain turn order to the best of our ability
-        const priorState = foundry.utils.deepClone(this.current);
-        this.setupTurns();
-        await this.assignSegments(priorState.tokenId);
-        const combatTurn = this.getCombatTurnHero(priorState);
-
-        // Call Super
-        await super._onCreateDescendantDocuments(
-            parent,
-            collection,
-            documents,
-            data,
-            { ...options, combatTurn: combatTurn },
-            userId,
-        );
-
-        // Add or remove extra combatants based on SPD or Lightning Reflexes
-        await this.extraCombatants();
-    }
-
-    async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | _onDeleteDescendantDocuments`);
-        }
-
-        // Get current combatant
-        const priorState = foundry.utils.deepClone(this.current);
-        this.setupTurns();
-        await this.assignSegments(priorState.tokenId);
-        const combatTurn = this.getCombatTurnHero(priorState);
-
-        // Call the Super (don't render the likely incorrect turn that default foundry provides)
-        await super._onDeleteDescendantDocuments(
-            parent,
-            collection,
-            documents,
-            ids,
-            { ...options, combatTurn: combatTurn },
-            userId,
-        );
-
-        // Add or remove extra combatants based on SPD or Lightning Reflexes (shouldn't be needed as we have overrides for combatant deletes via UI)
-        await this.extraCombatants();
-    }
-
-    async assignSegments(tokenId) {
-        if (!tokenId) return;
-
-        const tokenCombatants = this.combatants.filter((o) => o.tokenId === tokenId);
-        const tokenCombatantCount = tokenCombatants.length;
-        if (tokenCombatantCount === 0) return;
-        if (!tokenCombatants[0]?.isOwner) return;
-        const actor = tokenCombatants[0].actor;
-        if (!actor) return;
-        const lightningReflexes = actor?.items.find(
-            (o) => o.system.XMLID === "LIGHTNING_REFLEXES_ALL" || o.system.XMLID === "LIGHTNING_REFLEXES_SINGLE",
-        );
-        const updates = [];
-        for (let c = 0; c < tokenCombatantCount; c++) {
-            const _combatant = tokenCombatants[c];
-            const spd = clamp(parseInt(_combatant.actor?.system.characteristics.spd?.value || 0), 1, 12);
-            if (spd) {
-                const segment = HeroSystem6eCombat.getSegment(spd, Math.floor(c * (lightningReflexes ? 0.5 : 1)));
-                let update = {
-                    _id: _combatant.id,
-                    initiative: _combatant.flags.initiative,
-                    "flags.segment": segment,
-                    "flags.spd": spd,
-                    "flags.initiativeTooltip": `${
-                        _combatant.flags.initiative
-                    }${_combatant.flags.initiativeCharacteristic?.toUpperCase()} ${spd}SPD`,
-                };
-                if (lightningReflexes && c % 2 === 0) {
-                    update = {
-                        ...update,
-                        "flags.initiativeTooltip": `${
-                            _combatant.flags.initiative
-                        }${_combatant.flags.initiativeCharacteristic?.toUpperCase()} ${spd}SPD ${
-                            lightningReflexes.system.LEVELS
-                        }LR`,
-                        initiative: _combatant.flags.initiative + parseInt(lightningReflexes?.system.LEVELS || 0),
-                        "flags.lightningReflexes.levels": parseInt(lightningReflexes.system.LEVELS),
-                        "flags.lightningReflexes.name":
-                            lightningReflexes.system.OPTION_ALIAS || lightningReflexes.system.INPUT || "All Actions",
-                    };
-                } else {
-                    update = {
-                        ...update,
-                        "flags.lightningReflexes": null,
-                    };
-                }
-                if (
-                    update.initiative != _combatant.initiative ||
-                    update["flags.lightningReflexes.name"] != _combatant.flags?.lightningReflexes?.name ||
-                    update["flags.segment"] != _combatant.flags?.segment
-                ) {
-                    updates.push(update);
-                }
-            }
-        }
-        if (updates.length > 0) {
-            await this.updateEmbeddedDocuments("Combatant", updates);
-        }
-    }
-
-    async extraCombatants() {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | extraCombatants`);
-        }
-
-        // Only 1 GM should do this
-        if (!game.users.activeGM?.isSelf) return;
-
-        const uniqueTokens = Array.from(new Set(this.combatants.map((o) => o.tokenId)));
-        for (const _tokenId of uniqueTokens) {
-            const _combatant = this.combatants.find((o) => o.tokenId === _tokenId && o.actor);
-            if (!_combatant?.isOwner) continue;
-            const actor = _combatant?.actor;
-            if (actor) {
-                const lightningReflexes = actor?.items.find(
-                    (o) =>
-                        o.system.XMLID === "LIGHTNING_REFLEXES_ALL" || o.system.XMLID === "LIGHTNING_REFLEXES_SINGLE",
-                );
-                const targetCombatantCount =
-                    clamp(parseInt(actor.system.characteristics.spd?.value || 0), 1, 12) * (lightningReflexes ? 2 : 1);
-                const tokenCombatants = this.combatants.filter((o) => o.tokenId === _tokenId);
-                const tokenCombatantCount = tokenCombatants.length;
-
-                if (tokenCombatantCount < targetCombatantCount) {
-                    const toCreate = [];
-                    for (let i = 0; i < targetCombatantCount - tokenCombatantCount; i++) {
-                        toCreate.push(_combatant);
-                    }
-                    await this.createEmbeddedDocuments("Combatant", toCreate);
-                    return;
-                }
-
-                if (tokenCombatantCount > targetCombatantCount) {
-                    const _combatants = this.combatants.filter((o) => o.tokenId === _tokenId && o.actor);
-                    await this.deleteEmbeddedDocuments(
-                        "Combatant",
-                        _combatants.map((o) => o.id).slice(0, tokenCombatantCount - targetCombatantCount),
-                    );
-                    return;
-                }
-
-                // Add custom hero flags for segments and such
-                if (tokenCombatantCount === targetCombatantCount) {
-                    await this.assignSegments(_tokenId);
-                }
-            }
-        }
+        await super._onCreateEmbeddedDocuments(parent, collection, documents, data, options, userId);
+        await this.rebuildInitiative();
     }
 
     static getSegment(spd, index) {
@@ -293,60 +156,24 @@ export class HeroSystem6eCombat extends Combat {
         return 12;
     }
 
-    static hasPhase(spd, segment) {
-        switch (clamp(parseInt(spd), 0, 12)) {
-            case 0:
-                // At SPD 0, a character is frozen in place, unable to move or take any other Actions. He can only take Post-Segment 12 Recoveries,
-                return [12].includes(segment);
-            case 1:
-                return [12].includes(segment);
-            case 2:
-                return [6, 12].includes(segment);
-            case 3:
-                return [4, 8, 12].includes(segment);
-            case 4:
-                return [3, 6, 9, 12].includes(segment);
-            case 5:
-                return [3, 5, 8, 10, 12].includes(segment);
-            case 6:
-                return [2, 4, 6, 8, 10, 12].includes(segment);
-            case 7:
-                return [2, 4, 6, 7, 9, 11, 12].includes(segment);
-            case 8:
-                return [2, 3, 5, 6, 8, 9, 11, 12].includes(segment);
-            case 9:
-                return [2, 3, 4, 6, 7, 8, 10, 11, 12].includes(segment);
-            case 10:
-                return [2, 3, 4, 5, 6, 8, 9, 10, 11, 12].includes(segment);
-            case 11:
-                return [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(segment);
-            case 12:
-                return true;
-            default:
-                // if (spd < 1 && segment === 12) return true;
-                // if (spd === undefined && segment === 12) return true;
-                return false;
-        }
-    }
-
     /**
      * Get the current history state of the Combat encounter.
      * @param {Combatant} [combatant]       The new active combatant
      * @returns {CombatHistoryData}
      * @protected
      */
-    _getCurrentState(combatant) {
-        combatant ||= this.combatant;
-        return {
-            round: this.round,
-            turn: this.turn ?? null,
-            combatantId: combatant?.id || null,
-            tokenId: combatant?.tokenId || null,
-            segment: combatant?.flags.segment || null,
-            name: combatant?.token?.name || combatant?.actor?.name || null,
-            initiative: combatant?.initiative || null,
-        };
-    }
+    // _getCurrentState(combatant) {
+    //     combatant ||= this.combatant;
+    //     return {
+    //         round: this.round,
+    //         turn: this.turn ?? null,
+    //         combatantId: combatant?.id || null,
+    //         tokenId: combatant?.tokenId || null,
+    //         segment: combatant?.flags.segment || null,
+    //         name: combatant?.token?.name || combatant?.actor?.name || null,
+    //         initiative: combatant?.initiative || null,
+    //     };
+    // }
 
     /**
      * Begin the combat encounter, advancing to round 1 and turn 1
@@ -356,18 +183,25 @@ export class HeroSystem6eCombat extends Combat {
         if (CONFIG.debug.combat) {
             console.debug(`Hero | extraCombatants`);
         }
-        // Hero combats start with round 1 and segment 12.
-        const firstSegment12turn = this.turns.findIndex((o) => o.flags.segment === 12) || 0;
 
-        this._playCombatSound("startEncounter");
-        const updateData = {
-            round: 1,
-            turn: firstSegment12turn,
-            "flags.-=postSegment12Round": null,
-            "flags.-heroCurrent": null,
-        };
-        Hooks.callAll("combatStart", this, updateData);
-        return this.update(updateData);
+        let updList = [];
+        for (let c of this.combatants) {
+            // const updateData = {
+            //     round: 1,
+            //     turn: firstSegment12turn,
+            //     "flags.-=postSegment12Round": null,
+            //     "flags.-heroCurrent": null,
+            // };
+            c.flags.postSegment12Round = null;
+            c.flags.heroCurrent = null;
+            this.computeInitiative(c, updList);
+            //await c.actor.cleanCombat();
+        }
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
+        }
+
+        super.startCombat();
     }
 
     /**

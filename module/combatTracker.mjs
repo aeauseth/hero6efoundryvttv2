@@ -67,16 +67,6 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             context.segments[s] = [];
         }
 
-        // testing/simple: Assign combatants to a segment
-        // const combat = this.viewed;
-        // for (let [i, combatant] of combat.turns.entries()) {
-        //     for (let s = 1; s <= 12; s++) {
-        //         if (combatant.actor.hasPhase(s)) {
-        //             context.segments[s].push(combatant);
-        //         }
-        //     }
-        // }
-
         // Turns
         const turns = [];
         const combat = this.viewed;
@@ -163,23 +153,12 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
         context.turns = turns;
     }
 
-    scrollToTurn() {
-        const combat = this.viewed;
-        if (!combat || combat.turn === null) return;
-        let active = this.element?.find(".combatant.active")[0];
-        if (!active) return;
-        active.scrollIntoView({ block: "center" });
-    }
-
-    // async _render(...args) {
-    //     console.log("_render", this);
-    //     // v13 does not seem to have a _render function, perhaps super.render instead.
-    //     try {
-    //         await super._render(args); // for updating hidden combatants
-    //         await ui.combat.scrollToTurn();
-    //     } catch (e) {
-    //         console.warn(e);
-    //     }
+    // scrollToTurn() {
+    //     const combat = this.viewed;
+    //     if (!combat || combat.turn === null) return;
+    //     let active = this.element?.find(".combatant.active")[0];
+    //     if (!active) return;
+    //     active.scrollIntoView({ block: "center" });
     // }
 
     // v13 includes target

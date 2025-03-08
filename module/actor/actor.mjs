@@ -2899,8 +2899,11 @@ export class HeroSystem6eActor extends Actor {
         if (segmentNumber != this.segmentNumber) {
             const characteristic = this.system?.initiativeCharacteristic || "dex";
             const initValue = this.system.characteristics[characteristic]?.value || 0;
+
+            // Random
             const r = Math.floor(Math.random(6)) + 1;
             this.currentInit = parseInt(initValue) + Number((r / 10).toFixed(2));
+
             this.segmentNumber = segmentNumber;
         }
         return this.currentInit;
