@@ -267,7 +267,7 @@ export class HeroSystem6eActor extends Actor {
         if (content) {
             const chatData = {
                 author: game.user.id,
-                whisper: ChatMessage.getWhisperRecipients("GM"),
+                whisper: whisperUserTargetsForActor(this), //ChatMessage.getWhisperRecipients("GM"),
                 speaker: ChatMessage.getSpeaker({ actor: this }),
                 blind: true,
                 content: content,
@@ -550,7 +550,7 @@ export class HeroSystem6eActor extends Actor {
         const rec = Math.max(0, parseInt(chars.rec.value));
 
         let newStun = parseInt(chars.stun.value) + rec;
-        let newEnd = parseInt(chars.end.value) + rec;
+        let newEnd = Math.max(0, parseInt(chars.end.value)) + rec;
 
         // newEnd should not exceed newStun if current stun <=0
         if (chars.stun.value <= 0) {

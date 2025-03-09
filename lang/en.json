@@ -265,6 +265,7 @@
         "NonStandardStunMultiplierForKillingAttack": {
             "Name": "Custom Killing Attack STUN Multiplier",
             "Label": "STUN Multipler Override",
+            "Hint": "The default 6e killing attack STUN multiplier is ½d6.<br>The default 5e killing attack STUN multiplier is 1d6-1[min 1].<br>If you want to override these defaults for ALL 6e and 5e actors then enter the formula in the boxes above.<br>It is recommend that you leave all the boxes at 0 as this will use the default STUN multiplier appropriate for each actor.",
             "Template": {
                 "D6": "Number of d6",
                 "D6minus1": "Number of d6-1",

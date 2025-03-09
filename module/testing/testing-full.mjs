@@ -1740,6 +1740,7 @@ export function registerFullTests(quench) {
                 it("SkillName Lockpicking", async function () {
                     assert.equal(parentItem.childItems[0].name, `Lockpicking`);
                 });
+
                 it("SkillDesc Lockpicking", async function () {
                     assert.equal(
                         parentItem.childItems[0].system.description,

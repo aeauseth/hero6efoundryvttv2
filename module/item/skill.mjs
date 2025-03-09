@@ -241,11 +241,11 @@ async function skillRoll(item, actor, target) {
     switch (item.system.XMLID) {
         case "PSYCHOLOGICALLIMITATION":
             disadFlavor =
-                "Character is typically required to react to the psychological limitation dictates for at least one phase, followed by an EGO roll to overcome the psychological limitation.";
+                "Success on this roll typically means that the character must follow the psychological complication for at least one phase, after which the character is free to act against this psychological complication. Failure on this roll means that the character must continue to follow this psychological complication.";
             break;
         case "SOCIALLIMITATION":
             disadFlavor =
-                "Success of social limitation roll typically means the character is required to react to (or is effected by) the social limitation dictates.";
+                "Failure on this roll typically means the character is required to react to (or is affected by) the social complication.";
             break;
     }
 

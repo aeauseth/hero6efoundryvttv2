@@ -35,7 +35,7 @@ export class HeroSystem6eTokenDocument extends TokenDocument {
 
         if (!this.id) return;
 
-        if (this.sight.visionMode != "basic") {
+        if (this.sight.visionMode !== "heroVision") {
             super._prepareDetectionModes();
             return;
         }

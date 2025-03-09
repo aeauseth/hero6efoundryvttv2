@@ -40,7 +40,7 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
     // V12 getData(options) is replaced by V13 _prepareContext(options)
     async getData(options = {}) {
         // v13 does not call getData
-        console.log("getData", this);
+        //console.log("getData", this);
         const context = await super.getData(options);
 
         const combat = this.viewed;

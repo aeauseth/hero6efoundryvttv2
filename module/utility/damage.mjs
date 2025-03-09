@@ -470,7 +470,17 @@ export function calculateAddedDicePartsFromItem(item, baseDamageItem, options) {
 
     // FIXME: Environmental Movement: Aquatic Environments should actually counteract this.
     // FIXME: Not everything should be affected by this. For instance, should mental powers be affected? What about electricity based SFX?
-    if (item.actor?.statuses?.has("underwater") && baseDamageItem.system.usesStrength) {
+    // Characters fighting underwater or while swimming are at -2
+    // DCV and -2 DCs to all attacks unless they make an appropriate
+    // Skill Roll or have TF: SCUBA. A character who stands
+    // in water while he fights is at -2 DCV (and typically also suffer
+    // Poor Footing penalties) unless he makes a Breakfall roll.
+    if (
+        item.actor?.statuses?.has("underwater")
+        // &&
+        // (baseDamageItem.system.XMLID === "__STRENGTHDAMAGE" ||
+        //     baseDamageItem.system.ALIAS === "__InternalStrengthPlaceholder")
+    ) {
         const underwaterDc = 2; // NOTE: Working with 2 DC and then subtracting
         const underwaterDiceParts = calculateDicePartsFromDcForItem(baseDamageItem, underwaterDc);
         const formula = dicePartsToFullyQualifiedEffectFormula(baseDamageItem, underwaterDiceParts);

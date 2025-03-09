@@ -1,8 +1,12 @@
 # Releases
 
-## Version 4.0.21 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+## Version 4.0.22 20250308 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
 
-- Full/Casual STR can now apply damage. [#1724](https://github.com/dmdorman/hero6e-foundryvtt/issues/1724)
+- Some campaigns were experiencing lag related to vision, so we moved all custom vision code to a new "Hero Vision" mode. Existing and new tokens will now have standard FoundryVTT vision. You can manually set each token to use "Hero Vision" for improved support of enhanced visions. [#2012](https://github.com/dmdorman/hero6e-foundryvtt/issues/2012)
+
+## Version 4.0.21 20250308 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+
+- Full/Casual STR can now apply damage. Useful for breaking out of an ENTANGLE. [#1724](https://github.com/dmdorman/hero6e-foundryvtt/issues/1724)
 - Improved ability to target Entangles.
 - INVISIBILITY defaults to off when it costs END or has CHARGES.
 - Equipment that uses END or CHARGES now defaults to off (not active).
@@ -11,23 +15,26 @@
 - Haymaker status removed when applying damage. [#1948](https://github.com/dmdorman/hero6e-foundryvtt/issues/1948)
 - NONCOMBAT status applies OCV=0 [#1946](https://github.com/dmdorman/hero6e-foundryvtt/issues/1946)
 - Improved effects panel to show power description. [#1943](https://github.com/dmdorman/hero6e-foundryvtt/issues/1943)
-- AOE Attacks that include an ENTANGLE that "Takes No Damage From Attacks" or "Entangle And Character Both Take Damage" will damage both the ENTANGLE and the actor.
+- AOE Attacks that target an entangled actor will target (and possibly damage) both the ENTANGLE and the actor. If ENTANGLE is destroyed the actor does not take the remaining damage (a future enhancement).
 - Improved/fixed display of temporary, constant, persistent, and inherent effects/powers in the OTHERS tab of the actor sheet. [#1940](https://github.com/dmdorman/hero6e-foundryvtt/issues/1940)
 - Improved Social and physiological complication rolls. [#1729](https://github.com/dmdorman/hero6e-foundryvtt/issues/1729)
-- Improved Stunned, KnockedOut, and Dead statuses. NPC's now show as dead/defeated at -11 STUN. Automaton's show as dead at 0 BODY. [#1891](https://github.com/dmdorman/hero6e-foundryvtt/issues/1891) [#605](https://github.com/dmdorman/hero6e-foundryvtt/issues/605) [#171](https://github.com/dmdorman/hero6e-foundryvtt/issues/171)
+- Improved Stunned, KnockedOut, and Dead statuses. NPCs now show as dead/defeated at -11 STUN. Automaton's show as dead at 0 BODY. [#1891](https://github.com/dmdorman/hero6e-foundryvtt/issues/1891) [#605](https://github.com/dmdorman/hero6e-foundryvtt/issues/605) [#171](https://github.com/dmdorman/hero6e-foundryvtt/issues/171)
 - Simplified velocity calculations to ensure there are no negative velocity values with combat maneuvers. Velocity support is still minimalistic and largely untracked. [#1925](https://github.com/dmdorman/hero6e-foundryvtt/issues/1925)
-- AUTOMATON's no longer take STUN from KnockBack damage. [#1926](https://github.com/dmdorman/hero6e-foundryvtt/issues/1926)
-- Added setting that enables you to "Show BODY & STUN changes to token owners as a private chat" for all, PC's only, or none. [#1965](https://github.com/dmdorman/hero6e-foundryvtt/issues/1926)
+- AUTOMATONs no longer take STUN from KnockBack damage. [#1926](https://github.com/dmdorman/hero6e-foundryvtt/issues/1926)
+- Added setting that enables the game master to "Show BODY & STUN changes to token owners as a private chat" for all, PCs only, or none. [#1965](https://github.com/dmdorman/hero6e-foundryvtt/issues/1965)
 - Fixed EXTRATIME cost and display [#1920](https://github.com/dmdorman/hero6e-foundryvtt/issues/1920)
 - Improved error handling for older/unsupported tokens. Uploading the HDC file again fixes these errors.
 - Custom Adders now includes cost on description.
-- MULTIPOWER, COMPOUNDPOWER, and LIST don't really have a range property. [#1837](https://github.com/dmdorman/hero6e-foundryvtt/issues/1837)
+- The Active Points of a power/skill is no longer shown in the description when Active Points = Character Points.
+- MULTIPOWER, COMPOUNDPOWER, ELEMENTAL CONTROL and LIST are not powers and should not have range in their description. [#1837](https://github.com/dmdorman/hero6e-foundryvtt/issues/1837)
 - Equipment that is not carried no longer shows on "Attack" tab of character sheet. [#1996](https://github.com/dmdorman/hero6e-foundryvtt/issues/1996)
 - PRONE status is now applied when ASLEEP, DEAD, KNOCKED OUT, or UNCONSCIOUS is applied. [#1991
   ](https://github.com/dmdorman/hero6e-foundryvtt/issues/1991)
-- UNDERWATER penalties when attacking now only apply when the attack uses strength. [#1984](https://github.com/dmdorman/hero6e-foundryvtt/issues/1984)
 - When recovering from being KNOCKED OUT, END will now equal STUN. [#1989](https://github.com/dmdorman/hero6e-foundryvtt/issues/1989)
 - Added alternate identities, campaign name, genre, player name, and gm to the actor OTHER tab. [#1986](https://github.com/dmdorman/hero6e-foundryvtt/issues/1986)
+- The world's killing attacks' STUN multiplier can be customized using the "Custom Killing Attack Multiplier" configuration menu. Leaving all fields at 0 will use the default for your system. [#1972](https://github.com/dmdorman/hero6e-foundryvtt/issues/1972)
+- Psychological Complications and Social Complications roll results now have a description of the consequences. [#1729](https://github.com/dmdorman/hero6e-foundryvtt/issues/1729)
+- Damage with deadly blow now calculated correctly. [#1901](https://github.com/dmdorman/hero6e-foundryvtt/issues/1901)
 
 ## Version 4.0.20 20250217
 

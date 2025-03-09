@@ -64,7 +64,7 @@ export class EffectsPanel extends Application {
                         ae.flags.label = d.label;
                         ae.flags.targetDisplay = ae.flags.target;
                     } else if (!ae.statuses || ae.statuses.size === 0) {
-                        console.log(`Skipping ${ae.name}`);
+                        //console.log(`Skipping ${ae.name}`);
                         continue;
                     }
                 }

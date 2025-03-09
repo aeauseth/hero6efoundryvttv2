@@ -161,9 +161,8 @@ return ChatMessage.create(chatData);
 - Untested/limited support for vehicles, automations, computers, etc.
 - Power frameworks are partially supported.
 - The following are largely not implemented
-  - Attack powers that do not do stun/body damage (Change Environment, Darkness, Dispel, Entangle, Flash, Images, Mental Illusions, Mind Control, Reflection, Transform).
+  - Attack powers that do not do stun/body damage (Change Environment, Darkness, Dispel, Images, Mental Illusions, Mind Control, Reflection, Transform).
   - Attack powers with NND & AVAD
-  - Automation powers (Cannot Be Stunned, Does Not Bleed, No Hit Locations, Takes No STUN).
   - Body-Affecting powers (Desolidification, Duplication, Extra Limbs, Growth, Multiform, Shape Shift, Shrinking, Stretching)
   - Mental Powers (Mental Illusions, Mind Control, Mind Scan, Telepathy)
   - Sense-Affecting powers (Darkness, Flash, Images, Invisibility)

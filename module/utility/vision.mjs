@@ -2,34 +2,58 @@ import { calculateDistanceBetween } from "./range.mjs";
 
 export class HeroPointVisionSource extends foundry.canvas.sources.PointVisionSource {
     get isBlinded() {
-        // if (this.token?.name === "Onyx") {
-        //     debugger;
-        // }
-        const defaultBlind =
-            (this.data.radius === 0 && (this.data.lightRadius === 0 || !this.visionMode?.perceivesLight)) ||
-            Object.values(this.blinded).includes(true);
-        if (!defaultBlind) {
+        try {
+            // Only override Hero Vision
+            if (this.visionMode.id !== "heroVision") {
+                return super.isBlinded;
+            }
+
+            const start = new Date();
+
+            // if (this.token?.name === "Onyx") {
+            //     debugger;
+            // }
+            const defaultBlind =
+                (this.data.radius === 0 && (this.data.lightRadius === 0 || !this.visionMode?.perceivesLight)) ||
+                Object.values(this.blinded).includes(true);
+            if (!defaultBlind) {
+                const duration = new Date() - start;
+                if (duration > 1) {
+                    console.debug(new Date() - start, this);
+                }
+                return defaultBlind;
+            }
+
+            // Do we have an enhanced vision with DETECT & SENSE & RANGE?
+            // Some visions have SENSE/RANGE (built in)
+            // SightGroup/ToughGroup/HearingGroup/RadioGroup/SmellGroup have SENSE builtIn
+            // Assuming only SIGHT/TOUCH/SMELL or TARGETING can actually SEE (you can see, touch, smell a wall)
+            let blindVisionItem = this.token?.actor?.items.find(
+                (i) =>
+                    i.isActive &&
+                    i.isSense &&
+                    i.isRangedSense &&
+                    (i.isTargeting || ["TOUCHGROUP", "SMELLGROUP"].includes(i.system.GROUP)) &&
+                    (!this.token?.actor?.statuses.has("blind") || i.system.GROUP !== "SIGHTGROUP"),
+            );
+
+            if (blindVisionItem) {
+                //console.log("blindVisionItem", blindVisionItem);
+                const duration = new Date() - start;
+                if (duration > 1) {
+                    console.debug(new Date() - start, this);
+                }
+                return false;
+            }
+            const duration = new Date() - start;
+            if (duration > 1) {
+                console.debug(new Date() - start, this);
+            }
             return defaultBlind;
+        } catch (e) {
+            console.error(e);
         }
-
-        // Do we have an enhanced vision with DETECT & SENSE & RANGE?
-        // Some visions have SENSE/RANGE (built in)
-        // SightGroup/ToughGroup/HearingGroup/RadioGroup/SmellGroup have SENSE builtIn
-        // Assuming only SIGHT/TOUCH/SMELL or TARGETING can actually SEE (you can see, touch, smell a wall)
-        let blindVisionItem = this.token?.actor?.items.find(
-            (i) =>
-                i.isActive &&
-                i.isSense &&
-                i.isRangedSense &&
-                (i.isTargeting || ["TOUCHGROUP", "SMELLGROUP"].includes(i.system.GROUP)) &&
-                (!this.token?.actor?.statuses.has("blind") || i.system.GROUP !== "SIGHTGROUP"),
-        );
-
-        if (blindVisionItem) {
-            //console.log("blindVisionItem", blindVisionItem);
-            return false;
-        }
-        return defaultBlind;
+        return false;
     }
 
     get token() {
@@ -40,21 +64,21 @@ export class HeroPointVisionSource extends foundry.canvas.sources.PointVisionSou
 }
 
 export function setPerceptionModes() {
-    // class HeroVisionMode extends VisionMode {
-    //     constructor() {
-    //         super({
-    //             id: "heroSight",
-    //             //label: "PF2E.Actor.Creature.Sense.Type.Thoughts",
-    //             walls: false,
-    //             angle: false,
-    //             type: DetectionMode.DETECTION_TYPES.OTHER,
-    //         });
-    //     }
-    // }
-    // CONFIG.Canvas.visionModes.heroVision = new HeroVisionMode();
+    class HeroVisionMode extends VisionMode {
+        constructor() {
+            super({
+                id: "heroVision",
+                label: "Hero Vision",
+                // walls: true,
+                // angle: false,
+                type: DetectionMode.DETECTION_TYPES.SIGHT,
+            });
+        }
+    }
+    CONFIG.Canvas.visionModes.heroVision = new HeroVisionMode();
     // CONFIG.Canvas.visionModes.heroSight = new VisionMode({
-    //     id: "heroSight",
-    //     label: "VISION.HeroSight",
+    //     id: "heroVision",
+    //     label: "Hero Vision",
     //     canvas: {
     //         shader: ColorAdjustmentsSamplerShader,
     //         //uniforms: { enable: true, contrast: 0, saturation: -1.0, brightness: 0 },
@@ -92,25 +116,49 @@ export function setPerceptionModes() {
             return (filter2.thickness = 1), filter2;
         }
         _canDetect(visionSource, target) {
-            if (target?.document?.hidden === true) return false;
-            if (super._canDetect(visionSource, target)) return true; // handled by standard vision
-            if (!target.document.hidden && !target.document.hasStatusEffect("invisible")) {
-                return true;
+            if (this.id !== "heroDetectSight") {
+                return super._canDetect(visionSource, target);
             }
 
-            // Invisibility Fringe
-            const INVISIBILITY = target?.actor?.items.find((i) => i.system.XMLID === "INVISIBILITY");
-            if (INVISIBILITY && !INVISIBILITY.findModsByXmlid("NOFRINGE")) {
-                const distance = calculateDistanceBetween(visionSource.token, target).distance;
-                if (distance < 2.1) {
+            try {
+                const start = new Date();
+
+                if (target?.document?.hidden === true) return false;
+                if (super._canDetect(visionSource, target)) return true; // handled by standard vision
+                if (!target.document.hidden && !target.document.hasStatusEffect("invisible")) {
                     return true;
                 }
+
+                // Invisibility Fringe
+                const INVISIBILITY = target?.actor?.items.find((i) => i.system.XMLID === "INVISIBILITY");
+                if (INVISIBILITY && !INVISIBILITY.findModsByXmlid("NOFRINGE")) {
+                    const distance = calculateDistanceBetween(visionSource.token, target).distance;
+                    if (distance < 2.1) {
+                        const duration = new Date() - start;
+                        if (duration > 3) {
+                            console.debug(`VISION: _canDetect check took ${new Date() - start} ms`, this);
+                        }
+                        return true;
+                    }
+                }
+                const duration = new Date() - start;
+                if (duration > 3) {
+                    console.debug(`VISION: _canDetect check took ${new Date() - start} ms`, this);
+                }
+            } catch (e) {
+                console.error(e);
             }
             return false;
         }
 
         /// Override
         _testLOS(visionSource, mode, target, test) {
+            if (this.id !== "heroDetectSight") {
+                return super._testLOS(visionSource, mode, target, test);
+            }
+
+            const start = new Date();
+
             // Kluge to let PARTIALLYPENETRATIVE see thru walls.
             // Although DESOLIDIFICATION make you undetectable via touch group
             // TODO: Make wall materials and check each wall to see if we can see thru it.
@@ -145,6 +193,12 @@ export function setPerceptionModes() {
             if (isSight && visionSource.blinded.darkness) return false;
             if (!this.angle && visionSource.data.angle < 360) {
                 // Constrained by walls but not by vision angle
+
+                const duration = new Date() - start;
+                if (duration > 3) {
+                    console.debug(`VISION: _testLOS check took ${new Date() - start} ms`, this);
+                }
+
                 return !CONFIG.Canvas.polygonBackends[type].testCollision(
                     { x: visionSource.x, y: visionSource.y },
                     test.point,
@@ -157,13 +211,18 @@ export function setPerceptionModes() {
                 hasLOS = visionSource.los.contains(test.point.x, test.point.y);
                 test.los.set(visionSource, hasLOS);
             }
+
+            const duration = new Date() - start;
+            if (duration > 3) {
+                console.debug(`VISION: _testLOS check took ${new Date() - start} ms`, this);
+            }
             return hasLOS;
         }
     }
 
     CONFIG.Canvas.detectionModes.heroDetectSight = new HeroDetectionSightMode(); //new DeCONFIG.Canvas.detectionModes.feelTremor.clone();
     // CONFIG.Canvas.detectionModes.heroDetectSight.id = "heroDetectSight";
-    // CONFIG.Canvas.detectionModes.heroDetectSight.label = "Hero Detect Sight";
+    CONFIG.Canvas.detectionModes.heroDetectSight.label = "Hero Detect Sight";
     // CONFIG.Canvas.detectionModes.heroDetectSight.type = DetectionMode.DETECTION_TYPES.SIGHT;
     // CONFIG.Canvas.detectionModes.heroDetectSight.walls = true;
     // CONFIG.Canvas.detectionModes.heroDetectSight._canDetect(visionSource, target) {

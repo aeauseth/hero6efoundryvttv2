@@ -252,13 +252,17 @@ export default class SettingsHelpers {
             requiresReload: false,
         });
 
+        function determineKillingAttackDefaultDiceParts() {
+            return { d6Count: 0, d6Less1DieCount: 0, halfDieCount: 0, constant: 0 };
+        }
+
         game.settings.register(module, "NonStandardStunMultiplierForKillingAttackBackingSetting", {
             name: game.i18n.localize("Settings.NonStandardStunMultiplierForKillingAttack.Name"),
             label: game.i18n.localize("Settings.NonStandardStunMultiplierForKillingAttack.Label"),
             scope: "world",
             config: false,
             type: Object,
-            default: { d6Count: 0, d6Less1DieCount: 0, halfDieCount: 0, constant: 0 },
+            default: determineKillingAttackDefaultDiceParts(),
             requiresReload: false,
         });
 
@@ -283,7 +287,7 @@ export default class SettingsHelpers {
         game.settings.register(module, "ShowCombatCharacteristicChanges", {
             name: game.i18n.localize("Settings.ShowCombatCharacteristicChanges.Name"),
             hint: game.i18n.localize("Settings.ShowCombatCharacteristicChanges.Hint"),
-            scope: "client",
+            scope: "world",
             config: true,
             type: String,
             default: "all",
@@ -356,7 +360,7 @@ class AutomationMenu extends FormApplication {
         options = foundry.utils.mergeObject(options, {
             classes: ["form"],
             popOut: true,
-            template: `systems/${HEROSYS.module}/templates/configuration/automationMenu.hbs`,
+            template: `systems/${HEROSYS.module}/templates/configuration/automation-menu.hbs`,
             id: "automation-form-application",
             closeOnSubmit: false, // do not close when submitted
             submitOnChange: true, // submit when any input changes
@@ -484,11 +488,12 @@ class StunMultiplierMenu extends FormApplication {
         const options = foundry.utils.mergeObject(defaultOptions, {
             classes: ["form"],
             popOut: true,
-            template: `systems/${HEROSYS.module}/templates/configuration/customStunMultiplier.hbs`,
+            template: `systems/${HEROSYS.module}/templates/configuration/custom-stun-multiplier.hbs`,
             id: "stun-multiplier-form-application",
             closeOnSubmit: false, // do not close when submitted
             submitOnChange: true, // submit when any input changes
             title: "Custom STUN Multiplier Settings",
+            width: "640",
         });
 
         return options;
@@ -505,6 +510,20 @@ class StunMultiplierMenu extends FormApplication {
 
     async _updateObject(_event, formData) {
         const data = foundry.utils.expandObject(formData);
+
+        if (typeof data.d6Count !== "number") {
+            data.d6Count = 0;
+        }
+        if (typeof data.halfDieCount !== "number") {
+            data.halfDieCount = 0;
+        }
+        if (typeof data.d6Less1DieCount !== "number") {
+            data.d6Less1DieCount = 0;
+        }
+        if (typeof data.constant !== "number") {
+            data.constant = 0;
+        }
+
         await game.settings.set(game.system.id, "NonStandardStunMultiplierForKillingAttackBackingSetting", data);
         await this.render();
     }

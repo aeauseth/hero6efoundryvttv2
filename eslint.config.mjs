@@ -76,6 +76,7 @@ export default [
                 DocumentSheetConfig: "readonly",
                 ActiveEffectConfig: "readonly",
                 Scene: "readonly",
+                VisionMode: "readonly",
             },
         },
     },

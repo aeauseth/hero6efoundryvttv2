@@ -3636,9 +3636,12 @@ export class HeroSystem6eItem extends Item {
                     if (this.system.XMLID === "MENTAL_COMBAT_LEVELS" && this.system.OPTIONID === "ALL") break;
                     if (this.system.XMLID === "PENALTY_SKILL_LEVELS" && this.system.OPTIONID === "ALL") break;
 
-                    // Otherwise add it to the list of ADDERS as normal.
+                    // Otherwise add it to the list of ADDERS as normal. Most likely this is a custom adder and since they
+                    // can be for anything, we don't provide its cost if the cost is 0.
                     if (adder.ALIAS.trim()) {
-                        _adderArray.push(`${adder.ALIAS} ${parseInt(adder.BASECOST)?.signedString()}`);
+                        _adderArray.push(
+                            `${adder.ALIAS}${parseInt(adder.BASECOST) !== 0 ? ` ${parseInt(adder.BASECOST)?.signedString()} Points` : ""}`,
+                        );
                     }
                     break;
 
@@ -3764,8 +3767,8 @@ export class HeroSystem6eItem extends Item {
             system.description += this.createPowerDescriptionModifier(modifier);
         }
 
-        // Active Points
-        if (parseInt(system.realCost) != parseInt(system.activePoints) || this.parentItem) {
+        // Active Points show if there are limitations or the real cost is not equal to the displayed cost
+        if (this._activePoints !== this._realCost || system.realCost !== system.characterPointCost) {
             if (system.activePoints) {
                 system.description += " (" + system.activePoints + " Active Points);";
             }
