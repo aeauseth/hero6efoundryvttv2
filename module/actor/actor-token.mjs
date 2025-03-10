@@ -134,6 +134,29 @@ export class HeroSystem6eTokenDocument extends TokenDocument {
             console.error(e);
         }
     }
+
+    static async createCombatants(tokens, { combat } = {}) {
+        combat ??= game.combats.viewed;
+        await super.createCombatants(tokens, combat);
+
+        await combat.extraCombatants();
+
+        // for (const token of tokens) {
+        //     const lightningReflexes = token.actor?.items.find(
+        //         (o) => o.system.XMLID === "LIGHTNING_REFLEXES_ALL" || o.system.XMLID === "LIGHTNING_REFLEXES_SINGLE",
+        //     );
+        //     if (lightningReflexes) {
+        //         const combatant = game.combat.combatants.find((c) => c.tokenId === token.id);
+        //         if (combatant) {
+        //             const combatantLR = combatant.toObject();
+        //             combatantLR.flags.lightningReflexes = lightningReflexes;
+        //             await game.combat.createEmbeddedDocuments("Combatant", [combatantLR]);
+        //         } else {
+        //             console.error(`Unable to find Lightning Reflexes combatant`, token);
+        //         }
+        //     }
+        // }
+    }
 }
 
 export class HeroSystem6eToken extends Token {

@@ -12,6 +12,8 @@ export class HeroSystem6eCombat extends Combat {
         this.previous = this.previous || {
             combatantId: null,
         };
+
+        this.flags.segmentNumber = 12;
     }
 
     async rollInitiative(ids) {
@@ -102,7 +104,7 @@ export class HeroSystem6eCombat extends Combat {
 
         //let name = c.token.name;
         // if (hasSegment || isOnHold || isOnAbort) {
-        const baseInit = 1; //c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
+        const baseInit = c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
         const lightningReflexesInit = parseInt(c.flags.lightningReflexes?.system.LEVELS || 0);
 
         if (isOnHold) {
@@ -120,7 +122,7 @@ export class HeroSystem6eCombat extends Combat {
             }
         }
 
-        c.flags.segment = 12;
+        //c.flags.segment ??= 12;
 
         updList.push({
             _id: id,
@@ -265,6 +267,7 @@ export class HeroSystem6eCombat extends Combat {
                         toCreate.push(_combatant);
                     }
                     await this.createEmbeddedDocuments("Combatant", toCreate);
+                    await this.extraCombatants();
                     return;
                 }
 
@@ -274,6 +277,7 @@ export class HeroSystem6eCombat extends Combat {
                         "Combatant",
                         _combatants.map((o) => o.id).slice(0, tokenCombatantCount - targetCombatantCount),
                     );
+                    await this.extraCombatants();
                     return;
                 }
 
