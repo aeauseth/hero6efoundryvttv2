@@ -20,6 +20,9 @@ export function initializeHandlebarsHelpers() {
         let myValue = Number(value) || 0;
         return myValue > 0;
     });
+    Handlebars.registerHelper("lightningReflexesDisplay", function (lightningReflexes) {
+        return lightningReflexes.system.OPTION_ALIAS || lightningReflexes.system.INPUT || "All Actions";
+    });
 }
 
 function indexOf(str, searchTerm) {

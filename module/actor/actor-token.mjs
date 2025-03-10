@@ -145,13 +145,11 @@ export class HeroSystem6eTokenDocument extends TokenDocument {
             if (lightningReflexes) {
                 const combatant = game.combat.combatants.find((c) => c.tokenId === token.id);
                 if (combatant) {
-                    const combatantLR = combatant.clone();
+                    const combatantLR = combatant.toObject();
                     combatantLR.flags.lightningReflexes = lightningReflexes;
-                    const combatantsAdded = await game.combat.createEmbeddedDocuments("Combatant", [combatantLR]);
-                    //console.log(combatantsAdded);
-                    //await combatantsAdded[0].update({ name: combatantLR.name });
+                    await game.combat.createEmbeddedDocuments("Combatant", [combatantLR]);
                 } else {
-                    console.error(`Unable to find combatant`, token);
+                    console.error(`Unable to find Lightning Reflexes combatant`, token);
                 }
             }
         }

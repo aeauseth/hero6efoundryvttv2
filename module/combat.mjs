@@ -58,7 +58,9 @@ export class HeroSystem6eCombat extends Combat {
 
         //let name = c.token.name;
         // if (hasSegment || isOnHold || isOnAbort) {
-        let baseInit = c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
+        const baseInit = c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
+        const lightningReflexesInit = parseInt(c.flags.lightningReflexes?.system.LEVELS || 0);
+
         if (isOnHold) {
             if (hasSegment) {
                 // On hold + current segment -> auto-disable on hold
@@ -73,7 +75,12 @@ export class HeroSystem6eCombat extends Combat {
                 c.actor.disableAbortAction();
             }
         }
-        updList.push({ _id: id, initiative: baseInit, holdAction: c.holdAction, flags: c.flags });
+        updList.push({
+            _id: id,
+            initiative: baseInit + lightningReflexesInit,
+            holdAction: c.holdAction,
+            flags: c.flags,
+        });
         // } else {
         //     updList.push({ _id: id, name: name, initiative: 0, holdAction: c.holdAction, flags: c.flags });
         // }
