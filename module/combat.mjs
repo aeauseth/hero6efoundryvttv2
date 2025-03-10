@@ -15,40 +15,16 @@ export class HeroSystem6eCombat extends Combat {
     }
 
     async rollInitiative(ids) {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | rollInitiative`, ids);
-        }
         ids = typeof ids === "string" ? [ids] : ids;
-        //const currentId = this.combatant?.id;
-        // Iterate over Combatants, performing an initiative roll for each
-        const updates = [];
-        for (const id of ids) {
-            // Get Combatant data (non-strictly)
-            const combatant = this.combatants.get(id);
-            if (!combatant?.isOwner) continue;
 
-            // Produce an initiative roll for the Combatant
-            const characteristic = combatant.actor?.system?.initiativeCharacteristic || "dex";
-            const initValue = combatant.actor?.system.characteristics[characteristic]?.value || 0;
-            if (combatant.flags.initiative != initValue || combatant.flags.initiativeCharacteristic != characteristic) {
-                // monks-combat-marker shows error with tokenDocument.object is nul..
-                // tokenDocument is supposed to have an object.
-                // Unclear why it is missing sometimes.
-                // KLUGE: Do not update initiative when tokenDocument.object is missing.
-                if (combatant.token.object) {
-                    updates.push({
-                        _id: id,
-                        "flags.initiative": initValue,
-                        "flags.initiativeCharacteristic": characteristic,
-                    });
-                }
-            }
+        let updList = [];
+        for (let cId = 0; cId < ids.length; cId++) {
+            const c = this.combatants.get(ids[cId]);
+            this.computeInitiative(c, updList);
         }
-        if (!updates.length) return this;
 
-        // Update multiple combatants
-        if (updates) {
-            await this.updateEmbeddedDocuments("Combatant", updates);
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
         }
 
         return this;
@@ -143,6 +119,9 @@ export class HeroSystem6eCombat extends Combat {
                 c.actor.disableAbortAction();
             }
         }
+
+        c.flags.segment = 12;
+
         updList.push({
             _id: id,
             initiative: baseInit + lightningReflexesInit,
