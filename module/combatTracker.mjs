@@ -70,10 +70,15 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
 
             // Augment default turns
             const turnsAugmented = context.turns.map((turn) => {
+                const combatant = this.viewed.combatants.find((combatant) => combatant.id === turn.id);
                 return {
                     ...turn,
-                    css: turn.css.replace("active", ""), // HBS will add this back in for appropriate segment
-                    flags: this.viewed.combatants.find((combatant) => combatant.id === turn.id).flags,
+                    css: turn.css.replace("active", ""), // HBS will add this back in for the appropriate segment
+                    flags: combatant.flags,
+                    holding: combatant.actor?.statuses.has("holding"),
+                    effects: (combatant.actor?.temporaryEffects || []).filter(
+                        (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED),
+                    ),
                 };
             });
             context.turns = turnsAugmented;
@@ -220,24 +225,32 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
         event.stopPropagation();
         target ??= event.target; //v12
         const { combatantId } = target.closest("[data-combatant-id]")?.dataset ?? {};
-        const { control } = target.closest("[data-control]")?.dataset ?? {};
+        const { control, effectId } = target.closest("[data-control]")?.dataset ?? {};
         const combat = this.viewed;
         const c = combat.combatants.get(combatantId);
-        console.log(c.name);
 
         if (!c) {
             console.warn(combatantId, control);
         }
 
-        if (control === "toggleHidden") {
-            // Need to toggle all combatants associated with this token
-            const _combatants = combat.combatants.filter((o) => o.tokenId === c.tokenId);
-            const updates = [];
-            for (const c2 of _combatants) {
-                updates.push({ _id: c2.id, hidden: !c.hidden });
+        // if (control === "toggleHidden") {
+        //     // Need to toggle all combatants associated with this token
+        //     const _combatants = combat.combatants.filter((o) => o.tokenId === c.tokenId);
+        //     const updates = [];
+        //     for (const c2 of _combatants) {
+        //         updates.push({ _id: c2.id, hidden: !c.hidden });
+        //     }
+        //     await combat.updateEmbeddedDocuments("Combatant", updates);
+        //     return;
+        // }
+
+        if (control === "effect" && effectId) {
+            const effect = c.actor.temporaryEffects.find((e) => e.id == effectId);
+            if (effect) {
+                for (const status of effect.statuses) {
+                    await c.token.actor.toggleStatusEffect(status);
+                }
             }
-            await combat.updateEmbeddedDocuments("Combatant", updates);
-            return;
         }
         return super._onCombatantControl(event, target);
     }

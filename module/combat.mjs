@@ -10,9 +10,22 @@ export class HeroSystem6eCombat extends Combat {
     constructor(data, context) {
         super(data, context);
 
-        data.flags.segmentNumber ??= 12; //{ turnNumber: 0, segmentNumber: 12 };
+        data.flags.segmentNumber ??= 12;
 
-        //this.segmentNumber = 12;
+        Hooks.on(
+            "updateActor",
+            async function (document, change) {
+                if (
+                    change?.system?.characteristics?.spd?.value ||
+                    change?.system?.characteristics?.dex?.value ||
+                    change?.system?.characteristics?.ego?.value ||
+                    change?.system?.characteristics?.int?.value ||
+                    change?.system?.initiativeCharacteristic
+                ) {
+                    return this.rebuildInitiative();
+                }
+            }.bind(this),
+        );
     }
 
     async rollInitiative(ids) {

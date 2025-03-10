@@ -30,7 +30,7 @@
                                     <i class="fa-solid fa-bullseye-arrow"></i>
                                 </a>
                                 {{/if}}
-                                {{#unless ../user.isGM}}
+                                {{#unless ../root/user.isGM}}
                                 <a class="combatant-control" aria-label="{{localize 'COMBAT.PanToCombatant'}}" role="button" data-tooltip="COMBAT.PanToCombatant" data-control="panToCombatant">
                                     <i class="fa-solid fa-arrows-to-eye"></i>
                                 </a>

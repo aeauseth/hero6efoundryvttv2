@@ -11,7 +11,7 @@
                     <h4 title="Lightning Reflexes">LR {{lightningReflexesDisplay this.flags.lightningReflexes}}</h4>
                 {{else}}
                     <div class="combatant-controls flexrow">
-                        {{#if ../user.isGM}}
+                        {{#if ../root/user.isGM}}
                         <a class="combatant-control {{#if this.hidden}}active{{/if}}" data-tooltip="COMBAT.ToggleVis" data-control="toggleHidden">
                             <i class="fas fa-eye-slash"></i>
                         </a>
@@ -24,9 +24,12 @@
                             <i class="fa-solid fa-bullseye-arrow"></i>
                         </a>
                         {{/if}}
-                        <div class="token-effects">
+                        <div class="combatant-control token-effects">
                             {{#each this.effects}}
-                            <img class="token-effect" src="{{this}}"/>
+                            {{log this.id this.name}}
+                            <a class="combatant-control" data-tooltip="{{this.name}}" data-control="effect" data-effect-id="{{this.id}}">
+                                <img class="token-effect" src="{{this.img}}" />
+                            </a>
                             {{/each}}
                         </div>
                     </div>
