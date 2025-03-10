@@ -9,11 +9,11 @@ export class HeroSystem6eCombat extends Combat {
     constructor(data, context) {
         super(data, context);
 
-        this.previous = this.previous || {
-            combatantId: null,
-        };
+        data.flags.segmentNumber ??= 12;
 
-        this.flags.segmentNumber = 12;
+        // this.previous = this.previous || {
+        //     combatantId: null,
+        // };
     }
 
     async rollInitiative(ids) {
