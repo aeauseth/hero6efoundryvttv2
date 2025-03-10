@@ -224,31 +224,31 @@ Hooks.on("renderChatLog", (app, html) => HeroSystem6eCardHelpers.chatListeners(h
 Hooks.on("renderChatPopout", (app, html) => HeroSystem6eCardHelpers.chatListeners(html));
 
 // When actor SPD is changed we need to setupTurns again
-Hooks.on("updateActor", async (document, change /*, _options, _userId */) => {
-    if (
-        change?.system?.characteristics?.spd?.value ||
-        change?.system?.characteristics?.dex?.value ||
-        change?.system?.characteristics?.ego?.value ||
-        change?.system?.characteristics?.int?.value ||
-        change?.system?.initiativeCharacteristic
-    ) {
-        for (const combat of game.combats) {
-            if (combat.active) {
-                const _combatants = combat.combatants.filter((o) => o.actorId === document.id);
-                if (_combatants) {
-                    // Reroll Initiative (based on new spd/dex/ego/int changes)
-                    //await combat.rollAll();
-                    await combat.rollInitiative(_combatants.map((o) => o.id));
-                    await combat.extraCombatants();
+// Hooks.on("updateActor", async (document, change /*, _options, _userId */) => {
+//     if (
+//         change?.system?.characteristics?.spd?.value ||
+//         change?.system?.characteristics?.dex?.value ||
+//         change?.system?.characteristics?.ego?.value ||
+//         change?.system?.characteristics?.int?.value ||
+//         change?.system?.initiativeCharacteristic
+//     ) {
+//         for (const combat of game.combats) {
+//             if (combat.active) {
+//                 const _combatants = combat.combatants.filter((o) => o.actorId === document.id);
+//                 if (_combatants) {
+//                     // Reroll Initiative (based on new spd/dex/ego/int changes)
+//                     //await combat.rollAll();
+//                     await combat.rollInitiative(_combatants.map((o) => o.id));
+//                     await combat.extraCombatants();
 
-                    // Setup Turns in combat tracker based on new spd/dex/ego/int changes)
-                    // Should no longer be needed now that SPD is part of initiative (handled via rollAll/combat:rollInitiative)
-                    //await combat.setupTurns();
-                }
-            }
-        }
-    }
-});
+//                     // Setup Turns in combat tracker based on new spd/dex/ego/int changes)
+//                     // Should no longer be needed now that SPD is part of initiative (handled via rollAll/combat:rollInitiative)
+//                     //await combat.setupTurns();
+//                 }
+//             }
+//         }
+//     }
+// });
 
 Hooks.on("closeTokenConfig", async (tokenConfig) => {
     // We may have changed the disposition, so re-render the combat tracker
@@ -266,9 +266,9 @@ Hooks.on("changeSidebarTab", async (app) => {
     }
 });
 
-Hooks.once("devModeReady", ({ registerPackageDebugFlag }) => {
-    registerPackageDebugFlag(HEROSYS.ID);
-});
+// Hooks.once("devModeReady", ({ registerPackageDebugFlag }) => {
+//     registerPackageDebugFlag(HEROSYS.ID);
+// });
 
 export class HEROSYS {
     static ID = "HEROSYS";

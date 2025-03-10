@@ -134,6 +134,12 @@ export class HeroSystem6eTokenDocument extends TokenDocument {
             console.error(e);
         }
     }
+
+    static async createCombatants(tokens, { combat } = {}) {
+        await super.createCombatants(tokens, combat);
+
+        // Create a second combatant for Lightning Reflexes
+    }
 }
 
 export class HeroSystem6eToken extends Token {
