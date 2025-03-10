@@ -11,9 +11,20 @@ export class HeroSystem6eCombat extends Combat {
 
         data.flags.segmentNumber ??= 12;
 
-        // this.previous = this.previous || {
-        //     combatantId: null,
-        // };
+        Hooks.on(
+            "updateActor",
+            async function (document, change) {
+                if (
+                    change?.system?.characteristics?.spd?.value ||
+                    change?.system?.characteristics?.dex?.value ||
+                    change?.system?.characteristics?.ego?.value ||
+                    change?.system?.characteristics?.int?.value ||
+                    change?.system?.initiativeCharacteristic
+                ) {
+                    return this.rebuildInitiative();
+                }
+            }.bind(this),
+        );
     }
 
     async rollInitiative(ids) {
