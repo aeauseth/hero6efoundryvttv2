@@ -47,64 +47,64 @@ export class HeroSystem6eCombat extends Combat {
      * Return the Array of combatants sorted into initiative order, breaking ties alphabetically by name.
      * @returns {Combatant[]}
      */
-    setupTurns() {
-        // if (CONFIG.debug.combat) {
-        //     console.debug(`Hero | setupTurns`);
-        // }
+    // setupTurns() {
+    //     // if (CONFIG.debug.combat) {
+    //     //     console.debug(`Hero | setupTurns`);
+    //     // }
 
-        this.turns ||= [];
+    //     this.turns ||= [];
 
-        // Determine the turn order and the current turn
-        const turns = this.combatants.contents.sort(this._sortCombatants);
-        if (this.turn !== null) this.turn = clamp(this.turn, 0, turns.length - 1);
+    //     // Determine the turn order and the current turn
+    //     const turns = this.combatants.contents.sort(this._sortCombatants);
+    //     if (this.turn !== null) this.turn = clamp(this.turn, 0, turns.length - 1);
 
-        // Update state tracking
-        let c = turns[this.turn];
-        this.current = this._getCurrentState(c);
+    //     // Update state tracking
+    //     let c = turns[this.turn];
+    //     this.current = this._getCurrentState(c);
 
-        // One-time initialization of the previous state
-        if (!this.previous) this.previous = this.current;
+    //     // One-time initialization of the previous state
+    //     if (!this.previous) this.previous = this.current;
 
-        // Return the array of prepared turns
-        return (this.turns = turns);
-    }
+    //     // Return the array of prepared turns
+    //     return (this.turns = turns);
+    // }
 
-    /**
-     * Define how the array of Combatants is sorted in the displayed list of the tracker.
-     * This method can be overridden by a system or module which needs to display combatants in an alternative order.
-     * The default sorting rules sort in descending order of initiative using combatant IDs for tiebreakers.
-     * @param {Combatant} a     Some combatant
-     * @param {Combatant} b     Some other combatant
-     * @protected
-     */
-    _sortCombatants(a, b) {
-        // Lightning Reflexes
-        const lrA = Number.isNumeric(a.flags.lightningReflexes?.levels) ? a.flags.lightningReflexes.levels : 0;
-        const lrB = Number.isNumeric(b.flags.lightningReflexes?.levels) ? b.flags.lightningReflexes.levels : 0;
+    // /**
+    //  * Define how the array of Combatants is sorted in the displayed list of the tracker.
+    //  * This method can be overridden by a system or module which needs to display combatants in an alternative order.
+    //  * The default sorting rules sort in descending order of initiative using combatant IDs for tiebreakers.
+    //  * @param {Combatant} a     Some combatant
+    //  * @param {Combatant} b     Some other combatant
+    //  * @protected
+    //  */
+    // _sortCombatants(a, b) {
+    //     // Lightning Reflexes
+    //     const lrA = Number.isNumeric(a.flags.lightningReflexes?.levels) ? a.flags.lightningReflexes.levels : 0;
+    //     const lrB = Number.isNumeric(b.flags.lightningReflexes?.levels) ? b.flags.lightningReflexes.levels : 0;
 
-        // Sort by segment first
-        const segA = Number.isNumeric(a.flags.segment) ? a.flags.segment : -Infinity;
-        const segB = Number.isNumeric(b.flags.segment) ? b.flags.segment : -Infinity;
+    //     // Sort by segment first
+    //     const segA = Number.isNumeric(a.flags.segment) ? a.flags.segment : -Infinity;
+    //     const segB = Number.isNumeric(b.flags.segment) ? b.flags.segment : -Infinity;
 
-        // Then by initiative (dex or ego)
-        const initA = Number.isNumeric(a.initiative) ? a.initiative + lrA : -Infinity;
-        const initB = Number.isNumeric(b.initiative) ? b.initiative + lrB : -Infinity;
+    //     // Then by initiative (dex or ego)
+    //     const initA = Number.isNumeric(a.initiative) ? a.initiative + lrA : -Infinity;
+    //     const initB = Number.isNumeric(b.initiative) ? b.initiative + lrB : -Infinity;
 
-        // Then by spd
-        const spdA = Number.isNumeric(a.flags.spd) ? a.flags.spd : -Infinity;
-        const spdB = Number.isNumeric(b.flags.spd) ? b.flags.spd : -Infinity;
+    //     // Then by spd
+    //     const spdA = Number.isNumeric(a.flags.spd) ? a.flags.spd : -Infinity;
+    //     const spdB = Number.isNumeric(b.flags.spd) ? b.flags.spd : -Infinity;
 
-        // Then by hasPlayerOwner
-        // Finally by tokenId
+    //     // Then by hasPlayerOwner
+    //     // Finally by tokenId
 
-        return (
-            segA - segB ||
-            initB - initA ||
-            spdB - spdA ||
-            a.hasPlayerOwner < b.hasPlayerOwner ||
-            (a.tokenId > b.tokenId ? 1 : -1)
-        );
-    }
+    //     return (
+    //         segA - segB ||
+    //         initB - initA ||
+    //         spdB - spdA ||
+    //         a.hasPlayerOwner < b.hasPlayerOwner ||
+    //         (a.tokenId > b.tokenId ? 1 : -1)
+    //     );
+    // }
 
     computeInitiative(c, updList) {
         if (!this.isOwner) return;
