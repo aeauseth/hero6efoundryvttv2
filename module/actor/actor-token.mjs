@@ -138,7 +138,23 @@ export class HeroSystem6eTokenDocument extends TokenDocument {
     static async createCombatants(tokens, { combat } = {}) {
         await super.createCombatants(tokens, combat);
 
-        // Create a second combatant for Lightning Reflexes
+        for (const token of tokens) {
+            const lightningReflexes = token.actor?.items.find(
+                (o) => o.system.XMLID === "LIGHTNING_REFLEXES_ALL" || o.system.XMLID === "LIGHTNING_REFLEXES_SINGLE",
+            );
+            if (lightningReflexes) {
+                const combatant = game.combat.combatants.find((c) => c.tokenId === token.id);
+                if (combatant) {
+                    const combatantLR = combatant.clone();
+                    combatantLR.flags.lightningReflexes = lightningReflexes;
+                    const combatantsAdded = await game.combat.createEmbeddedDocuments("Combatant", [combatantLR]);
+                    //console.log(combatantsAdded);
+                    //await combatantsAdded[0].update({ name: combatantLR.name });
+                } else {
+                    console.error(`Unable to find combatant`, token);
+                }
+            }
+        }
     }
 }
 

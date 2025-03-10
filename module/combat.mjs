@@ -56,7 +56,7 @@ export class HeroSystem6eCombat extends Combat {
 
         c.flags.segments = HeroSystem6eActor.Speed2Segments[c.actor?.system.characteristics.spd?.value || 0];
 
-        let name = c.token.name;
+        //let name = c.token.name;
         // if (hasSegment || isOnHold || isOnAbort) {
         let baseInit = c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
         if (isOnHold) {
@@ -64,16 +64,16 @@ export class HeroSystem6eCombat extends Combat {
                 // On hold + current segment -> auto-disable on hold
                 c.actor.disableHoldAction();
             } else {
-                name += " (H)";
+                //name += " (H)";
             }
         }
         if (isOnAbort) {
-            name += " (A)";
+            //name += " (A)";
             if (c.actor.incAbortActionCount()) {
                 c.actor.disableAbortAction();
             }
         }
-        updList.push({ _id: id, name: name, initiative: baseInit, holdAction: c.holdAction, flags: c.flags });
+        updList.push({ _id: id, initiative: baseInit, holdAction: c.holdAction, flags: c.flags });
         // } else {
         //     updList.push({ _id: id, name: name, initiative: 0, holdAction: c.holdAction, flags: c.flags });
         // }
@@ -143,6 +143,66 @@ export class HeroSystem6eCombat extends Combat {
         await super._onCreateEmbeddedDocuments(parent, collection, documents, data, options, userId);
         await this.rebuildInitiative();
     }
+
+    // async assignSegments(tokenId) {
+    //     if (!tokenId) return;
+
+    //     const tokenCombatants = this.combatants.filter((o) => o.tokenId === tokenId);
+    //     const tokenCombatantCount = tokenCombatants.length;
+    //     if (tokenCombatantCount === 0) return;
+    //     if (!tokenCombatants[0]?.isOwner) return;
+    //     const actor = tokenCombatants[0].actor;
+    //     if (!actor) return;
+    //     const lightningReflexes = actor?.items.find(
+    //         (o) => o.system.XMLID === "LIGHTNING_REFLEXES_ALL" || o.system.XMLID === "LIGHTNING_REFLEXES_SINGLE",
+    //     );
+    //     const updates = [];
+    //     for (let c = 0; c < tokenCombatantCount; c++) {
+    //         const _combatant = tokenCombatants[c];
+    //         const spd = clamp(parseInt(_combatant.actor?.system.characteristics.spd?.value || 0), 1, 12);
+    //         if (spd) {
+    //             const segment = HeroSystem6eCombat.getSegment(spd, Math.floor(c * (lightningReflexes ? 0.5 : 1)));
+    //             let update = {
+    //                 _id: _combatant.id,
+    //                 initiative: _combatant.flags.initiative,
+    //                 "flags.segment": segment,
+    //                 "flags.spd": spd,
+    //                 "flags.initiativeTooltip": `${
+    //                     _combatant.flags.initiative
+    //                 }${_combatant.flags.initiativeCharacteristic?.toUpperCase()} ${spd}SPD`,
+    //             };
+    //             if (lightningReflexes && c % 2 === 0) {
+    //                 update = {
+    //                     ...update,
+    //                     "flags.initiativeTooltip": `${
+    //                         _combatant.flags.initiative
+    //                     }${_combatant.flags.initiativeCharacteristic?.toUpperCase()} ${spd}SPD ${
+    //                         lightningReflexes.system.LEVELS
+    //                     }LR`,
+    //                     initiative: _combatant.flags.initiative + parseInt(lightningReflexes?.system.LEVELS || 0),
+    //                     "flags.lightningReflexes.levels": parseInt(lightningReflexes.system.LEVELS),
+    //                     "flags.lightningReflexes.name":
+    //                         lightningReflexes.system.OPTION_ALIAS || lightningReflexes.system.INPUT || "All Actions",
+    //                 };
+    //             } else {
+    //                 update = {
+    //                     ...update,
+    //                     "flags.lightningReflexes": null,
+    //                 };
+    //             }
+    //             if (
+    //                 update.initiative != _combatant.initiative ||
+    //                 update["flags.lightningReflexes.name"] != _combatant.flags?.lightningReflexes?.name ||
+    //                 update["flags.segment"] != _combatant.flags?.segment
+    //             ) {
+    //                 updates.push(update);
+    //             }
+    //         }
+    //     }
+    //     if (updates.length > 0) {
+    //         await this.updateEmbeddedDocuments("Combatant", updates);
+    //     }
+    // }
 
     static getSegment(spd, index) {
         let i = index;
