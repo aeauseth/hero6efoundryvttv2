@@ -117,6 +117,40 @@ export class HeroSystem6eCombat extends Combat {
         );
     }
 
+    computeInitiative(c, updList) {
+        if (!this.isOwner) return;
+        const id = c._id || c.id;
+        const hasSegment = c.actor.hasPhase(this.flags.segmentNumber);
+        const isOnHold = false; //c.actor.getHoldAction();
+        const isOnAbort = false; //c.actor.getAbortAction();
+
+        //let name = c.token.name;
+        // if (hasSegment || isOnHold || isOnAbort) {
+        const baseInit = 1; //c.actor ? c.actor.getBaseInit(this.flags.segmentNumber) : 0;
+        const lightningReflexesInit = parseInt(c.flags.lightningReflexes?.system.LEVELS || 0);
+
+        if (isOnHold) {
+            if (hasSegment) {
+                // On hold + current segment -> auto-disable on hold
+                c.actor.disableHoldAction();
+            } else {
+                //name += " (H)";
+            }
+        }
+        if (isOnAbort) {
+            //name += " (A)";
+            if (c.actor.incAbortActionCount()) {
+                c.actor.disableAbortAction();
+            }
+        }
+        updList.push({
+            _id: id,
+            initiative: baseInit + lightningReflexesInit,
+            holdAction: c.holdAction,
+            flags: c.flags,
+        });
+    }
+
     async rebuildInitiative() {
         let updList = [];
         for (let c of this.combatants) {
