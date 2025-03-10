@@ -118,7 +118,19 @@ export class HeroSystem6eCombat extends Combat {
     }
 
     async rebuildInitiative() {
-        console.log("rebuildInitiative");
+        let updList = [];
+        for (let c of this.combatants) {
+            this.computeInitiative(c, updList);
+        }
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
+            for (let c of updList) {
+                if (c.initiative != 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
