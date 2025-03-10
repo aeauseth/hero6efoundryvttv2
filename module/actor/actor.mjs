@@ -2911,6 +2911,8 @@ export class HeroSystem6eActor extends Actor {
         const characteristic = this.system?.initiativeCharacteristic || "dex";
         const value = this.system.characteristics[characteristic]?.value || 0;
         const spdValue = this.system.characteristics.spd?.value || 0;
-        return value + spdValue / 10;
+        const intValue = this.system.characteristics.int?.value || 0;
+        const preValue = this.system.characteristics.pre?.value || 0;
+        return value + intValue / 100 + preValue / 10000;
     }
 }
