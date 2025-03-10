@@ -117,59 +117,39 @@ export class HeroSystem6eCombat extends Combat {
         );
     }
 
+    async rebuildInitiative() {
+        console.log("rebuildInitiative");
+    }
+
     async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | _onCreateDescendantDocuments`);
-        }
-
-        // Automatically roll initiative for all combatants created in the combat tracker.
-        // We could use rollAll() here, but rollInitiative is probably more efficient.
-        await this.rollInitiative(documents.map((o) => o.id));
-
-        // Get current combatant and try to maintain turn order to the best of our ability
-        const priorState = foundry.utils.deepClone(this.current);
-        this.setupTurns();
-        await this.assignSegments(priorState.tokenId);
-        const combatTurn = this.getCombatTurnHero(priorState);
-
-        // Call Super
-        await super._onCreateDescendantDocuments(
-            parent,
-            collection,
-            documents,
-            data,
-            { ...options, combatTurn: combatTurn },
-            userId,
-        );
-
-        // Add or remove extra combatants based on SPD or Lightning Reflexes
-        await this.extraCombatants();
+        await super._onCreateEmbeddedDocuments(parent, collection, documents, data, options, userId);
+        await this.rebuildInitiative();
     }
 
-    async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
-        if (CONFIG.debug.combat) {
-            console.debug(`Hero | _onDeleteDescendantDocuments`);
-        }
+    // async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
+    //     if (CONFIG.debug.combat) {
+    //         console.debug(`Hero | _onDeleteDescendantDocuments`);
+    //     }
 
-        // Get current combatant
-        const priorState = foundry.utils.deepClone(this.current);
-        this.setupTurns();
-        await this.assignSegments(priorState.tokenId);
-        const combatTurn = this.getCombatTurnHero(priorState);
+    //     // Get current combatant
+    //     const priorState = foundry.utils.deepClone(this.current);
+    //     this.setupTurns();
+    //     await this.assignSegments(priorState.tokenId);
+    //     const combatTurn = this.getCombatTurnHero(priorState);
 
-        // Call the Super (don't render the likely incorrect turn that default foundry provides)
-        await super._onDeleteDescendantDocuments(
-            parent,
-            collection,
-            documents,
-            ids,
-            { ...options, combatTurn: combatTurn },
-            userId,
-        );
+    //     // Call the Super (don't render the likely incorrect turn that default foundry provides)
+    //     await super._onDeleteDescendantDocuments(
+    //         parent,
+    //         collection,
+    //         documents,
+    //         ids,
+    //         { ...options, combatTurn: combatTurn },
+    //         userId,
+    //     );
 
-        // Add or remove extra combatants based on SPD or Lightning Reflexes (shouldn't be needed as we have overrides for combatant deletes via UI)
-        await this.extraCombatants();
-    }
+    //     // Add or remove extra combatants based on SPD or Lightning Reflexes (shouldn't be needed as we have overrides for combatant deletes via UI)
+    //     await this.extraCombatants();
+    // }
 
     async assignSegments(tokenId) {
         if (!tokenId) return;
