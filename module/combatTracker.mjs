@@ -86,7 +86,7 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             // A secondary association with segments to make it easier to determine if a segment has any combatants
             for (let s = 1; s <= 12; s++) {
                 for (const turn of context.turns) {
-                    if (turn.flags?.segments?.includes(s)) {
+                    if ((turn.flags?.segment || 12) === s) {
                         context.segments[s].push(turn.id);
                     }
                 }

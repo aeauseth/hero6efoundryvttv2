@@ -136,9 +136,9 @@ export class HeroSystem6eTokenDocument extends TokenDocument {
     }
 
     static async createCombatants(tokens, { combat } = {}) {
-        combat ??= game.combats.viewed;
         await super.createCombatants(tokens, combat);
 
+        combat ??= game.combats.viewed;
         await combat.extraCombatants();
 
         // for (const token of tokens) {
