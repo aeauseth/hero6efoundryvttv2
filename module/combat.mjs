@@ -712,13 +712,33 @@ export class HeroSystem6eCombat extends Combat {
     //     return results;
     // }
 
-    nextTurn() {
-        console.log(`nextTurn`);
-        let nbC = this.combatants.filter((c) => c.flags.segments.includes(this.flags.segmentNumber)).length;
-        if (this.turn < nbC - 1) {
-            super.nextTurn();
-        } else {
-            this.nextRound();
+    async nextTurn() {
+        //console.log(`nextTurn`);
+        for (let i = 0; i <= this.turns.length; i++) {
+            if (this.turn >= this.turns.length) {
+                this.nextRound();
+                break;
+            }
+            if (this.turns[this.turn + 1]?.flags.segments.includes(this.flags.segmentNumber)) {
+                super.nextTurn();
+                break;
+            }
+            await this.update({ turn: this.turn + 1 });
+        }
+    }
+
+    previousTurn() {
+        let previousTurn = this.turn - 1;
+        for (let i = 0; i <= this.turns.length; i++) {
+            if (previousTurn < 0) {
+                this.previousRound();
+                break;
+            }
+            if (this.turns[previousTurn]?.flags.segments.includes(this.flags.segmentNumber)) {
+                super.previousTurn();
+                break;
+            }
+            previousTurn++;
         }
     }
 
@@ -832,6 +852,7 @@ export class HeroSystem6eCombat extends Combat {
     //     return _previousTurn;
     // }
 
+    // This is HeroSystem nextSegment
     async nextRound() {
         console.log(`nextRound`);
         //let hasCombatants = false;
@@ -880,9 +901,7 @@ export class HeroSystem6eCombat extends Combat {
             //hasCombatants = await this.rebuildInitiative();
             //if (hasCombatants) break;
             if (this.flags.segments[this.flags.segmentNumber].length > 0) {
-                turn = Array.from(this.combatants).findIndex((combatant) =>
-                    combatant.flags.segments.includes(this.flags.segmentNumber),
-                );
+                turn = this.turns.findIndex((combatant) => combatant.flags.segments.includes(this.flags.segmentNumber));
                 if (turn < 0) {
                     console.error(`Unable to locate combatant`, this);
                 }
