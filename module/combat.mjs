@@ -14,6 +14,8 @@ export class HeroSystem6eCombat extends Combat {
         Hooks.on(
             "updateActor",
             async function (document, change) {
+                if (!document.inCombat) return;
+                if (!this.combatants.find((c) => c.actorId === document.id)) return;
                 if (
                     change?.system?.characteristics?.spd?.value ||
                     change?.system?.characteristics?.dex?.value ||
@@ -133,14 +135,16 @@ export class HeroSystem6eCombat extends Combat {
             }
         }
 
-        //c.flags.segment ??= 12;
+        const initiative = baseInit + lightningReflexesInit || 0;
 
-        updList.push({
-            _id: id,
-            initiative: baseInit + lightningReflexesInit,
-            holdAction: c.holdAction,
-            flags: c.flags,
-        });
+        if (c.initiative !== initiative) {
+            updList.push({
+                _id: id,
+                initiative: initiative,
+                // holdAction: c.holdAction,
+                //flags: c.flags,
+            });
+        }
     }
 
     async rebuildInitiative() {
@@ -150,13 +154,7 @@ export class HeroSystem6eCombat extends Combat {
         }
         if (updList.length > 0) {
             await this.updateEmbeddedDocuments("Combatant", updList);
-            for (let c of updList) {
-                if (c.initiative != 0) {
-                    return true;
-                }
-            }
         }
-        return false;
     }
 
     async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
@@ -278,7 +276,8 @@ export class HeroSystem6eCombat extends Combat {
                         toCreate.push(_combatant);
                     }
                     await this.createEmbeddedDocuments("Combatant", toCreate);
-                    await this.extraCombatants();
+                    await this.assignSegments(_tokenId);
+                    //await this.extraCombatants();
                     return;
                 }
 
@@ -288,7 +287,8 @@ export class HeroSystem6eCombat extends Combat {
                         "Combatant",
                         _combatants.map((o) => o.id).slice(0, tokenCombatantCount - targetCombatantCount),
                     );
-                    await this.extraCombatants();
+                    await this.assignSegments(_tokenId);
+                    //await this.extraCombatants();
                     return;
                 }
 

@@ -245,7 +245,7 @@ async function skillRoll(item, actor, target) {
             break;
         case "SOCIALLIMITATION":
             disadFlavor =
-                "Failure on this roll typically means the character is required to react to (or is affected by) the social complication.";
+                "Success on this roll typically means the character is required to react to (or is affected by) the social complication.";
             break;
     }
 
