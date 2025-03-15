@@ -1,10 +1,15 @@
 # Releases
 
-## Version 4.0.22 20250308 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+## Version 4.0.23 20250315 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+
+- Fixed VULNERABILITY's incorrectly applying (or applying several times) to some AOE attacks. [#1813](https://github.com/dmdorman/hero6e-foundryvtt/issues/1813) [#1857](https://github.com/dmdorman/hero6e-foundryvtt/issues/1857)
+- Fix negative OCV and OMCV modifiers on AoE to-hit dialog. [#2020](https://github.com/dmdorman/hero6e-foundryvtt/issues/2020)
+
+## Version 4.0.22 20250308
 
 - Some campaigns were experiencing lag related to vision, so we moved all custom vision code to a new "Hero Vision" mode. Existing and new tokens will now have standard FoundryVTT vision. You can manually set each token to use "Hero Vision" for improved support of enhanced visions. [#2012](https://github.com/dmdorman/hero6e-foundryvtt/issues/2012)
 
-## Version 4.0.21 20250308 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+## Version 4.0.21 20250308
 
 - Full/Casual STR can now apply damage. Useful for breaking out of an ENTANGLE. [#1724](https://github.com/dmdorman/hero6e-foundryvtt/issues/1724)
 - Improved ability to target Entangles.

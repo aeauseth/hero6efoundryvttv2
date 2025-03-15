@@ -174,7 +174,8 @@ export async function doAoeActionToHit(item, options) {
         .makeSuccessRoll()
         .addNumber(11, "Base to hit")
         .addNumber(hitCharacteristic, item.system.uses)
-        .addNumber(Math.max(0, parseInt(options.ocvMod) || 0), "OCV modifier")
+        .addNumber(parseInt(options.ocvMod) || 0, "OCV modifier")
+        .addNumber(parseInt(options.omcvMod) || 0, "OMCV modifier")
         .addNumber(-parseInt(setManeuver?.baseInfo?.maneuverDesc?.ocv || 0), "Set Maneuver");
 
     if (item.system.range === CONFIG.HERO.RANGE_TYPES.SELF) {
@@ -377,7 +378,7 @@ export async function doAoeActionToHit(item, options) {
 /// chose with the die-roll icon and adjusted with the Attack Options
 /// menu.
 /// There was a die roll, and we display the attack to hit results.
-export async function doSingleTargetActionToHit(item, options) {
+async function doSingleTargetActionToHit(item, options) {
     if (!item) {
         return ui.notifications.error(`Attack details are no longer available.`);
     }
@@ -535,8 +536,8 @@ export async function doSingleTargetActionToHit(item, options) {
         .makeSuccessRoll()
         .addNumber(11, "Base to hit")
         .addNumber(hitCharacteristic, itemData.uses)
-        .addNumber(parseInt(options.ocvMod), "OCV modifier")
-        .addNumber(parseInt(options.omcvMod), "OMCV modifier")
+        .addNumber(parseInt(options.ocvMod) || 0, "OCV modifier")
+        .addNumber(parseInt(options.omcvMod) || 0, "OMCV modifier")
         .addNumber(-parseInt(setManeuver?.baseInfo?.maneuverDesc?.ocv || 0), "Set Maneuver");
 
     if (item.system.range === CONFIG.HERO.RANGE_TYPES.SELF) {

@@ -244,6 +244,13 @@ export function registerDiceTests(quench) {
                         expect(roller.getFormula()).to.equal("-7");
                     });
 
+                    it("should handle formulas with multiple negative numeric term", async function () {
+                        const roller = new HeroRoller().addNumber(-7).addNumber(-7).addNumber(7);
+                        await roller.roll();
+
+                        expect(roller.getFormula()).to.equal("-7 - 7 + 7");
+                    });
+
                     it("should handle formulas with multiple numeric terms", async function () {
                         const roller = new HeroRoller().addNumber(7).addNumber(3).addNumber(2);
                         await roller.roll();
@@ -401,6 +408,42 @@ export function registerDiceTests(quench) {
                         roller.removeFirstNTerms(22);
 
                         expect(roller.getFormula()).to.equal("");
+                    });
+                });
+
+                describe("tags", async function () {
+                    it("should generate tags for a positive number term", async function () {
+                        const description = "tag test positive number";
+                        const number = 7;
+                        const roller = new HeroRoller({}).addNumber(number, description);
+                        await roller.roll();
+
+                        expect(roller.tags()).to.deep.equal([{ name: description, value: number }]);
+                    });
+
+                    it("should generate tags for a negative number term", async function () {
+                        const description = "tag test negative number";
+                        const number = -7;
+                        const roller = new HeroRoller({}).addNumber(number, description);
+                        await roller.roll();
+
+                        expect(roller.tags()).to.deep.equal([{ name: description, value: number }]);
+                    });
+
+                    it("should generate tags for multiple negative number term", async function () {
+                        const description = "tag test negative number";
+                        const number = -7;
+                        const description2 = description + " #2";
+                        const number2 = -8;
+                        const roller = new HeroRoller({})
+                            .addNumber(number, description)
+                            .addNumber(number2, description2);
+                        await roller.roll();
+
+                        expect(roller.tags()).to.deep.equal([
+                            { name: description, value: number },
+                            { name: description2, value: number2 },
+                        ]);
                     });
                 });
 

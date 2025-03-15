@@ -498,11 +498,13 @@ export class HeroRoller {
             this.#addOperatorTerm(value > 0 ? "+" : "-");
         }
 
-        // TODO: We can have negative values, why are we ABSing here?
-        value = this._formulaTerms.length > 0 ? Math.abs(value) : value;
+        // For numeric terms, since they can be negative, we need to compensate for
+        // the operator term that prefixes them. The _hrTag value stays the same since
+        // we just use that directly for display without getting the preceeding OperatorTerm.
+        const termValue = this._formulaTerms.length > 0 ? Math.abs(value) : value;
         this._formulaTerms.push(
             new NumericTerm({
-                number: value,
+                number: termValue,
                 options: {
                     _hrQualifier: HeroRoller.QUALIFIER.NUMBER,
                     flavor: description,
@@ -591,11 +593,13 @@ export class HeroRoller {
     }
 
     tags() {
-        return this._formulaTerms
+        const tags = this._formulaTerms
             .map((term) => {
                 return term.options._hrTag;
             })
             .filter(Boolean);
+
+        return tags;
     }
 
     getFormula() {
