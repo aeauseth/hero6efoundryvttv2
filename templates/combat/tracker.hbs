@@ -8,13 +8,15 @@
             style="display:none1"
                 {{/if}} data-segment-id="{{@index}}">
 
+                {{!-- loop thru each turn/combatant --}}
                 {{#each this}}
-                <li class="combatant directory-item {{this.css}} {{#if (and this.active (eq this.flags.segment @root/combat.flags.segment))}}active{{/if}}" data-combatant-id="{{this.id}}">
+
+                <li class="combatant directory-item {{this.css}} {{#if (and this.active (eq this.segment @root/combat.flags.segment))}}active{{/if}}" data-combatant-id="{{this.id}}">
                     {{#unless this.holding}}
                         <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
                     {{/unless}}
                     <div class="token-name">
-                        <strong>{{this.name}} 
+                    <strong>{{this.name}} 
                             {{!-- [{{this.flags.turnNumber}}] --}}
                         </strong>
                         {{#if this.flags.lightningReflexes.levels}}
@@ -36,11 +38,12 @@
                                 </a>
                                 {{/if}}
 
-                                <a class="combatant-control {{#if this.flags.holdingAnAction}}active{{/if}}" data-action="pingCombatant" aria-label="Holding An Action" role="button" data-tooltip="Holding An Action" data-control="holdingAnAction">
-                                    {{!-- <img class="token-effect" src="icons/svg/clockwork.svg"> --}}
-                                    <i class="fa-solid fa-child-reaching"></i>
-                                </a>
-
+                                {{#if (or this.flags.holding (eq this.flags.segment @root/combat.flags.segment))}}
+                                    <a class="combatant-control {{#if this.holding}}active{{/if}}" data-action="pingCombatant" aria-label="Holding An Action" role="button" data-tooltip="Holding An Action" data-control="holdingAnAction">
+                                        {{!-- <img class="token-effect" src="icons/svg/clockwork.svg"> --}}
+                                        <i class="fa-solid fa-child-reaching"></i>
+                                    </a>
+                                {{/if}}
 
                                 {{!-- {{#unless ../user.isGM}}
                                 <a class="combatant-control" data-action="activateCombatant" aria-label="{{localize 'COMBAT.PanToCombatant'}}" role="button" data-tooltip="COMBAT.PanToCombatant" data-control="panToCombatant">
