@@ -78,7 +78,7 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                     console.error("unable to location combatant");
                     continue;
                 }
-                for (const segment of combatant.segments) {
+                for (const segment of combatant.getSegments({ combatCurrent: combat.current })) {
                     const heroTurn = foundry.utils.deepClone(turn);
                     heroTurn.flags = foundry.utils.deepClone(combatant.flags);
                     heroTurn.flags.segment = segment;
@@ -92,20 +92,20 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             context.turns = heroTurns;
 
             // Augment default turns
-            // const turnsAugmented = context.turns.map((turn) => {
-            //     const combatant = this.viewed.combatants.find((combatant) => combatant.id === turn.id);
-            //     return {
-            //         ...turn,
-            //         //css: turn.css.replace("active", ""), // HBS will add this back in for the appropriate segment
-            //         flags: combatant.flags,
-            //         holding: combatant.actor?.statuses.has("holding"),
-            //         effects: (combatant.actor?.temporaryEffects || []).filter(
-            //             (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
-            //         ),
-            //         segment: combatant.flags.segment,
-            //     };
-            // });
-            // context.turns = turnsAugmented;
+            const turnsAugmented = context.turns.map((turn) => {
+                const combatant = this.viewed.combatants.find((combatant) => combatant.id === turn.id);
+                return {
+                    ...turn,
+                    //css: turn.css.replace("active", ""), // HBS will add this back in for the appropriate segment
+                    //flags: combatant.flags,
+                    //holding: combatant.actor?.statuses.has("holding"),
+                    effects: (combatant.actor?.temporaryEffects || []).filter(
+                        (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
+                    ),
+                    //segment: combatant.flags.segment,
+                };
+            });
+            context.turns = turnsAugmented;
         } catch (e) {
             console.error(e);
         }
@@ -167,5 +167,48 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
         let active = this.element?.find(".combatant.active")[0];
         if (!active) return;
         active.scrollIntoView({ block: "center" });
+    }
+
+    // v13 includes target
+    async _onCombatantControl(event, target) {
+        event.preventDefault();
+        event.stopPropagation();
+        target ??= event.target; //v12
+        const { segmentId } = target.closest("[data-segment-id]")?.dataset ?? {};
+        const { combatantId } = target.closest("[data-combatant-id]")?.dataset ?? {};
+        const { control, effectId } = target.closest("[data-control]")?.dataset ?? {};
+
+        const combat = this.viewed;
+        const c = combat.combatants.get(combatantId);
+        console.log(c.name, control);
+
+        if (!c) {
+            console.warn(combatantId, control);
+        }
+
+        if (control === "effect" && effectId) {
+            const effect = c.actor.temporaryEffects.find((e) => e.id == effectId);
+            if (effect) {
+                for (const status of effect.statuses) {
+                    await c.token.actor.toggleStatusEffect(status);
+                }
+            }
+        }
+
+        if (control === "holdingAnAction") {
+            c.flags.holdingAnAction = !c.flags.holdingAnAction;
+            if (c.flags.holdingAnAction) {
+                c.flags.delayUntil = {
+                    segment: parseInt(segmentId),
+                    turn: this.turn + 1,
+                };
+            } else {
+                c.flags.delayUntil = null;
+            }
+
+            await c.update({ [`flags`]: c.flags });
+        }
+
+        if (control === "") return super._onCombatantControl(event, target);
     }
 }
