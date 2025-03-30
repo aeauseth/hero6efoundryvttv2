@@ -5,11 +5,11 @@
         <li class="segment-container">
             <h3 class="{{#if this.length}}segment-has-items{{else}}segment-inactive{{/if}} segment-header {{#if (eq @index @root.combat.current.segment)}}segment-active{{/if}}">Segment {{@index}} {{#if @root/alphaTesting}}[tokens:{{this.length}}]{{/if}}</h3>
             <ol class="segment-content" {{#if (or (eq @index @root.combat.current.segment) (and (eq @root.combat.round 0) (eq @index 12)))}}{{else}} 
-            style="display:none"
+            style="display:none1"
                 {{/if}} data-segment-id="{{@index}}">
 
                 {{#each this}}
-                <li class="combatant directory-item {{this.css}}" data-combatant-id="{{this.id}}">
+                <li class="combatant directory-item {{this.css}} {{#if (and this.active (eq this.flags.segment @root/combat.flags.segment))}}active{{/if}}" data-combatant-id="{{this.id}}">
                     {{#unless this.holding}}
                         <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
                     {{/unless}}

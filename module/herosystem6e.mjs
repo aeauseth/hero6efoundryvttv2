@@ -4,6 +4,8 @@ import * as chat from "./chat.mjs";
 import HeroSystem6eMeasuredTemplate from "./measuretemplate.mjs";
 import { HeroSystem6eCombat } from "./combat.mjs";
 import { HeroSystem6eCombatTracker } from "./combatTracker.mjs";
+import { HeroSystem6eCombatant } from "./combatant.mjs";
+import SettingsHelpers from "./settings/settings-helpers.mjs";
 import { HeroRuler } from "./ruler.mjs";
 import { initializeHandlebarsHelpers } from "./handlebars-helpers.mjs";
 import { migrateWorld } from "./migration.mjs";
@@ -68,6 +70,7 @@ Hooks.once("init", async function () {
     CONFIG.HERO = HERO;
 
     CONFIG.Combat.documentClass = HeroSystem6eCombat;
+    CONFIG.Combatant.documentClass = HeroSystem6eCombatant;
     CONFIG.Combat.defeatedStatusId = "dead";
 
     // V11 now support ActiveEffects on items without
@@ -85,7 +88,7 @@ Hooks.once("init", async function () {
 
     // debug
     // CONFIG.debug.hooks = true;
-    // CONFIG.debug.combat = true;
+    CONFIG.debug.combat = true;
     // CONFIG.debug.time = true;
 
     // Define custom Entity classes
@@ -224,33 +227,6 @@ Hooks.on("renderChatMessage", (app, html, data) => {
 });
 Hooks.on("renderChatLog", (app, html) => HeroSystem6eCardHelpers.chatListeners(html));
 Hooks.on("renderChatPopout", (app, html) => HeroSystem6eCardHelpers.chatListeners(html));
-
-// When actor SPD is changed we need to setupTurns again
-Hooks.on("updateActor", async (document, change /*, _options, _userId */) => {
-    if (
-        change?.system?.characteristics?.spd?.value ||
-        change?.system?.characteristics?.dex?.value ||
-        change?.system?.characteristics?.ego?.value ||
-        change?.system?.characteristics?.int?.value ||
-        change?.system?.initiativeCharacteristic
-    ) {
-        for (const combat of game.combats) {
-            if (combat.active) {
-                const _combatants = combat.combatants.filter((o) => o.actorId === document.id);
-                if (_combatants) {
-                    // Reroll Initiative (based on new spd/dex/ego/int changes)
-                    //await combat.rollAll();
-                    await combat.rollInitiative(_combatants.map((o) => o.id));
-                    await combat.extraCombatants();
-
-                    // Setup Turns in combat tracker based on new spd/dex/ego/int changes)
-                    // Should no longer be needed now that SPD is part of initiative (handled via rollAll/combat:rollInitiative)
-                    //await combat.setupTurns();
-                }
-            }
-        }
-    }
-});
 
 Hooks.on("closeTokenConfig", async (tokenConfig) => {
     // We may have changed the disposition, so re-render the combat tracker
