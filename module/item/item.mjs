@@ -3854,19 +3854,13 @@ export class HeroSystem6eItem extends Item {
             .sort((a, b) => {
                 return a.cost - b.cost;
             })) {
-            // This might be a limitation with an unusually positive value
-            // const modPowerInfo = modifier.baseInfo;
-            // if (modPowerInfo?.minimumLimitation) {
-            //     continue;
-            // }
-
             system.description += this.createPowerDescriptionModifier(modifier);
         }
 
         // Active Points show if there are limitations or the real cost is not equal to the displayed cost
         if (this._activePoints !== this._realCost || system.realCost !== system.characterPointCost) {
             if (system.activePoints) {
-                system.description += " (" + system.activePoints + " Active Points);";
+                system.description += " (" + this.activePointCostForDisplay + " Active Points);";
             }
         }
 
@@ -5235,13 +5229,13 @@ export class HeroSystem6eItem extends Item {
             // Fixed
             if (this.system.ULTRA_SLOT) {
                 costSuffix = this.actor?.system.is5e ? "u" : "f";
-                cost /= 10.0;
+                RoundFavorPlayerDown((cost /= 10.0));
             }
 
             // Variable
             else {
                 costSuffix = this.actor?.system.is5e ? "m" : "v";
-                cost /= 5.0;
+                RoundFavorPlayerDown((cost /= 5.0));
             }
         } else if (this.parentItem?.system.XMLID === "ELEMENTAL_CONTROL") {
             cost = cost - this.parentItem.system.BASECOST;
@@ -5250,8 +5244,27 @@ export class HeroSystem6eItem extends Item {
         return RoundFavorPlayerDown(cost) + costSuffix;
     }
 
-    get characterPointCostPlusSuffix() {
-        const cost = this.system.characterPointCost || parseInt(this.system.realCost);
+    /**
+     * Get the item's active cost for display purposes. To be similar to HD we round up (so 4.5 goes to 5).
+     * However, be aware that HD keep the actual point cost expressed in 1 or 2 decimal points (based on 5e or 6e)
+     */
+    get activePointCostForDisplay() {
+        return RoundFavorPlayerUp(this.system.activePoints);
+    }
+
+    /**
+     * Get the item's character cost for display purposes. To be similar to HD we round up (so 4.5 goes to 5).
+     * However, be aware that HD keep the actual point cost expressed in 1 or 2 decimal points (based on 5e or 6e)
+     */
+    get characterPointCostForDisplay() {
+        const cost = this.system.characterPointCost || parseFloat(this.system.realCost);
+
+        return RoundFavorPlayerUp(cost);
+    }
+
+    get characterPointCostForDisplayPlusSuffix() {
+        const cost = this.characterPointCostForDisplay;
+
         if (
             this.parentItem?.system.XMLID === "MULTIPOWER" ||
             this.parentItem?.parentItem?.system.XMLID === "MULTIPOWER"
@@ -5266,6 +5279,7 @@ export class HeroSystem6eItem extends Item {
                 return cost + (this.actor?.system.is5e ? "m" : "v");
             }
         }
+
         return cost;
     }
 
@@ -5416,14 +5430,17 @@ export class HeroSystem6eItem extends Item {
         for (const adder of this.adders.filter((a) => a.cost < 0)) {
             _cost += adder.cost;
         }
+
         return _cost;
     }
 
     _advantageCostExcludingList(exclusionList) {
         let _cost = 0;
+
         for (const advantage of this.advantages.filter((advantage) => !exclusionList.includes(advantage.XMLID))) {
             _cost += advantage.cost;
         }
+
         return _cost;
     }
 
@@ -5454,35 +5471,60 @@ export class HeroSystem6eItem extends Item {
             return this.baseInfo.activePoints(this);
         }
 
-        return RoundFavorPlayerDown((this._basePoints + this._addersCost) * (1 + this._advantageCost));
+        const advantageCosts = 1 + this._advantageCost;
+        const baseCost = this._basePoints + this._addersCost;
+
+        // We must round only if we multiply (FRed pg 7, 6e vol 1 pg 12)
+        if (advantageCosts !== 1) {
+            return RoundFavorPlayerDown(baseCost * advantageCosts);
+        } else {
+            return baseCost;
+        }
     }
 
     get _activePointsForEnd() {
-        return RoundFavorPlayerDown(
-            (this._basePoints + this._addersCost - this._negativeCustomAddersCost) *
-                (1 + this._advantageCostWithoutEnd),
-        );
+        const advantageCostsWithoutEnd = 1 + this._advantageCostWithoutEnd;
+        const baseCostWithoutEnd = this._basePoints + this._addersCost - this._negativeCustomAddersCost;
+
+        // We must round only if we multiply (FRed pg 7, 6e vol 1 pg 12)
+        if (advantageCostsWithoutEnd !== 1) {
+            return RoundFavorPlayerDown(baseCostWithoutEnd * advantageCostsWithoutEnd);
+        } else {
+            return baseCostWithoutEnd;
+        }
     }
 
     get _activePointsWithoutAoe() {
-        return RoundFavorPlayerDown(
-            (this._basePoints + this._addersCost - this._negativeCustomAddersCost) *
-                (1 + this._advantageCostWithoutAoe),
-        );
+        const advantageCostsWithoutAoe = 1 + this._advantageCostWithoutAoe;
+        const baseCostWithoutAoe = this._basePoints + this._addersCost - this._negativeCustomAddersCost;
+
+        // We must round only if we multiply (FRed pg 7, 6e vol 1 pg 12)
+        if (advantageCostsWithoutAoe !== 1) {
+            return RoundFavorPlayerDown(baseCostWithoutAoe * advantageCostsWithoutAoe);
+        } else {
+            return baseCostWithoutAoe;
+        }
     }
 
     _activePointsWithoutExclusionList(exclusionList) {
-        return RoundFavorPlayerDown(
-            (this._basePoints + this._addersCost - this._negativeCustomAddersCost) *
-                (1 + this._advantageCostExcludingList(exclusionList)),
-        );
+        const advantageCostsWithoutExclusions = 1 + this._advantageCostExcludingList(exclusionList);
+        const baseCostWithoutExclusions = this._basePoints + this._addersCost - this._negativeCustomAddersCost;
+
+        // We must round only if we multiply (FRed pg 7, 6e vol 1 pg 12)
+        if (advantageCostsWithoutExclusions !== 1) {
+            return RoundFavorPlayerDown(baseCostWithoutExclusions * advantageCostsWithoutExclusions);
+        } else {
+            return baseCostWithoutExclusions;
+        }
     }
 
     get _advantagesAffectingDc() {
         let _cost = 0;
+
         for (const advantage of this.advantages.filter((a) => a.baseInfo?.dcAffecting(a, this))) {
             _cost += advantage.cost;
         }
+
         return _cost;
     }
 
@@ -5494,7 +5536,15 @@ export class HeroSystem6eItem extends Item {
     }
 
     get _activePointsDcAffecting() {
-        return RoundFavorPlayerDown(this._activePointsAffectingDcRaw);
+        const advantageCostsAffectingDc = 1 + this._advantagesAffectingDc;
+        const dcRaw = this._basePoints + this._addersCost - this._negativeCustomAddersCost;
+
+        // We must round only if we multiply (FRed pg 7, 6e vol 1 pg 12)
+        if (advantageCostsAffectingDc !== 1) {
+            return RoundFavorPlayerDown(dcRaw);
+        } else {
+            return dcRaw;
+        }
     }
 
     get dc() {
@@ -5505,12 +5555,12 @@ export class HeroSystem6eItem extends Item {
         return this._activePointsAffectingDcRaw / 5;
     }
 
+    /// Real Cost = Active Cost / (1 + total value of all Limitations)
     get _realCost() {
         if (this.baseInfo?.realCost) {
             return this.baseInfo.realCost(this);
         }
 
-        // Real Cost = Active Cost / (1 + total value of all Limitations)
         let _cost = this._activePoints;
 
         // Skill Enhancer
@@ -5529,13 +5579,17 @@ export class HeroSystem6eItem extends Item {
             }
         }
 
-        _cost = RoundFavorPlayerDown(_cost / (1 + _limitationCost));
+        // We must round only if we divide (FRed pg 7, 6e vol 1 pg 12)
+        if (_limitationCost !== 0) {
+            _cost = RoundFavorPlayerDown(_cost / (1 + _limitationCost));
+        }
 
         return _cost;
     }
 
     get _characterPointCost() {
-        let _cost = this._realCost; //this.system.realCost;
+        let _cost = this._realCost;
+
         // Power cost in Power Framework is applied before limitations
         if (this.parentItem) {
             if (
@@ -5544,12 +5598,12 @@ export class HeroSystem6eItem extends Item {
             ) {
                 // Fixed
                 if (this.system.ULTRA_SLOT || this.parentItem?.system.ULTRA_SLOT) {
-                    _cost = _cost / 10.0;
+                    _cost = RoundFavorPlayerDown(_cost / 10.0);
                 }
 
                 // Variable
                 else {
-                    _cost = _cost / 5.0;
+                    _cost = RoundFavorPlayerDown(_cost / 5.0);
                 }
             } else if (this.parentItem.system.XMLID === "ELEMENTAL_CONTROL") {
                 const baseCost = (this.parentItem.system.BASECOST = parseFloat(this.parentItem.system.BASECOST));
@@ -5557,7 +5611,7 @@ export class HeroSystem6eItem extends Item {
             }
         }
 
-        return RoundFavorPlayerDown(_cost);
+        return _cost;
     }
 
     get costPerLevel() {
@@ -5647,10 +5701,7 @@ export class HeroSystem6eItem extends Item {
 
         // When reducing character points, we just scale. However, when pushing we don't consider
         // advantages (which was clearly an "it's too complicated to calculate" simplification in the rules that we'll keep)
-        const effectiveBaseRawDc =
-            effectiveRealCost <= baseRealCost
-                ? this.dcRaw * (effectiveRealCost / baseRealCost)
-                : this.dcRaw + ((effectiveRealCost - baseRealCost) * (1 + this._advantagesAffectingDc)) / 5;
+        const effectiveBaseRawDc = this.dcRaw * (effectiveRealCost / baseRealCost);
 
         const diceParts = calculateDicePartsFromDcForItem(this, effectiveBaseRawDc);
 

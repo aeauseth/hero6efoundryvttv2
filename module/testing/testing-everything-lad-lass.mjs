@@ -7,6 +7,9 @@ export function registerEverythingLadLass(quench) {
             const { assert, before, describe, it } = context;
 
             describe("Everything Lad (5e)", function () {
+                // On slower setups this can timeout. Increase the default timeout.
+                this.timeout("20s");
+
                 const contents = `
                 <?xml version="1.0" encoding="UTF-16"?>
                 <CHARACTER version="6.0" TEMPLATE="builtIn.Superheroic.hdt">
@@ -966,6 +969,9 @@ export function registerEverythingLadLass(quench) {
             });
 
             describe("Everything Lass (6e)", function () {
+                // On slower setups this can timeout. Increase the default timeout.
+                this.timeout("20s");
+
                 const contents = `
                 <?xml version="1.0" encoding="UTF-16"?>
                   <CHARACTER version="6.0" TEMPLATE="builtIn.Superheroic6E.hdt">

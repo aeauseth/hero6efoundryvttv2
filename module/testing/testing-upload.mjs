@@ -2817,13 +2817,11 @@ export function registerUploadTests(quench) {
                         assert.equal(item.system.description, "Hearing Group Flash 11½d6");
                     });
 
-                    // PH: FIXME: Not supported yet.
-                    it.skip("realCost", function () {
+                    it("realCost", function () {
                         assert.equal(item.system.realCost, 34.5);
                     });
 
-                    // PH: FIXME: Not supported yet.
-                    it.skip("activePoints", function () {
+                    it("activePoints", function () {
                         assert.equal(item.system.activePoints, 34.5);
                     });
 
@@ -4120,8 +4118,8 @@ export function registerUploadTests(quench) {
                         assert.equal(item.system.realCost, "10");
                     });
 
-                    it("power characterPointCostPlusSuffix", function () {
-                        assert.equal(item.characterPointCostPlusSuffix, "1u");
+                    it("power characterPointCostForDisplayPlusSuffix", function () {
+                        assert.equal(item.characterPointCostForDisplayPlusSuffix, "1u");
                     });
 
                     it("power activePoints", function () {
@@ -4204,8 +4202,8 @@ export function registerUploadTests(quench) {
                         assert.equal(item.system.realCost, "13");
                     });
 
-                    it("power characterPointCostPlusSuffix", function () {
-                        assert.equal(item.characterPointCostPlusSuffix, "1f");
+                    it("power characterPointCostForDisplayPlusSuffix", function () {
+                        assert.equal(item.characterPointCostForDisplayPlusSuffix, "1f");
                     });
 
                     it("power activePoints", function () {
@@ -4290,8 +4288,8 @@ export function registerUploadTests(quench) {
                         assert.equal(item.system.realCost, 20);
                     });
 
-                    it("power characterPointCostPlusSuffix", function () {
-                        assert.equal(item.characterPointCostPlusSuffix, "10");
+                    it("power characterPointCostForDisplayPlusSuffix", function () {
+                        assert.equal(item.characterPointCostForDisplayPlusSuffix, "10");
                     });
 
                     it("power activePoints", function () {
@@ -5236,7 +5234,7 @@ export function registerUploadTests(quench) {
                 it("description", function () {
                     assert.equal(
                         item.system.description,
-                        "Duplication (creates 962-point form) (192 Active Points); Original Is Incapacitated And Helpless While Duplicate Exists (-1)",
+                        "Duplication (creates 962-point form) (193 Active Points); Original Is Incapacitated And Helpless While Duplicate Exists (-1)",
                     );
                 });
 
@@ -5245,7 +5243,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 192);
+                    assert.equal(item.system.activePoints, 193);
                 });
 
                 it("levels", function () {

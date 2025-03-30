@@ -112,6 +112,8 @@ export function calculateReduceOrPushRealCost(startingRealCost, desiredEffective
         startingRealCost + Math.min(10, startingRealCost),
     );
 
+    // PH: FIXME: Not allowed to more than double active points
+
     if (effectiveRealCost > startingRealCost) {
         pushedRealPoints = effectiveRealCost - startingRealCost;
     }

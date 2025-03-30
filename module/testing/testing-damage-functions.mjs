@@ -1594,7 +1594,7 @@ export function registerDamageFunctionTests(quench) {
             });
 
             // Skip for the time being as there are issues with calculating costs
-            describe.skip("changePowerLevel", function () {
+            describe("changePowerLevel", function () {
                 describe("3 AP/die - Nontargeting FLASH", function () {
                     const threePointFlashContent = `
                     <POWER XMLID="FLASH" ID="1739848128585" BASECOST="0.0" LEVELS="11" ALIAS="Flash" POSITION="3" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="HEARINGGROUP" OPTIONID="HEARINGGROUP" OPTION_ALIAS="Hearing Group" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
@@ -1630,11 +1630,11 @@ export function registerDamageFunctionTests(quench) {
 
                     describe("confirm default values", function () {
                         it("realCost", function () {
-                            assert.equal(threePointFlashItem.system.realCost, 34);
+                            assert.equal(threePointFlashItem.system.realCost, 34.5);
                         });
 
                         it("activePoints", function () {
-                            assert.equal(threePointFlashItem.system.activePoints, 34);
+                            assert.equal(threePointFlashItem.system.activePoints, 34.5);
                         });
 
                         it("damage", function () {
@@ -1662,11 +1662,11 @@ export function registerDamageFunctionTests(quench) {
                         });
 
                         it("realCost", function () {
-                            assert.equal(pushedItem._realCost, 37);
+                            assert.equal(pushedItem._realCost, 37.5);
                         });
 
                         it("activePoints", function () {
-                            assert.equal(pushedItem._activePoints, 37);
+                            assert.equal(pushedItem._activePoints, 37.5);
                         });
 
                         it("damage", function () {
@@ -1679,11 +1679,11 @@ export function registerDamageFunctionTests(quench) {
 
                         // PH: FIXME: pushed endurance usage
                         it("total END usage", function () {
-                            assert.equal(calculateRequiredResourcesToUse(pushedItem, {}).totalEnd, 6);
+                            assert.equal(calculateRequiredResourcesToUse([pushedItem], {}).totalEnd, 6);
                         });
                     });
 
-                    describe("push base FLASH to 44 CP", function () {
+                    describe("push base FLASH to 43.5 CP", function () {
                         let pushedItem;
 
                         before(async function () {
@@ -1692,18 +1692,18 @@ export function registerDamageFunctionTests(quench) {
                             pushedItem = new HeroSystem6eItem(pushedItemData, { parent: actor });
 
                             // Reduce or Push the item
-                            pushedItem.changePowerLevel(43);
+                            pushedItem.changePowerLevel(43.5);
                             pushedItem.system._active.pushedRealPoints = 9;
 
                             pushedItem._postUpload();
                         });
 
                         it("realCost", function () {
-                            assert.equal(pushedItem._realCost, 43);
+                            assert.equal(pushedItem._realCost, 43.5);
                         });
 
                         it("activePoints", function () {
-                            assert.equal(pushedItem._activePoints, 43);
+                            assert.equal(pushedItem._activePoints, 43.5);
                         });
 
                         it("damage", function () {
@@ -1716,7 +1716,7 @@ export function registerDamageFunctionTests(quench) {
 
                         // PH: FIXME: pushed endurance usage
                         it("total END usage", function () {
-                            assert.equal(calculateRequiredResourcesToUse(pushedItem, {}).totalEnd, 12);
+                            assert.equal(calculateRequiredResourcesToUse([pushedItem], {}).totalEnd, 12);
                         });
                     });
                 });
@@ -1792,7 +1792,7 @@ export function registerDamageFunctionTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(pushedItem._activePoints, 83);
+                            assert.equal(pushedItem._activePoints, 82);
                         });
 
                         it("damage", function () {
@@ -1805,7 +1805,7 @@ export function registerDamageFunctionTests(quench) {
 
                         // PH: FIXME: pushed endurance usage
                         it("total END usage", function () {
-                            assert.equal(calculateRequiredResourcesToUse(pushedItem, {}).totalEnd, 19);
+                            assert.equal(calculateRequiredResourcesToUse([pushedItem], {}).totalEnd, 19);
                         });
                     });
 
@@ -1842,7 +1842,7 @@ export function registerDamageFunctionTests(quench) {
 
                         // PH: FIXME: pushed endurance usage
                         it("total END usage", function () {
-                            assert.equal(calculateRequiredResourcesToUse(pushedItem, {}).totalEnd, 22);
+                            assert.equal(calculateRequiredResourcesToUse([pushedItem], {}).totalEnd, 22);
                         });
                     });
                 });
@@ -1898,7 +1898,7 @@ export function registerDamageFunctionTests(quench) {
                         });
                     });
 
-                    describe("push DRAIN to 35 CP", function () {
+                    describe("push DRAIN to 34 CP", function () {
                         let pushedItem;
 
                         before(async function () {
@@ -1907,31 +1907,30 @@ export function registerDamageFunctionTests(quench) {
                             pushedItem = new HeroSystem6eItem(pushedItemData, { parent: actor });
 
                             // Reduce or Push the item
-                            pushedItem.changePowerLevel(35);
-                            pushedItem.system._active.pushedRealPoints = 4;
+                            pushedItem.changePowerLevel(34);
+                            pushedItem.system._active.pushedRealPoints = 3;
 
                             pushedItem._postUpload();
                         });
 
                         it("realCost", function () {
-                            assert.equal(pushedItem._realCost, 35);
+                            assert.equal(pushedItem._realCost, 33); // 34 -> 76.5 AP gives 75 AP as built -> 33 RP with 1.25 limitation
                         });
 
                         it("activePoints", function () {
-                            assert.equal(pushedItem._activePoints, 79);
+                            assert.equal(pushedItem._activePoints, 75);
                         });
 
                         it("damage", function () {
-                            assert.equal(pushedItem.system.damage, "71/2d6");
+                            assert.equal(pushedItem.system.damage, "7½d6");
                         });
 
                         it("END", function () {
                             assert.equal(pushedItem.system.end, 7);
                         });
 
-                        // PH: FIXME: pushed endurance usage
                         it("total END usage", function () {
-                            assert.equal(calculateRequiredResourcesToUse(pushedItem, {}).totalEnd, 11);
+                            assert.equal(calculateRequiredResourcesToUse([pushedItem], {}).totalEnd, 10);
                         });
                     });
 
@@ -1945,7 +1944,7 @@ export function registerDamageFunctionTests(quench) {
 
                             // Reduce or Push the item
                             pushedItem.changePowerLevel(37);
-                            pushedItem.system._active.pushedRealPoints = 7;
+                            pushedItem.system._active.pushedRealPoints = 6;
 
                             pushedItem._postUpload();
                         });
@@ -1959,7 +1958,7 @@ export function registerDamageFunctionTests(quench) {
                         });
 
                         it("damage", function () {
-                            assert.equal(pushedItem.system.damage, "11½d6");
+                            assert.equal(pushedItem.system.damage, "8d6+1");
                         });
 
                         it("END", function () {
@@ -1968,7 +1967,7 @@ export function registerDamageFunctionTests(quench) {
 
                         // PH: FIXME: pushed endurance usage
                         it("total END usage", function () {
-                            assert.equal(calculateRequiredResourcesToUse(pushedItem, {}).totalEnd, 14);
+                            assert.equal(calculateRequiredResourcesToUse([pushedItem], {}).totalEnd, 13);
                         });
                     });
                 });

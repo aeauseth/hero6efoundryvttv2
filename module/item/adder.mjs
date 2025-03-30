@@ -1,5 +1,4 @@
 import { getModifierInfo } from "../utility/util.mjs";
-import { HeroSystem6eItem } from "./item.mjs";
 
 export class HeroSystem6eAdder {
     #baseInfo;
@@ -84,18 +83,11 @@ export class HeroSystem6eAdder {
         if (this.SELECTED === false && this.item?.type === "skill") {
             const maxCost = parseFloat(this.BASECOST) || 0;
             if (maxCost > 0 && _cost > maxCost) {
-                // console.log(
-                //     `${this.item?.actor?.name}/${this.item?.name}/${this.item?.system.XMLID}/${this.XMLID} category clamped from ${_cost} down to ${maxCost}`,
-                // );
                 if (this.item?.system.XMLID != "TRANSPORT_FAMILIARITY") {
                     console.warn(`We found another example of a skill with category limitations ${this.system.XMLID}`);
                 }
                 _cost = Math.min(maxCost, _cost);
             }
-        }
-
-        if (this.parent instanceof HeroSystem6eItem) {
-            _cost = Math.ceil(_cost);
         }
 
         return _cost;

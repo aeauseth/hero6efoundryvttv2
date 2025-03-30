@@ -1,3 +1,6 @@
+// FIXME: 6e performs calculations to 1 decimal point and that's what this operates with.
+//        Unfortunately, 5e performs calculations to 2 decimal points. This does not.
+
 export function RoundFavorPlayerDown(number) {
     // ROUND-OFFS AND MINIMUM COST
     // Whenever something in the rules requires multiplication or

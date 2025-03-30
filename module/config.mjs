@@ -5209,7 +5209,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costPerLevel: fixedValueFunction(1 / 5),
             cost: function (item) {
                 const points = parseInt(item.system.POINTS) || 0;
-                return points * this.costPerLevel();
+                return Math.ceil(points * this.costPerLevel());
             },
             defenseTagVsAttack: function () {
                 // Not really sure when this would be part of a defense

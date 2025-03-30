@@ -35,9 +35,9 @@
                 <span style="opacity: 0.5">{{this.listCost}}</span>
             {{else}}
                 {{#if (eq this.parentItem.system.XMLID "COMPOUNDPOWER")}}
-                    <span style="opacity: 0.5">{{this.characterPointCostPlusSuffix}}</span>
+                    <span style="opacity: 0.5">{{this.characterPointCostForDisplayPlusSuffix}}</span>
                 {{else}}
-                    {{this.characterPointCostPlusSuffix}}
+                    {{this.characterPointCostForDisplayPlusSuffix}}
                 {{/if}}
             {{/if}}
         </td>

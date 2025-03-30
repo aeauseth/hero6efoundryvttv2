@@ -3772,8 +3772,6 @@ export async function userInteractiveVerifyOptionallyPromptThenSpendResources(it
  * @returns HeroSystemItemResourcesToUse
  */
 export function calculateRequiredResourcesToUse(resourceUsingItems, options) {
-    // PH: FIXME: Need to support the limitations and advantages that allow end to be used from both characteristc and END Reserve
-
     const individualResourceUsage = resourceUsingItems.map((item) =>
         calculateRequiredResourcesToUseForSingleItem(item, options),
     );

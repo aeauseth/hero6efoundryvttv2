@@ -66,7 +66,7 @@ export class HeroSystem6ePower {
             _cost += adder.cost;
         }
 
-        return Math.ceil(_cost);
+        return _cost;
     }
 
     get adders() {
@@ -87,8 +87,7 @@ export class HeroSystem6ePower {
     }
 
     set BASECOST_total(value) {
-        if (this.cost != value) {
-            //debugger;
+        if (this.cost !== value) {
             console.error(
                 `${this.item?.actor.name}/${this.item?.detailedName()}/${this.XMLID} BASECOST_total (${value}) did not match cost ${this.BASECOST_total}`,
             );
