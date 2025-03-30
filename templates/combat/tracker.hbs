@@ -35,6 +35,13 @@
                                     <i class="fa-solid fa-bullseye-arrow"></i>
                                 </a>
                                 {{/if}}
+
+                                <a class="combatant-control {{#if this.flags.holdingAnAction}}active{{/if}}" data-action="pingCombatant" aria-label="Holding An Action" role="button" data-tooltip="Holding An Action" data-control="holdingAnAction">
+                                    {{!-- <img class="token-effect" src="icons/svg/clockwork.svg"> --}}
+                                    <i class="fa-solid fa-child-reaching"></i>
+                                </a>
+
+
                                 {{!-- {{#unless ../user.isGM}}
                                 <a class="combatant-control" data-action="activateCombatant" aria-label="{{localize 'COMBAT.PanToCombatant'}}" role="button" data-tooltip="COMBAT.PanToCombatant" data-control="panToCombatant">
                                     <i class="fa-solid fa-arrows-to-eye"></i>
