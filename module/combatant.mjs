@@ -20,10 +20,10 @@ export class HeroSystem6eCombatant extends Combatant {
         const index = Math.min(Math.max(actor.system.characteristics.spd?.value || 0, 1), 12);
         const phases = foundry.utils.deepClone(HeroSystem6eCombatant.Speed2Segments[index]);
 
-        if (this.flags.delayUntil?.segment && options.combatCurrent) {
-            phases[phases.findIndex((p) => p == this.flags.delayUntil.segment)] =
-                parseInt(this.flags.delayUntil.segment) + 1;
-        }
+        // if (this.flags.delayUntil?.segment && options.combatCurrent) {
+        //     phases[phases.findIndex((p) => p == this.flags.delayUntil.segment)] =
+        //         parseInt(this.flags.delayUntil.segment) + 1;
+        // }
 
         let _hasPhase = phases.includes(segmentNumber);
         return _hasPhase;

@@ -54,8 +54,8 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
     // V12 getData(options) is replaced by V13 _prepareContext(options)
     async _prepareTrackerContext(context, options) {
         // v13 has _prepareTrackerContext
-        if (super._prepareCombatContext) {
-            await super._prepareCombatContext(context, options);
+        if (super._prepareTrackerContext) {
+            await super._prepareTrackerContext(context, options);
         }
 
         if (!this.viewed) {
@@ -67,48 +67,36 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             return;
         }
 
-        try {
-            // Create our own list of turns that includes several combatants based on SPD.
-            // Notice we are using the context.turns as a base to support v12/v13 compatibility
-            const heroTurns = [];
-            let t = 0;
-            for (const turn of context.turns) {
-                const combatant = combat.turns.find((t) => t.id === turn.id);
-                if (!combatant) {
-                    console.error("unable to location combatant");
-                    continue;
-                }
-                for (const segment of combatant.getSegments({ combatCurrent: combat.current })) {
-                    const heroTurn = foundry.utils.deepClone(turn);
-                    heroTurn.flags = foundry.utils.deepClone(combatant.flags);
-                    heroTurn.flags.segment = segment;
-                    heroTurn.name += ` [${t}]`;
-                    heroTurn.css = heroTurn.css.replace("active", ""); // HBS will add this back in for the appropriate segment
-                    //heroTurn.name += ` [${heroTurns.length}]`;
-                    heroTurns.push(heroTurn);
-                }
-                t++;
-            }
-            context.turns = heroTurns;
-
-            // Augment default turns
-            const turnsAugmented = context.turns.map((turn) => {
-                const combatant = this.viewed.combatants.find((combatant) => combatant.id === turn.id);
-                return {
-                    ...turn,
-                    //css: turn.css.replace("active", ""), // HBS will add this back in for the appropriate segment
-                    //flags: combatant.flags,
-                    //holding: combatant.actor?.statuses.has("holding"),
-                    effects: (combatant.actor?.temporaryEffects || []).filter(
-                        (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
-                    ),
-                    //segment: combatant.flags.segment,
-                };
-            });
-            context.turns = turnsAugmented;
-        } catch (e) {
-            console.error(e);
-        }
+        // try {
+        //     // Create our own list of turns that includes several combatants based on SPD.
+        //     // Notice we are using the context.turns as a base to support v12/v13 compatibility
+        //     const heroTurns = [];
+        //     let t = 0;
+        //     for (const turn of context.turns) {
+        //         const combatant = combat.turns.find((t) => t.id === turn.id);
+        //         if (!combatant) {
+        //             console.error("unable to location combatant");
+        //             continue;
+        //         }
+        //         for (const segment of combatant.getSegments({ combatCurrent: combat.current })) {
+        //             const heroTurn = foundry.utils.deepClone(turn);
+        //             heroTurn.flags = foundry.utils.deepClone(combatant.flags);
+        //             heroTurn.flags.segment = segment;
+        //             heroTurn.name += ` [${t}]`;
+        //             heroTurn.css = heroTurn.css.replace("active", ""); // HBS will add this back in for the appropriate segment
+        //             heroTurn.holding = combatant.actor?.statuses.has("holding");
+        //             heroTurn.effects = (combatant.actor?.temporaryEffects || []).filter(
+        //                 (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
+        //             );
+        //             //heroTurn.name += ` [${heroTurns.length}]`;
+        //             heroTurns.push(heroTurn);
+        //         }
+        //         t++;
+        //     }
+        //     context.turns = heroTurns;
+        // } catch (e) {
+        //     console.error(e);
+        // }
 
         try {
             // Create the 12 segments
@@ -146,12 +134,17 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                 });
                 context.turns = turnsDisposition;
             }
+        } catch (e) {
+            console.error(e);
+        }
 
+        try {
             // Association segments to determine if a segment has any combatants
             for (let s = 1; s <= 12; s++) {
                 for (const turn of context.turns) {
-                    if ((turn.flags?.segment || 12) === s) {
-                        context.segments[s].push(turn);
+                    const combatant = combat.combatants.find((c) => c.id === turn.id);
+                    if (combatant.hasPhase(s)) {
+                        context.segments[s].push({ ...turn, segment: s, css: turn.css.replace("active", "") });
                     }
                 }
             }
@@ -193,6 +186,7 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                     await c.token.actor.toggleStatusEffect(status);
                 }
             }
+            return;
         }
 
         if (control === "holdingAnAction") {
@@ -207,8 +201,9 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             }
 
             await c.update({ [`flags`]: c.flags });
+            return;
         }
 
-        if (control === "") return super._onCombatantControl(event, target);
+        return super._onCombatantControl(event, target);
     }
 }
