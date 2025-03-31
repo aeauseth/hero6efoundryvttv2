@@ -7,6 +7,12 @@ import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs
 // export class HeroSystem6eCombat extends Combat {}
 
 export class HeroSystem6eCombat extends Combat {
+    _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
+        super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
+    }
+}
+
+export class HeroSystem6eCombat2 extends Combat {
     constructor(data, context) {
         data.flags ??= {};
         data.flags.segment ??= 12;
@@ -81,8 +87,18 @@ export class HeroSystem6eCombat extends Combat {
         }
     }
 
+    /**
+     * Actions taken after descendant documents have been created and changes have been applied to client data.
+     * @param {Document} parent         The direct parent of the created Documents, may be this Document or a child
+     * @param {string} collection       The collection within which documents were created
+     * @param {Document[]} documents    The array of created Documents
+     * @param {object[]} data           The source data for new documents that were created
+     * @param {object} options          Options which modified the creation operation
+     * @param {string} userId           The ID of the User who triggered the operation
+     * @protected
+     */
     async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
-        await super._onCreateEmbeddedDocuments(parent, collection, documents, data, options, userId);
+        super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
         await this.rebuildInitiative();
     }
 
