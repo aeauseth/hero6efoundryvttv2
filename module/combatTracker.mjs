@@ -134,6 +134,7 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                         (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
                     );
                     turn.holding = combatant.actor?.statuses.has("holding");
+                    turn.hasRolled ??= turn.initiative > 0; // v13
                     return turn;
                 });
                 context.turns = turnsDisposition;
