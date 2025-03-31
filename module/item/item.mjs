@@ -975,43 +975,6 @@ export class HeroSystem6eItem extends Item {
         }
 
         return recursiveFindByXmlid.call(this, xmlid);
-
-        // for (const key of HeroSystem6eItem.ItemXmlChildTags) {
-        //     if (this.system?.[key]) {
-        //         const value = this.system[key]?.find((o) => o.XMLID === xmlid);
-        //         if (value) {
-        //             return value;
-        //         }
-        //     }
-        // }
-
-        // // TODO: "Delete" support for old format
-        // for (const key of ["ADDER", "MODIFIER", "POWER"]) {
-        //     if (this.system?.[key]) {
-        //         const value = this.system[key].find((o) => o.XMLID === xmlid);
-        //         if (value) {
-        //             return value;
-        //         }
-
-        //         for (const subMod of this.system[key]) {
-        //             for (const key2 of ["ADDER", "MODIFIER", "POWER"]) {
-        //                 if (subMod[key2]) {
-        //                     const value = subMod[key2].find((o) => o.XMLID === xmlid);
-        //                     if (value) {
-        //                         return value;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // Power framework may include this modifier
-        // if (this.parentItem && !this.parentItem.XMLID === "COMPOUNDPOWER" && this.actor?.items) {
-        //     if (this.parentItem) {
-        //         return this.parentItem.findModsByXmlid(xmlid);
-        //     }
-        // }
     }
 
     findModById(id, xmlid) {
@@ -4550,18 +4513,6 @@ export class HeroSystem6eItem extends Item {
                     console.error(`ACCIDENTALCHANGE doesn't have a CHANCETOCHANGE adder. Defaulting to 8-`);
             }
 
-            // if (changeChance === "INFREQUENT") {
-            //     rollValue = 8;
-            // } else if (changeChance === "FREQUENT") {
-            //     rollValue = 11;
-            // } else if (changeChance === "VERYFREQUENT") {
-            //     rollValue = 14;
-            // } else if (!changeChance) {
-            //     // Shouldn't happen. Give it a default.
-            //     console.error(`ACCIDENTALCHANGE doesn't have a CHANCETOCHANGE adder. Defaulting to 8-`);
-            //     rollValue = 8;
-            // }
-
             tags.push({
                 value: rollValue,
                 name: "Change Chance",
@@ -5092,7 +5043,7 @@ export class HeroSystem6eItem extends Item {
     }
 
     get isContainer() {
-        if (this.isSeperator) return false;
+        if (this.isSeparator) return false;
         if (this.childItems.length) return true;
 
         // A backpack from MiscEquipment.hdp is a CUSTOMPOWER
@@ -5101,7 +5052,7 @@ export class HeroSystem6eItem extends Item {
         return this.baseInfo?.isContainer;
     }
 
-    get isSeperator() {
+    get isSeparator() {
         // It appears that some seperators can have childItems.  Not sure why this is the case.
         return this.system.XMLID === "LIST" && this.system.ALIAS.trim() === "";
     }
@@ -5217,6 +5168,7 @@ export class HeroSystem6eItem extends Item {
 
     get compoundCost() {
         if (this.system?.XMLID !== "COMPOUNDPOWER") return 0;
+
         let cost = 0;
         for (const child of this.childItems) {
             cost += parseInt(child.system.realCost);
@@ -5229,18 +5181,19 @@ export class HeroSystem6eItem extends Item {
             // Fixed
             if (this.system.ULTRA_SLOT) {
                 costSuffix = this.actor?.system.is5e ? "u" : "f";
-                RoundFavorPlayerDown((cost /= 10.0));
+                cost = RoundFavorPlayerDown(cost / 10.0);
             }
 
             // Variable
             else {
                 costSuffix = this.actor?.system.is5e ? "m" : "v";
-                RoundFavorPlayerDown((cost /= 5.0));
+                cost = RoundFavorPlayerDown(cost / 5.0);
             }
         } else if (this.parentItem?.system.XMLID === "ELEMENTAL_CONTROL") {
             cost = cost - this.parentItem.system.BASECOST;
         }
 
+        // PH: FIXME: Don't think this is right. This method is only called from hbs files ...
         return RoundFavorPlayerDown(cost) + costSuffix;
     }
 
@@ -5568,15 +5521,22 @@ export class HeroSystem6eItem extends Item {
             _cost = Math.max(1, _cost - 1);
         }
 
-        // Need to be careful about NAKEDMODIFIER PRIVATE (part of cost) vs !PRIVATE (part of naked limitation)
-        // Considering moving this into CONFIG.MJS, but need to see if this applies anywhere else.
-        // Would be nice to have something generic to handle all cases
         let _limitationCost = this._limitationCost;
         if (this.system.XMLID === "NAKEDMODIFIER") {
+            // Need to be careful about NAKEDMODIFIER PRIVATE (part of cost) vs !PRIVATE (part of naked limitation)
+            // Considering moving this into CONFIG.MJS, but need to see if this applies anywhere else.
+            // Would be nice to have something generic to handle all cases
             _limitationCost = 0;
+
             for (const limitation of this.limitations.filter((o) => o.PRIVATE)) {
                 _limitationCost -= limitation.cost;
             }
+        } else if (this.parentItem?.system.XMLID === "ELEMENTAL_CONTROL") {
+            // Elemental controls reduce the slot cost by the base cost. Slot cost must be at least 2x base cost.
+            const baseCost = (this.parentItem.system.BASECOST = parseFloat(this.parentItem.system.BASECOST));
+            _cost = Math.max(baseCost, _cost - baseCost);
+
+            // The real cost of an EC slot is the sum of the limitations on the pool and the slot (which is this._limitationCost) above
         }
 
         // We must round only if we divide (FRed pg 7, 6e vol 1 pg 12)
@@ -5605,9 +5565,6 @@ export class HeroSystem6eItem extends Item {
                 else {
                     _cost = RoundFavorPlayerDown(_cost / 5.0);
                 }
-            } else if (this.parentItem.system.XMLID === "ELEMENTAL_CONTROL") {
-                const baseCost = (this.parentItem.system.BASECOST = parseFloat(this.parentItem.system.BASECOST));
-                _cost = Math.max(baseCost, _cost - baseCost);
             }
         }
 

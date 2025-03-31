@@ -70,7 +70,11 @@ export async function migrateWorld() {
 
     // NOTE: If there has never been a migration then the lastMigration is "1.0.0". We don't need to give a warning in this case
     // as we know that this system was not around then.
-    if (lastMigration === "1.0.0") return;
+    // Newly created worlds have a lastMigration === "1.0.0" and we should CreateHeroCompendiums
+    if (lastMigration === "1.0.0") {
+        CreateHeroCompendiums();
+        return;
+    }
 
     if (await willNotMigrate(lastMigration)) return;
 

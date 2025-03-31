@@ -4232,95 +4232,432 @@ export function registerUploadTests(quench) {
                 });
 
                 describe("ELEMENTAL_CONTROL 5e", () => {
-                    const ecContents = `
-                        <ELEMENTAL_CONTROL XMLID="GENERIC_OBJECT" ID="1702694260215" BASECOST="10.0" LEVELS="0" ALIAS="Elemental Control" POSITION="2" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="EC Ego Powers" QUANTITY="1">
-                            <NOTES/>
-                            <MODIFIER XMLID="FOCUS" ID="1702700936173" BASECOST="-1.0" LEVELS="0" ALIAS="Focus" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="OAF" OPTIONID="OAF" OPTION_ALIAS="OAF" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                    describe("EC with focus", function () {
+                        const ecContents = `
+                            <ELEMENTAL_CONTROL XMLID="GENERIC_OBJECT" ID="1702694260215" BASECOST="10.0" LEVELS="0" ALIAS="Elemental Control" POSITION="2" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="EC Ego Powers" QUANTITY="1">
                                 <NOTES/>
-                            </MODIFIER>
-                        </ELEMENTAL_CONTROL>
-                    `;
-                    const contents = `
-                        <POWER XMLID="EGOATTACK" ID="1702694109590" BASECOST="0.0" LEVELS="2" ALIAS="Ego Attack" POSITION="3" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1702694260215" NAME="" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
-                            <NOTES/>
-                            <MODIFIER XMLID="CONTINUOUS" ID="1702710186447" BASECOST="1.0" LEVELS="0" ALIAS="Continuous" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                <MODIFIER XMLID="FOCUS" ID="1702700936173" BASECOST="-1.0" LEVELS="0" ALIAS="Focus" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="OAF" OPTIONID="OAF" OPTION_ALIAS="OAF" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES/>
+                                </MODIFIER>
+                            </ELEMENTAL_CONTROL>
+                        `;
+                        const contents = `
+                            <POWER XMLID="EGOATTACK" ID="1702694109590" BASECOST="0.0" LEVELS="2" ALIAS="Ego Attack" POSITION="3" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1702694260215" NAME="" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
                                 <NOTES/>
-                            </MODIFIER>
-                        </POWER>
-                    `;
-                    let ecItem;
-                    let item;
+                                <MODIFIER XMLID="CONTINUOUS" ID="1702710186447" BASECOST="1.0" LEVELS="0" ALIAS="Continuous" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES/>
+                                </MODIFIER>
+                            </POWER>
+                        `;
+                        let ecItem;
+                        let item;
 
-                    before(async () => {
-                        const actor = new HeroSystem6eActor(
-                            {
-                                name: "Quench Actor",
-                                type: "pc",
-                            },
-                            {},
-                        );
-                        actor.system.is5e = true;
-                        await actor._postUpload();
+                        before(async () => {
+                            const actor = new HeroSystem6eActor(
+                                {
+                                    name: "Quench Actor",
+                                    type: "pc",
+                                },
+                                {},
+                            );
+                            actor.system.is5e = true;
+                            await actor._postUpload();
 
-                        // Elemental Control
-                        ecItem = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(ecContents, actor), {
-                            parent: actor,
+                            // Elemental Control
+                            ecItem = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(ecContents, actor), {
+                                parent: actor,
+                            });
+                            await ecItem._postUpload();
+                            actor.items.set(ecItem.system.XMLID, ecItem);
+
+                            // Power in Elemental Control
+                            item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                                parent: actor,
+                            });
+                            await item._postUpload();
+                            actor.items.set(item.system.XMLID, item);
                         });
-                        await ecItem._postUpload();
-                        actor.items.set(ecItem.system.XMLID, ecItem);
 
-                        // Power in Elemental Control
-                        item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
-                            parent: actor,
+                        it("power description", function () {
+                            assert.equal(
+                                item.system.description,
+                                "Ego Attack 2d6, Continuous (+1) (40 Active Points); OAF (-1)",
+                            );
                         });
-                        await item._postUpload();
-                        actor.items.set(item.system.XMLID, item);
+
+                        it("power realCost", function () {
+                            assert.equal(item.system.realCost, 15);
+                        });
+
+                        it("power characterPointCostForDisplayPlusSuffix", function () {
+                            assert.equal(item.characterPointCostForDisplayPlusSuffix, "15");
+                        });
+
+                        it("power activePoints", function () {
+                            assert.equal(item.system.activePoints, 40);
+                        });
+
+                        it("power end", function () {
+                            assert.equal(item.system.end, 4);
+                        });
+
+                        it("power levels", function () {
+                            assert.equal(item.system.value, 2);
+                        });
+
+                        it("elemental control description", function () {
+                            assert.equal(
+                                ecItem.system.description,
+                                "Elemental Control, 20-point powers (10 Active Points); all slots OAF (-1)",
+                            );
+                        });
+
+                        it("elemental control realCost", function () {
+                            assert.equal(ecItem.system.realCost, 5);
+                        });
+
+                        it("elemental control activePoints", function () {
+                            assert.equal(ecItem.system.activePoints, 10);
+                        });
+
+                        it("elemental control realCost", function () {
+                            assert.equal(ecItem.system.realCost, 5);
+                        });
                     });
 
-                    it("power description", function () {
-                        assert.equal(
-                            item.system.description,
-                            "Ego Attack 2d6, Continuous (+1) (40 Active Points); OAF (-1)",
-                        );
+                    describe("EC only slots with limitations", function () {
+                        const ecContents = `
+                            <ELEMENTAL_CONTROL XMLID="GENERIC_OBJECT" ID="1698996014961" BASECOST="24.0" LEVELS="0" ALIAS="Elemental Control" POSITION="11" MULTIPLIER="1.0" GRAPHIC="block" COLOR="0 255 0" SFX="Luck" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="Defensive Probability Field Powers" QUANTITY="1">
+                                <NOTES />
+                            </ELEMENTAL_CONTROL>
+                        `;
+                        const contents = `
+                            <POWER XMLID="ARMOR" ID="1698994642815" BASECOST="0.0" LEVELS="32" ALIAS="Armor" POSITION="12" MULTIPLIER="1.0" GRAPHIC="block" COLOR="0 255 0" SFX="Luck" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1698996014961" NAME="Luck Eventually Runs Out" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes" PDLEVELS="16" EDLEVELS="16">
+                                <NOTES />
+                                <MODIFIER XMLID="ABLATIVE" ID="1705804718896" BASECOST="-0.5" LEVELS="0" ALIAS="Ablative" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="BODYONLY" OPTIONID="BODYONLY" OPTION_ALIAS="BODY Only" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                </MODIFIER>
+                                <MODIFIER XMLID="COSTSEND" ID="1705804718902" BASECOST="-0.25" LEVELS="0" ALIAS="Costs Endurance" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="ACTIVATE" OPTIONID="ACTIVATE" OPTION_ALIAS="Only Costs END to Activate" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                </MODIFIER>
+                            </POWER>
+                        `;
+                        let ecItem;
+                        let item;
+
+                        before(async () => {
+                            const actor = new HeroSystem6eActor(
+                                {
+                                    name: "Quench Actor",
+                                    type: "pc",
+                                },
+                                {},
+                            );
+                            actor.system.is5e = true;
+                            await actor._postUpload();
+
+                            // Elemental Control
+                            ecItem = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(ecContents, actor), {
+                                parent: actor,
+                            });
+                            await ecItem._postUpload();
+                            actor.items.set(ecItem.system.XMLID, ecItem);
+
+                            // Power in Elemental Control
+                            item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                                parent: actor,
+                            });
+                            await item._postUpload();
+                            actor.items.set(item.system.XMLID, item);
+                        });
+
+                        it("power description", function () {
+                            assert.equal(
+                                item.system.description,
+                                "Armor (16 rPD/16 rED) (48 Active Points); Ablative BODY Only (-1/2), Costs Endurance (Only Costs END to Activate; -1/4)",
+                            );
+                        });
+
+                        it("power active points", function () {
+                            assert.equal(item.system.activePoints, 48);
+                        });
+
+                        it("power realCost", function () {
+                            assert.equal(item.system.realCost, 14);
+                        });
+
+                        it("power characterPointCostForDisplayPlusSuffix", function () {
+                            assert.equal(item.characterPointCostForDisplayPlusSuffix, "14");
+                        });
+
+                        it("power end", function () {
+                            assert.equal(item.system.end, 5);
+                        });
+
+                        it("power levels", function () {
+                            assert.equal(item.system.value, 32);
+                        });
+
+                        it("elemental control description", function () {
+                            assert.equal(ecItem.system.description, "Elemental Control, 48-point powers");
+                        });
+
+                        it("elemental control realCost", function () {
+                            assert.equal(ecItem.system.realCost, 24);
+                        });
+
+                        it("elemental control activePoints", function () {
+                            assert.equal(ecItem.system.activePoints, 24);
+                        });
                     });
 
-                    it("power realCost", function () {
-                        assert.equal(item.system.realCost, 20);
+                    describe.skip("EC with compound power in slot", function () {
+                        const ecContents = `
+                            <ELEMENTAL_CONTROL XMLID="GENERIC_OBJECT" ID="1698996014961" BASECOST="24.0" LEVELS="0" ALIAS="Elemental Control" POSITION="11" MULTIPLIER="1.0" GRAPHIC="block" COLOR="0 255 0" SFX="Luck" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="Defensive Probability Field Powers" QUANTITY="1">
+                                <NOTES />
+                            </ELEMENTAL_CONTROL>
+                        `;
+                        const contents = `
+                            <POWER XMLID="COMPOUNDPOWER" ID="1705804235201" BASECOST="0.0" LEVELS="0" ALIAS="Compound Power" POSITION="13" MULTIPLIER="1.0" GRAPHIC="block" COLOR="0 255 0" SFX="Luck" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1698996014961" NAME="Explicit Defense Field" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                                <NOTES />
+                                <PD XMLID="PD" ID="1705804624371" BASECOST="0.0" LEVELS="20" ALIAS="PD" POSITION="0" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No">
+                                    <NOTES />
+                                    <MODIFIER XMLID="HARDENED" ID="1705805618478" BASECOST="0.0" LEVELS="1" ALIAS="Hardened" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                    </MODIFIER>
+                                    <MODIFIER XMLID="COSTSEND" ID="1705805618483" BASECOST="-0.25" LEVELS="0" ALIAS="Costs Endurance" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="ACTIVATE" OPTIONID="ACTIVATE" OPTION_ALIAS="Only Costs END to Activate" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                    </MODIFIER>
+                                </PD>
+                                <ED XMLID="ED" ID="1705804648630" BASECOST="0.0" LEVELS="20" ALIAS="ED" POSITION="1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No">
+                                    <NOTES />
+                                    <MODIFIER XMLID="HARDENED" ID="1705805626850" BASECOST="0.0" LEVELS="1" ALIAS="Hardened" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                    </MODIFIER>
+                                    <MODIFIER XMLID="COSTSEND" ID="1705805626855" BASECOST="-0.25" LEVELS="0" ALIAS="Costs Endurance" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="ACTIVATE" OPTIONID="ACTIVATE" OPTION_ALIAS="Only Costs END to Activate" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                    </MODIFIER>
+                                </ED>
+                            </POWER>
+                        `;
+                        let ecItem;
+                        let item;
+
+                        before(async () => {
+                            const actor = new HeroSystem6eActor(
+                                {
+                                    name: "Quench Actor",
+                                    type: "pc",
+                                },
+                                {},
+                            );
+                            actor.system.is5e = true;
+                            await actor._postUpload();
+
+                            // Elemental Control
+                            ecItem = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(ecContents, actor), {
+                                parent: actor,
+                            });
+                            await ecItem._postUpload();
+                            actor.items.set(ecItem.system.XMLID, ecItem);
+
+                            // Power in Elemental Control
+                            item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                                parent: actor,
+                            });
+                            await item._postUpload();
+                            actor.items.set(item.system.XMLID, item);
+                        });
+
+                        it("power description", function () {
+                            assert.equal(item.system.description, "Compound Power");
+                        });
+
+                        it("power active points", function () {
+                            assert.equal(item.system.activePoints, 50);
+                        });
+
+                        it("power realCost", function () {
+                            assert.equal(item.system.realCost, 20);
+                        });
+
+                        it("power characterPointCostForDisplayPlusSuffix", function () {
+                            assert.equal(item.characterPointCostForDisplayPlusSuffix, "20");
+                        });
+
+                        it("power end", function () {
+                            assert.equal(item.system.end, 5);
+                        });
+
+                        it("elemental control description", function () {
+                            assert.equal(ecItem.system.description, "Elemental Control, 48-point powers");
+                        });
+
+                        it("elemental control realCost", function () {
+                            assert.equal(ecItem.system.realCost, 24);
+                        });
+
+                        it("elemental control activePoints", function () {
+                            assert.equal(ecItem.system.activePoints, 24);
+                        });
                     });
 
-                    it("power characterPointCostForDisplayPlusSuffix", function () {
-                        assert.equal(item.characterPointCostForDisplayPlusSuffix, "10");
+                    describe("EC with less than double the active points in a slot", function () {
+                        const ecContents = `
+                            <ELEMENTAL_CONTROL XMLID="GENERIC_OBJECT" ID="1743358428252" BASECOST="10.0" LEVELS="0" ALIAS="Elemental Control" POSITION="0" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="EC With Limitation" QUANTITY="1">
+                                <NOTES />
+                                <MODIFIER XMLID="FOCUS" ID="1743378309726" BASECOST="-1.0" LEVELS="0" ALIAS="Focus" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="OAF" OPTIONID="OAF" OPTION_ALIAS="OAF" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                </MODIFIER>
+                            </ELEMENTAL_CONTROL>
+                        `;
+                        const contents = `
+                            <POWER XMLID="DRAIN" ID="1743377039409" BASECOST="0.0" LEVELS="1" ALIAS="Drain" POSITION="2" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1743358428252" NAME="" INPUT="BODY" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                                <NOTES />
+                            </POWER>
+                        `;
+                        let ecItem;
+                        let item;
+
+                        before(async () => {
+                            const actor = new HeroSystem6eActor(
+                                {
+                                    name: "Quench Actor",
+                                    type: "pc",
+                                },
+                                {},
+                            );
+                            actor.system.is5e = true;
+                            await actor._postUpload();
+
+                            // Elemental Control
+                            ecItem = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(ecContents, actor), {
+                                parent: actor,
+                            });
+                            await ecItem._postUpload();
+                            actor.items.set(ecItem.system.XMLID, ecItem);
+
+                            // Power in Elemental Control
+                            item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                                parent: actor,
+                            });
+                            await item._postUpload();
+                            actor.items.set(item.system.XMLID, item);
+                        });
+
+                        it("power description", function () {
+                            assert.equal(item.system.description, "Drain BODY 1d6 (10 Active Points); OAF (-1)");
+                        });
+
+                        it("power active points", function () {
+                            assert.equal(item.system.activePoints, 10);
+                        });
+
+                        it("power realCost", function () {
+                            assert.equal(item.system.realCost, 5);
+                        });
+
+                        it("power characterPointCostForDisplayPlusSuffix", function () {
+                            assert.equal(item.characterPointCostForDisplayPlusSuffix, "5");
+                        });
+
+                        it("power end", function () {
+                            assert.equal(item.system.end, 1);
+                        });
+
+                        it("elemental control description", function () {
+                            assert.equal(
+                                ecItem.system.description,
+                                "Elemental Control, 20-point powers (10 Active Points); all slots OAF (-1)",
+                            );
+                        });
+
+                        it("elemental control realCost", function () {
+                            assert.equal(ecItem.system.realCost, 5);
+                        });
+
+                        it("elemental control activePoints", function () {
+                            assert.equal(ecItem.system.activePoints, 10);
+                        });
                     });
 
-                    it("power activePoints", function () {
-                        assert.equal(item.system.activePoints, 40);
-                    });
+                    describe("EC with more than double the active points in a slot", function () {
+                        const ecContents = `
+                            <ELEMENTAL_CONTROL XMLID="GENERIC_OBJECT" ID="1743358428252" BASECOST="10.0" LEVELS="0" ALIAS="Elemental Control" POSITION="0" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="EC With Limitation" QUANTITY="1">
+                                <NOTES />
+                                <MODIFIER XMLID="FOCUS" ID="1743378309726" BASECOST="-1.0" LEVELS="0" ALIAS="Focus" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="OAF" OPTIONID="OAF" OPTION_ALIAS="OAF" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No">
+                                    <NOTES />
+                                </MODIFIER>
+                            </ELEMENTAL_CONTROL>
+                        `;
+                        const contents = `
+                            <POWER XMLID="DISPEL" ID="1743377080728" BASECOST="0.0" LEVELS="9" ALIAS="Dispel" POSITION="3" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1743358428252" NAME="" INPUT="FLIGHT" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                                <NOTES />
+                            </POWER>
+                        `;
+                        let ecItem;
+                        let item;
 
-                    it("power end", function () {
-                        assert.equal(item.system.end, 4);
-                    });
+                        before(async () => {
+                            const actor = new HeroSystem6eActor(
+                                {
+                                    name: "Quench Actor",
+                                    type: "pc",
+                                },
+                                {},
+                            );
+                            actor.system.is5e = true;
+                            await actor._postUpload();
 
-                    it("power levels", function () {
-                        assert.equal(item.system.value, 2);
-                    });
+                            // Elemental Control
+                            ecItem = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(ecContents, actor), {
+                                parent: actor,
+                            });
+                            await ecItem._postUpload();
+                            actor.items.set(ecItem.system.XMLID, ecItem);
 
-                    it("elemental control description", function () {
-                        assert.equal(
-                            ecItem.system.description,
-                            "Elemental Control, 20-point powers (10 Active Points); all slots OAF (-1)",
-                        );
-                    });
+                            // Power in Elemental Control
+                            item = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
+                                parent: actor,
+                            });
+                            await item._postUpload();
+                            actor.items.set(item.system.XMLID, item);
+                        });
 
-                    it("elemental control realCost", function () {
-                        assert.equal(ecItem.system.realCost, 5);
-                    });
+                        it("power description", function () {
+                            assert.equal(item.system.description, "Dispel FLIGHT 9d6 (27 Active Points); OAF (-1)");
+                        });
 
-                    it("elemental control activePoints", function () {
-                        assert.equal(ecItem.system.activePoints, 10);
-                    });
+                        it("power active points", function () {
+                            assert.equal(item.system.activePoints, 27);
+                        });
 
-                    it("elemental control realCost", function () {
-                        assert.equal(ecItem.system.realCost, 5);
+                        it("power realCost", function () {
+                            assert.equal(item.system.realCost, 8);
+                        });
+
+                        it("power characterPointCostForDisplayPlusSuffix", function () {
+                            assert.equal(item.characterPointCostForDisplayPlusSuffix, "8");
+                        });
+
+                        it("power end", function () {
+                            assert.equal(item.system.end, 3);
+                        });
+
+                        it("elemental control description", function () {
+                            assert.equal(
+                                ecItem.system.description,
+                                "Elemental Control, 20-point powers (10 Active Points); all slots OAF (-1)",
+                            );
+                        });
+
+                        it("elemental control realCost", function () {
+                            assert.equal(ecItem.system.realCost, 5);
+                        });
+
+                        it("elemental control activePoints", function () {
+                            assert.equal(ecItem.system.activePoints, 10);
+                        });
                     });
                 });
             });

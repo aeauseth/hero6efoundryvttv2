@@ -20,7 +20,7 @@
                     </a>
                 {{/if}}
             {{else}}
-                {{#unless this.isSeperator}}
+                {{#unless this.isSeparator}}
                     <div class="item-image"><img src="{{this.img}}" title="{{this.name}}" width="24"
                         height="24" /></div>
                 {{/unless}}
@@ -29,7 +29,7 @@
         <td>
             {{#if (eq this.system.XMLID "COMPOUNDPOWER")}}
                 {{this.compoundCost}}
-            {{else if this.isSeperator}}
+            {{else if this.isSeparator}}
                 {{!-- Show no cost--}}
             {{else if (eq this.system.XMLID "LIST")}}
                 <span style="opacity: 0.5">{{this.listCost}}</span>
@@ -74,7 +74,7 @@
         </td>
     {{/if}}
     <td>
-        {{#unless this.isSeperator}}
+        {{#unless this.isSeparator}}
             <a class="item-control item-chat" title="{{localize "ActorSheet.SendToChat"}}"><i
                 class="fas fa-comment-alt"></i></a>
                     

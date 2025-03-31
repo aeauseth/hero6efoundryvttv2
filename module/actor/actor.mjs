@@ -1246,14 +1246,16 @@ export class HeroSystem6eActor extends Actor {
     }
 
     async FullHealth() {
-        // Remove temporary effects
-        for (const ae of this.temporaryEffects) {
-            await ae.delete();
-        }
-
         // Remove all status effects
         for (const status of this.statuses) {
             const ae = Array.from(this.effects).find((effect) => effect.statuses.has(status));
+            for (const status of ae.statuses) {
+                await this.toggleStatusEffect(status, { active: false });
+            }
+        }
+
+        // Remove temporary effects
+        for (const ae of this.temporaryEffects) {
             await ae.delete();
         }
 
@@ -2842,7 +2844,7 @@ export class HeroSystem6eActor extends Actor {
     }
 
     get is5e() {
-        return this?.system.is5e;
+        return this.system.is5e;
     }
 
     get encumbrance() {
