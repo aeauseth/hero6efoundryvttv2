@@ -1,5 +1,5 @@
 import { HEROSYS } from "./herosystem6e.mjs";
-import { overrideCanAct } from "./settings/settings-helpers.mjs";
+//import { overrideCanAct } from "./settings/settings-helpers.mjs";
 
 export class HeroSystem6eCombatTracker extends CombatTracker {
     // V12 static get defaultOptions is replaced by V13 static DEFAULT_OPTIONS = {}
@@ -130,6 +130,10 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                         default:
                             console.warn(`Unknown token disposition`, this);
                     }
+                    turn.effects = (combatant.actor?.temporaryEffects || []).filter(
+                        (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
+                    );
+                    turn.holding = combatant.actor?.statuses.has("holding");
                     return turn;
                 });
                 context.turns = turnsDisposition;
