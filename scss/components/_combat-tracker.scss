@@ -169,6 +169,12 @@ ol#combat-tracker {
     font-weight: normal;
 }
 
+//v13
 .combat-sidebar .combat-tracker div.token-effects {
     margin-left: inherit;
+}
+
+//v13
+.combat-sidebar .combat-tracker div.token-initiative {
+    flex-basis: 48px;
 }
