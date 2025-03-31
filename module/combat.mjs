@@ -7,12 +7,6 @@ import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs
 // export class HeroSystem6eCombat extends Combat {}
 
 export class HeroSystem6eCombat extends Combat {
-    _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
-        super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
-    }
-}
-
-export class HeroSystem6eCombat2 extends Combat {
     constructor(data, context) {
         data.flags ??= {};
         data.flags.segment ??= 12;

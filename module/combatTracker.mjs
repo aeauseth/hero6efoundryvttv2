@@ -157,7 +157,7 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
     scrollToTurn() {
         const combat = this.viewed;
         if (!combat || combat.turn === null) return;
-        let active = this.element?.find(".combatant.active")[0];
+        let active = $(this.element)?.find(".combatant.active")[0];
         if (!active) return;
         active.scrollIntoView({ block: "center" });
     }
