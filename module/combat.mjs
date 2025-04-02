@@ -8,6 +8,7 @@ import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs
 
 export class HeroSystem6eCombat extends Combat {
     constructor(data, context) {
+        data ??= {};
         data.flags ??= {};
         data.flags[game.system.id] ??= {};
         data.flags[game.system.id].segment ??= 12;
@@ -224,7 +225,7 @@ export class HeroSystem6eCombat extends Combat {
         // turn: this.turn ?? null,
         // combatantId: combatant?.id || null,
         // tokenId: combatant?.tokenId || null
-        _state.segment = this.flags[game.system.id].segment ?? null;
+        _state.segment = this.flags[game.system.id]?.segment ?? null;
         _state.name = combatant?.name;
         return _state;
     }
