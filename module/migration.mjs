@@ -128,13 +128,13 @@ export async function migrateWorld() {
     console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.0.16`, "background: #1111FF; color: #FFFFFF");
 
     await migrateToVersion(
-        "4.0.24",
+        "4.0.26",
         lastMigration,
         getAllActorsInGame(),
         "removing STR placeholder",
         async (actor) => await removeStrengthPlaceholderAndCreateActiveProperty(actor),
     );
-    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.0.24`, "background: #1111FF; color: #FFFFFF");
+    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.0.26`, "background: #1111FF; color: #FFFFFF");
 
     // Always rebuild the database for all actors by recreating actors and all their items (description, cost, etc)
     _start = Date.now();
@@ -170,7 +170,7 @@ async function removeStrengthPlaceholderAndCreateActiveProperty(actor) {
 
         await Promise.all(modifiedItems);
     } catch (e) {
-        const msg = `Migration of maneuvers to 4.0.24 failed for ${actor?.name}. Please report.`;
+        const msg = `Migration of actors to 4.0.26 failed for ${actor?.name}. Please report.`;
         console.error(msg, e);
         if (game.user.isGM && game.settings.get(game.system.id, "alphaTesting")) {
             await ui.notifications.warn(msg);
