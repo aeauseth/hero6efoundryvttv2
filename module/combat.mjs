@@ -304,4 +304,427 @@ export class HeroSystem6eCombat extends Combat {
         Object.assign(this.previous, priorState);
         return turnChange;
     }
+
+    /**
+     * A workflow that occurs at the start of each Combat Turn.
+     * This workflow occurs after the Combat document update, new turn information exists in this.current.
+     * This can be overridden to implement system-specific combat tracking behaviors.
+     * This method only executes for one designated GM user. If no GM users are present this method will not be called.
+     * @param {Combatant} combatant     The Combatant whose turn just started
+     * @returns {Promise<void>}
+     * @protected
+     */
+    async _onStartTurn(combatant) {
+        if (CONFIG.debug.combat) {
+            console.debug(
+                `%c Hero | _onStartTurn: ${combatant.name} ${game.time.worldTime}`,
+                "background: #292; color: #bada55",
+            );
+        }
+
+        // We need a single combatant to store some flags. Like for DragRuler, end tracking, etc.
+        // getCombatantByToken seems to get the first combatant in combat.turns that is for our token.
+        // This likely causes issues when SPD/LightningReflexes changes.
+        const masterCombatant = this.getCombatantByToken(combatant.tokenId);
+
+        await super._onStartTurn(combatant);
+
+        if (!combatant) return;
+
+        // Save some properties for future support for rewinding combat tracker
+        // TODO: Include charges for various items
+        combatant.flags.heroHistory ||= {};
+        if (combatant.actor && this.round && combatant.flags.segment) {
+            combatant.flags.heroHistory[
+                `r${String(this.round).padStart(2, "0")}s${String(combatant.flags.segment).padStart(2, "0")}`
+            ] = {
+                end: combatant.actor.system.characteristics.end?.value,
+                stun: combatant.actor.system.characteristics.stun?.value,
+                body: combatant.actor.system.characteristics.body?.value,
+            };
+            const updates = [{ _id: combatant.id, "flags.heroHistory": combatant.flags.heroHistory }];
+            this.updateEmbeddedDocuments("Combatant", updates);
+        }
+
+        // Expire Effects
+        // We expire on our phase, not on our segment.
+        try {
+            await expireEffects(combatant.actor);
+        } catch (e) {
+            console.error(e);
+        }
+
+        // Stop holding
+        if (combatant.actor.statuses.has("holding")) {
+            //const ae = combatant.actor.effects.find((effect) => effect.statuses.has("holding"));
+            //combatant.actor.removeActiveEffect(ae);
+            await combatant.actor.toggleStatusEffect(
+                HeroSystem6eActorActiveEffects.statusEffectsObj.holdingAnActionEffect.id,
+                {
+                    active: false,
+                },
+            );
+        }
+
+        // Stop nonCombatMovement
+        if (combatant.actor.statuses.has("nonCombatMovement")) {
+            //const ae = combatant.actor.effects.find((effect) => effect.statuses.has("nonCombatMovement"));
+            //combatant.actor.removeActiveEffect(ae);
+            await combatant.actor.toggleStatusEffect(
+                HeroSystem6eActorActiveEffects.statusEffectsObj.nonCombatMovementEffect.id,
+                {
+                    active: false,
+                },
+            );
+        }
+
+        // Stop BRACE
+        const BRACE = combatant.actor.items.find((i) => i.system.XMLID === "BRACE");
+        if (BRACE?.system.active === true) {
+            await BRACE.toggle();
+        }
+
+        // Stop HAYMAKER
+        const HAYMAKER = combatant.actor.items.find((i) => i.system.XMLID === "HAYMAKER");
+        if (HAYMAKER?.system.active === true) {
+            await HAYMAKER.toggle();
+        }
+
+        // Stop dodges and other maneuvers' active effects that expire automatically
+        const maneuverNextPhaseAes = combatant.actor.effects.filter(
+            (ae) => ae.flags?.type === "maneuverNextPhaseEffect",
+        );
+        const maneuverNextPhaseTogglePromises = maneuverNextPhaseAes
+            .filter((ae) => ae.flags.toggle)
+            .map((toggleAes) => fromUuidSync(toggleAes.flags.itemUuid).toggle());
+        const maneuverNextPhaseNonTogglePromises = maneuverNextPhaseAes
+            .filter((ae) => !ae.flags.toggle)
+            .map((maneuverAes) => maneuverAes.delete());
+        await Promise.all(maneuverNextPhaseTogglePromises, maneuverNextPhaseNonTogglePromises);
+
+        // PH: FIXME: stop abort under certain circumstances
+
+        // Reset movement history
+        if (window.dragRuler) {
+            if (masterCombatant) {
+                // If we are missing flags for dragRuler or the trackedRound !== null, resetMovementHistory
+                // Without this we sometimes get in a continuous loop (unclear as to why; related to #onModifyCombatants?)
+                if (!masterCombatant.flags.dragRuler || masterCombatant.flags.dragRuler.trackedRound !== null) {
+                    await dragRuler.resetMovementHistory(this, masterCombatant.id);
+                }
+            } else {
+                console.error("Unable to find masterCombatant for DragRuler");
+            }
+        }
+
+        // STUNNING
+        // The character remains Stunned and can take no
+        // Actions (not even Aborting to a defensive action) until their next
+        // Phase.
+        // Use actor.canAct to block actions
+        // Remove STUNNED effect _onEndTurn
+
+        // Spend resources for all active powers
+        // But only if we haven't already done so (like when rewinding combat tracker and moving forward again)
+        const roundSegmentKey = this.round + combatant.flags.segment / 100;
+        if ((masterCombatant.flags.spentEndOn || 0) < roundSegmentKey) {
+            await masterCombatant.update({ "flags.spentEndOn": roundSegmentKey });
+
+            let content = "";
+
+            /**
+             * @type {HeroSystemItemResourcesToUse}
+             */
+            const spentResources = {
+                totalEnd: 0,
+                totalReserveEnd: 0,
+                totalCharges: 0,
+            };
+
+            for (const powerUsingResourcesToContinue of combatant.actor.items.filter(
+                (item) =>
+                    item.isActive === true && // Is the power active?
+                    item.baseInfo && // Do we have baseInfo for this power
+                    item.baseInfo.duration !== "instant" && // Is the power non instant
+                    ((parseInt(item.system.end || 0) > 0 && // Does the power use END?
+                        !item.system.MODIFIER?.find((o) => o.XMLID === "COSTSEND" && o.OPTION === "ACTIVATE")) || // Does the power use END continuously?
+                        (item.system.charges && !item.system.charges.continuing)), // Does the power use charges but is not continuous (as that is tracked by an effect when made active)?
+            )) {
+                const {
+                    error,
+                    warning,
+                    resourcesUsedDescription,
+                    resourcesUsedDescriptionRenderedRoll,
+                    resourcesRequired,
+                } = await userInteractiveVerifyOptionallyPromptThenSpendResources(powerUsingResourcesToContinue, {});
+                if (error || warning) {
+                    content += `<li>(${powerUsingResourcesToContinue.name} ${error || warning}: power turned off)</li>`;
+                    await powerUsingResourcesToContinue.toggle();
+                } else {
+                    content += resourcesUsedDescription
+                        ? `<li>${powerUsingResourcesToContinue.detailedName()} spent ${resourcesUsedDescription}${resourcesUsedDescriptionRenderedRoll}</li>`
+                        : "";
+
+                    spentResources.totalEnd += resourcesRequired.totalEnd;
+                    spentResources.totalReserveEnd += resourcesRequired.totalReserveEnd;
+                    spentResources.totalCharges += resourcesRequired.totalCharges;
+                }
+            }
+
+            // TODO: This should be END per turn calculated on the first phase of action for the actor.
+            const encumbered = combatant.actor.effects.find((effect) => effect.flags.encumbrance);
+            if (encumbered) {
+                const endCostPerTurn = Math.abs(parseInt(encumbered.flags?.dcvDex)) - 1;
+                if (endCostPerTurn > 0) {
+                    spentResources.totalEnd += endCostPerTurn;
+                    spentResources.end += endCostPerTurn;
+
+                    content += `<li>${encumbered.name} (${endCostPerTurn})</li>`;
+
+                    // TODO: There should be a better way of integrating this with userInteractiveVerifyOptionallyPromptThenSpendResources
+                    // TODO: This is wrong as it does not use STUN when there is no END
+                    const value = parseInt(this.combatant.actor.system.characteristics.end.value);
+                    const newEnd = value - endCostPerTurn;
+
+                    await this.combatant.actor.update({
+                        "system.characteristics.end.value": newEnd,
+                    });
+                }
+            }
+
+            if (
+                content !== "" &&
+                (spentResources.totalEnd > 0 || spentResources.totalReserveEnd > 0 || spentResources.totalCharges > 0)
+            ) {
+                const segment = this.combatant.flags.segment;
+
+                content = `Spent ${spentResources.totalEnd} END, ${spentResources.totalReserveEnd} reserve END, and ${
+                    spentResources.totalCharges
+                } charge${spentResources.totalCharges > 1 ? "s" : ""} on turn ${
+                    this.round
+                } segment ${segment}:<ul>${content}</ul>`;
+
+                const token = combatant.token;
+                const speaker = ChatMessage.getSpeaker({
+                    actor: combatant.actor,
+                    token,
+                });
+                speaker["alias"] = combatant.actor.name;
+
+                const chatData = {
+                    author: game.user._id,
+                    style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+                    content: content,
+                    whisper: whisperUserTargetsForActor(combatant.actor),
+                    speaker,
+                };
+
+                await ChatMessage.create(chatData);
+            }
+        } else {
+            console.log(
+                `Skipping the check to spend resources for all active powers for ${combatant.name} because this was already performed up thru ${masterCombatant.flags.spentEndOn}`,
+            );
+        }
+
+        // Some attacks include a DCV penalty which was added as an ActiveEffect.
+        // At the beginning of our turn we make sure that AE is deleted.
+        const removeOnNextPhase = combatant.actor.effects.filter(
+            (o) => o.flags.nextPhase && o.duration.startTime < game.time.worldTime,
+        );
+        for (const ae of removeOnNextPhase) {
+            await ae.delete();
+        }
+
+        // Remove Aborted
+        if (combatant.actor.statuses.has("aborted")) {
+            const effect = combatant.actor.effects.contents.find((o) => o.statuses.has("aborted"));
+            await effect.delete();
+        }
+    }
+
+    /**
+     * A workflow that occurs at the end of each Combat Turn.
+     * This workflow occurs after the Combat document update, prior round information exists in this.previous.
+     * This can be overridden to implement system-specific combat tracking behaviors.
+     * This method only executes for one designated GM user. If no GM users are present this method will not be called.
+     * @param {Combatant} combatant     The Combatant whose turn just ended
+     * @returns {Promise<void>}
+     * @protected
+     */
+    async _onEndTurn(combatant) {
+        if (CONFIG.debug.combat) {
+            console.debug(
+                `%c Hero | _onEndTurn: ${combatant.name} ${game.time.worldTime}`,
+                "background: #292; color: #bada55",
+            );
+        }
+        super._onEndTurn(combatant);
+
+        // At the end of the Segment, any non-Persistent Powers, and any Skill Levels of any type, turn off for STUNNED actors.
+        if (this.turns?.[this.turn]?.flags.segment != this.turns?.[this.turn - 1]?.flags.segment) {
+            for (let _combatant of this.combatants) {
+                if (_combatant?.actor?.statuses.has("stunned") || _combatant?.actor?.statuses.has("knockedout")) {
+                    for (const item of _combatant.actor.getActiveConstantItems()) {
+                        await item.toggle();
+                    }
+                }
+            }
+        }
+
+        if (combatant.actor.statuses.has("stunned")) {
+            // const effect = combatant.actor.effects.contents.find((o) => o.statuses.has("stunned"));
+            // await effect.delete();
+
+            await combatant.actor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.stunEffect.id, {
+                active: false,
+            });
+
+            const content = `${combatant.actor.name} recovers from being stunned.`;
+
+            const chatData = {
+                author: game.user._id,
+                style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+                content: content,
+            };
+
+            await ChatMessage.create(chatData);
+        }
+    }
+
+    /**
+     * A workflow that occurs at the end of each Combat Round.
+     * This workflow occurs after the Combat document update, prior round information exists in this.previous.
+     * This can be overridden to implement system-specific combat tracking behaviors.
+     * This method only executes for one designated GM user. If no GM users are present this method will not be called.
+     * @returns {Promise<void>}
+     * @protected
+     */
+    async _onEndRound() {
+        if (CONFIG.debug.combat) {
+            console.debug(`Hero | _onEndRound`);
+        }
+        super._onEndRound();
+
+        // Make really sure we only call at the end of the round
+        if (this.current.round > 1) {
+            await this.PostSegment12();
+        }
+    }
+
+    async PostSegment12() {
+        if (CONFIG.debug.combat) {
+            console.debug(`Hero | PostSegment12`);
+        }
+        // POST-SEGMENT 12 RECOVERY
+        // After Segment 12 each Turn, all characters (except those deeply
+        // unconscious or holding their breath) get a free Post-Segment 12
+        // Recovery. This includes Stunned characters, although the Post-
+        // Segment 12 Recovery does not eliminate the Stunned condition.
+
+        // Only run this once per turn.
+        // So if we go back in time, then forward again, skip PostSegment12
+        if (this.flags.postSegment12Round?.[this.round]) {
+            const content = `Post-Segment 12 (Turn ${this.round - 1})
+            <p>Skipping because this has already been performed on this turn during this combat.
+            This typically occurs when rewinding combat or during speed changes.</p>`;
+            const chatData = {
+                style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+                author: game.user._id,
+                content: content,
+            };
+
+            await ChatMessage.create(chatData);
+            return;
+        }
+        const postSegment12Round = this.flags.postSegment12Round || {};
+        postSegment12Round[this.round] = true;
+
+        this.update({ "flags.postSegment12Round": postSegment12Round });
+
+        const automation = game.settings.get(HEROSYS.module, "automation");
+
+        let content = `Post-Segment 12 (Turn ${this.round - 1})`;
+        let contentHidden = `Post-Segment 12 (Turn ${this.round - 1})`;
+        content += "<ul>";
+        contentHidden += "<ul>";
+        let hasHidden = false;
+        for (const combatant of this.combatants.filter((o) => !o.defeated)) {
+            const actor = combatant.actor;
+
+            // Make sure we have a valid actor
+            if (!actor) continue;
+
+            // If this is an NPC and their STUN <= 0 then leave them be.
+            // Typically, you should only use the Recovery Time Table for
+            // PCs. Once an NPC is Knocked Out below the -10 STUN level
+            // they should normally remain unconscious until the fight ends.
+            // ACTOR#ONUPDATE SHOULD MARK AS DEFEATED
+            // if (actor.type != "pc" && parseInt(actor.system.characteristics.stun.value) <= -10)
+            // {
+            //     //console.log("defeated", combatant)
+            //     continue;
+            // }
+
+            // Make sure we have automation enabled
+            if (
+                automation === "all" ||
+                (automation === "npcOnly" && actor.type == "npc") ||
+                (automation === "pcEndOnly" && actor.type === "pc")
+            ) {
+                const showToAll = !combatant.hidden && (combatant.hasPlayerOwner || combatant.actor?.type === "pc");
+
+                // Make sure combatant is visible in combat tracker
+                const recoveryText = await combatant.actor.TakeRecovery(false, combatant.token);
+                if (recoveryText) {
+                    if (showToAll) {
+                        content += "<li>" + recoveryText + "</li>";
+                    } else {
+                        hasHidden = true;
+                        contentHidden += "<li>" + recoveryText + "</li>";
+                    }
+                }
+
+                // END RESERVE
+                for (const item of actor.items.filter((o) => o.system.XMLID === "ENDURANCERESERVE")) {
+                    const ENDURANCERESERVEREC = item.findModsByXmlid("ENDURANCERESERVEREC");
+                    if (ENDURANCERESERVEREC) {
+                        const newValue = Math.min(
+                            item.system.max,
+                            item.system.value + parseInt(ENDURANCERESERVEREC.LEVELS),
+                        );
+                        if (newValue > item.system.value) {
+                            const delta = newValue - item.system.value;
+                            await item.update({
+                                "system.value": newValue,
+                            });
+
+                            if (showToAll) {
+                                content += "<li>" + `${combatant.token.name} ${item.name} +${delta}` + "</li>";
+                            } else {
+                                contentHidden += "<li>" + `${combatant.token.name} ${item.name} +${delta}` + "</li>";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        content += "</ul>";
+        contentHidden += "</ul>";
+        const chatData = {
+            style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+            author: game.user._id,
+            content: content,
+        };
+
+        await ChatMessage.create(chatData);
+
+        if (hasHidden) {
+            return ChatMessage.create({
+                ...chatData,
+                content: contentHidden,
+                whisper: ChatMessage.getWhisperRecipients("GM"),
+            });
+        }
+    }
 }
