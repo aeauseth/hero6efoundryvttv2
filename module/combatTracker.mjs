@@ -204,11 +204,11 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             // } else {
             //     c.flags.delayUntil = null;
             // }
-            c.flags.holdingAnAction = {
-                initSegment: combat.flags.hero6efoundryvttv2.segment,
-                targetSegment:
-                    combat.flags.hero6efoundryvttv2.segment >= 12 ? 1 : combat.flags.hero6efoundryvttv2.segment + 1,
-            };
+            // c.flags.holdingAnAction = {
+            //     initSegment: combat.flags.hero6efoundryvttv2.segment,
+            //     targetSegment:
+            //         combat.flags.hero6efoundryvttv2.segment >= 12 ? 1 : combat.flags.hero6efoundryvttv2.segment + 1,
+            // };
 
             await c.update({ [`flags`]: c.flags });
             //return;
