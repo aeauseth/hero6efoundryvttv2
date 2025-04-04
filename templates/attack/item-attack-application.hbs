@@ -147,20 +147,20 @@
       {{/if}}
 
 
-      {{!-- Aim (hit location) form group --}}
+      {{!-- Placed shot (hit location) form group --}}
       {{#if hitLocationsEnabled}}
         <div class="form-group">
-          <label>Aim</label>
+          <label>Placed Shot</label>
           <select name="aim" style="max-width:234px">
             {{selectOptions hitLoc selected=aim valueAttr="key" labelAttr="label" disabled="disabled"}}
           </select>
         </div>
       {{/if}}
 
-      {{!-- Aim side (hit location side) form group --}}
+      {{!-- Placed shot (hit location side) form group --}}
       {{#if hitLocationSideEnabled}}
         <div class="form-group">
-          <label>Aim Side</label>
+          <label>Placed Shot Side</label>
           <select name="aimSide" id="aimSide">
             {{selectOptions hitLocSide selected=aimSide valueAttr="key" labelAttr="label" disabled="disabled"}}
           </select>

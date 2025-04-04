@@ -1064,6 +1064,7 @@ export class HeroRoller {
             let locationName;
 
             if (this._alreadyHitLocation === "none") {
+                // Not a placed shot or special hit location
                 this._hitLocationRoller = new HeroRoller({}, this._buildRollClass)
                     .setPurpose(DICE_SO_NICE_CUSTOM_SETS.HIT_LOC)
                     .makeBasicRoll()
@@ -1072,7 +1073,19 @@ export class HeroRoller {
                 const locationRollTotal = this._hitLocationRoller.getBasicTotal();
 
                 locationName = CONFIG.HERO.hitLocationsToHit[locationRollTotal];
+            } else if (CONFIG.HERO.isSpecialHitLocation(this._alreadyHitLocation)) {
+                // Special hit location
+                this._hitLocationRoller = new HeroRoller({}, this._buildRollClass)
+                    .setPurpose(DICE_SO_NICE_CUSTOM_SETS.HIT_LOC)
+                    .makeBasicRoll()
+                    .addDice(CONFIG.HERO.hitLocations[this._alreadyHitLocation].dice)
+                    .addNumber(CONFIG.HERO.hitLocations[this._alreadyHitLocation].constant);
+                await this._hitLocationRoller.roll();
+                const locationRollTotal = this._hitLocationRoller.getBasicTotal();
+
+                locationName = CONFIG.HERO.hitLocationsToHit[locationRollTotal];
             } else {
+                // Placed shot
                 locationName = this._alreadyHitLocation;
             }
 
@@ -1105,10 +1118,10 @@ export class HeroRoller {
                 stunMultiplier: Math.max(
                     1,
                     (this._type === HeroRoller.ROLL_TYPE.KILLING
-                        ? CONFIG.HERO.hitLocations[locationName][0]
-                        : CONFIG.HERO.hitLocations[locationName][1]) + this._killingAdditionalStunMultiplier,
+                        ? CONFIG.HERO.hitLocations[locationName].stunX
+                        : CONFIG.HERO.hitLocations[locationName].nStunX) + this._killingAdditionalStunMultiplier,
                 ),
-                bodyMultiplier: CONFIG.HERO.hitLocations[locationName][2],
+                bodyMultiplier: CONFIG.HERO.hitLocations[locationName].bodyX,
             };
         }
     }
@@ -1456,13 +1469,21 @@ export class HeroRoller {
         }, preliminaryTooltip);
 
         // Show hit location dice?
-        if (this._useHitLocation && this._alreadyHitLocation === "none") {
+        if (
+            this._useHitLocation &&
+            (this._alreadyHitLocation === "none" || CONFIG.HERO.isSpecialHitLocation(this._alreadyHitLocation))
+        ) {
+            const isSpecialHitLocation = CONFIG.HERO.isSpecialHitLocation(this._alreadyHitLocation);
+            const hitLocationRollHeader = `${this._hitLocationRoller.getFormula()} ${
+                isSpecialHitLocation ? "Special Hit Location" : "Random Hit Location"
+            }`;
+
             tooltipWithDice =
                 tooltipWithDice +
                 `
                     <div class="dice">
                         <header class="part-header flexrow">
-                            <span class="part-formula">Random Hit Location</span>
+                            <span class="part-formula">${hitLocationRollHeader}</span>
                             <span class="part-total">${
                                 this._hitLocation.name
                             } (${this._hitLocationRoller.getBaseTotal()})</span>
@@ -1486,7 +1507,7 @@ export class HeroRoller {
                 `
                 <div class="dice">
                     <header class="part-header flexrow">
-                        <span class="part-formula">Random Hit Location Side</span>
+                        <span class="part-formula">${this._hitSideRoller.getFormula()} Random Hit Location Side</span>
                         <span class="part-total">${
                             this._hitLocation.side
                         } (${this._hitSideRoller.getBaseTotal()})</span>

@@ -737,20 +737,20 @@ export class HeroSystem6eActor extends Actor {
      *
      * @returns {boolean}
      */
-    // needsToAbortToAct() {
-    //     const currentCombatActorId = game.combat?.combatants.find(
-    //         (combatant) => combatant.tokenId === game.combat.current?.tokenId,
-    //     )?.actorId;
-    //     const thisActorsCombatTurn =
-    //         game.combat?.active && currentCombatActorId != undefined && currentCombatActorId === this.id;
-    //     const thisActorHoldingAnAction = this.statuses.has("holding");
+    needsToAbortToAct() {
+        const currentCombatActorId = game.combat?.combatants.find(
+            (combatant) => combatant.tokenId === game.combat.current?.tokenId,
+        )?.actorId;
+        const thisActorsCombatTurn =
+            game.combat?.active && currentCombatActorId != undefined && currentCombatActorId === this.id;
+        const thisActorHoldingAnAction = this.statuses.has("holding");
 
-    //     if (game.combat?.active && !thisActorsCombatTurn && !thisActorHoldingAnAction) {
-    //         return true;
-    //     }
+        if (game.combat?.active && !thisActorsCombatTurn && !thisActorHoldingAnAction) {
+            return true;
+        }
 
-    //     return false;
-    // }
+        return false;
+    }
 
     // When stunned, knockedout, etc you cannot act
     canAct(uiNotice, event) {

@@ -123,7 +123,7 @@ HERO.skillTraining = {
     trained: "Trained",
 };
 
-HERO.hitLocationsToHit = {
+HERO.hitLocationsToHit = Object.freeze({
     3: "Head",
     4: "Head",
     5: "Head",
@@ -140,28 +140,173 @@ HERO.hitLocationsToHit = {
     16: "Leg",
     17: "Foot",
     18: "Foot",
+    19: "Foot", // 19 is possible only with special hit locations
+});
+
+HERO.hitLocations = Object.freeze({
+    Head: {
+        label: "Head",
+        stunX: 5,
+        nStunX: 2,
+        bodyX: 2,
+        ocvMod: -8,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Hand: {
+        label: "Hand",
+        stunX: 1,
+        nStunX: 1 / 2,
+        bodyX: 1 / 2,
+        ocvMod: -6,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Arm: {
+        label: "Arm",
+        stunX: 2,
+        nStunX: 1 / 2,
+        bodyX: 1 / 2,
+        ocvMod: -5,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Shoulder: {
+        label: "Shoulder",
+        stunX: 3,
+        nStunX: 1,
+        bodyX: 1,
+        ocvMod: -5,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Chest: {
+        label: "Chest",
+        stunX: 3,
+        nStunX: 1,
+        bodyX: 1,
+        ocvMod: -3,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Stomach: {
+        label: "Stomach",
+        stunX: 4,
+        nStunX: 3 / 2,
+        bodyX: 1,
+        ocvMod: -7,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Vitals: {
+        label: "Vitals",
+        stunX: 4,
+        nStunX: 3 / 2,
+        bodyX: 2,
+        ocvMod: -8,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Thigh: {
+        label: "Thigh",
+        stunX: 2,
+        nStunX: 1,
+        bodyX: 1,
+        ocvMod: -4,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Leg: {
+        label: "Leg",
+        stunX: 2,
+        nStunX: 1 / 2,
+        bodyX: 1 / 2,
+        ocvMod: -6,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+    Foot: {
+        label: "Foot",
+        stunX: 1,
+        nStunX: 1 / 2,
+        bodyX: 1 / 2,
+        ocvMod: -8,
+        dice: null,
+        constant: null,
+        isSpecialHl: false,
+    },
+
+    HeadShot: {
+        label: "Foot",
+        stunX: null,
+        nStunX: null,
+        bodyX: null,
+        ocvMod: -4,
+        dice: 1,
+        constant: 3,
+        isSpecialHl: true,
+    },
+    HighShot: {
+        label: "Head - Vitals",
+        stunX: null,
+        nStunX: null,
+        bodyX: null,
+        ocvMod: -2,
+        dice: 2,
+        constant: 1,
+        isSpecialHl: true,
+    },
+    BodyShot: {
+        label: "Head - Shoulders",
+        stunX: null,
+        nStunX: null,
+        bodyX: null,
+        ocvMod: -1,
+        dice: 2,
+        constant: 4,
+        isSpecialHl: true,
+    },
+    LowShot: {
+        label: "Shoulders - Feet",
+        stunX: null,
+        nStunX: null,
+        bodyX: null,
+        ocvMod: -2,
+        dice: 2,
+        constant: 7,
+        isSpecialHl: true,
+    },
+    LegShot: {
+        label: "Vitals - Feet",
+        stunX: null,
+        nStunX: null,
+        bodyX: null,
+        ocvMod: -4,
+        dice: 1,
+        constant: 12,
+        isSpecialHl: true,
+    },
+});
+
+HERO.isSpecialHitLocation = function (location) {
+    return HERO.hitLocations[location].isSpecialHl;
 };
 
 HERO.sidedLocations = new Set(["Hand", "Shoulder", "Arm", "Thigh", "Leg", "Foot"]);
 
-HERO.hitLocations = {
-    // Location : [x Stun, x N Stun, x Body, OCV modifier]
-    Head: [5, 2, 2, -8],
-    Hand: [1, 0.5, 0.5, -6],
-    Arm: [2, 0.5, 0.5, -5],
-    Shoulder: [3, 1, 1, -5],
-    Chest: [3, 1, 1, -3],
-    Stomach: [4, 1.5, 1, -7],
-    Vitals: [4, 1.5, 2, -8],
-    Thigh: [2, 1, 1, -4],
-    Leg: [2, 0.5, 0.5, -6],
-    Foot: [1, 0.5, 0.5, -8],
-};
-
-HERO.hitLocationSide = {
+HERO.hitLocationSide = Object.freeze({
     Left: "Left",
     Right: "Right",
-};
+});
 
 HERO.RANGE_TYPES = {
     LIMITED_RANGE: "Limited Range",

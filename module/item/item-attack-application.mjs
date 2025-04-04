@@ -334,6 +334,7 @@ export class ItemAttackFormApplication extends FormApplication {
         this.data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations");
         this.data.hitLocationSideEnabled =
             this.data.hitLocationsEnabled && game.settings.get(HEROSYS.module, "hitLocTracking") === "all";
+        this.data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations");
 
         // If there are no hit locations for the power or this is an AoE then the user cannot
         // place a shot. If they can't place a shot the only options should be "none"
@@ -342,8 +343,8 @@ export class ItemAttackFormApplication extends FormApplication {
             this.data.hitLocSide = [];
 
             if (!this.data.effectiveItem.system.noHitLocations && !aoe) {
-                for (const key of Object.keys(CONFIG.HERO.hitLocations)) {
-                    this.data.hitLoc.push({ key: key, label: key });
+                for (const [key, obj] of Object.entries(CONFIG.HERO.hitLocations)) {
+                    this.data.hitLoc.push({ key: key, label: obj.label });
                 }
 
                 if (this.data.hitLocationSideEnabled) {

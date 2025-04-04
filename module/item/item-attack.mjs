@@ -789,11 +789,11 @@ async function doSingleTargetActionToHit(item, options) {
             game.settings.get(HEROSYS.module, "hitLocTracking") === "all" && options.aimSide !== "none"
                 ? `${options.aimSide} ${options.aim}`
                 : options.aim;
-        const aimOcvPenalty = CONFIG.HERO.hitLocations[options.aim]?.[3] || 0;
+
+        // Figure out the OCV penalty for the hit location or special hit locations.
+        const aimOcvPenalty = CONFIG.HERO.hitLocations[options.aim]?.ocvMod || 0;
         if (aimOcvPenalty) {
             heroRoller.addNumber(aimOcvPenalty, aimTargetLocation);
-        } else {
-            console.warn(`${item.name} has missing aimOcvPenalty`, aimTargetLocation);
         }
 
         // Penalty Skill Levels
@@ -802,7 +802,7 @@ async function doSingleTargetActionToHit(item, options) {
                 (o) => o.system.penalty === "hitLocation" && o.system.checked,
             );
             if (pslHit) {
-                let pslValue = Math.min(pslHit.system.LEVELS, Math.abs(CONFIG.HERO.hitLocations[options.aim][3]));
+                let pslValue = Math.min(pslHit.system.LEVELS, Math.abs(aimOcvPenalty));
                 heroRoller.addNumber(pslValue, pslHit.name);
             }
         }
