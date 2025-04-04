@@ -1384,7 +1384,7 @@ export async function renderAdjustmentChatCards(cardOrCards, adjustmentItemTags,
         defenseDescription: cardOrCards[0].defenseDescription,
         defenseTags,
 
-        activePoints: cardOrCards[0].adjustment.adjustmentDamageRaw,
+        activePoints: cardOrCards[0].adjustment?.adjustmentDamageRaw,
         effectsDescription: cardOrCards[0].effectsDescription,
         isEffectFinished: cardOrCards[cardOrCards.length - 1].isEffectFinished,
         targetActor: cardOrCards[0].targetActor,
