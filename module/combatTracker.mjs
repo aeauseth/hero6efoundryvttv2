@@ -194,19 +194,24 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             return;
         }
 
-        if (control === "holdingAnAction") {
-            c.flags.holdingAnAction = !c.flags.holdingAnAction;
-            if (c.flags.holdingAnAction) {
-                c.flags.delayUntil = {
-                    segment: parseInt(segmentId),
-                    turn: this.turn + 1,
-                };
-            } else {
-                c.flags.delayUntil = null;
-            }
+        if (control === "holdingAnAction" || control === "pingCombatant") {
+            // c.flags.holdingAnAction = !c.flags.holdingAnAction;
+            // if (c.flags.holdingAnAction) {
+            //     c.flags.delayUntil = {
+            //         segment: parseInt(segmentId),
+            //         turn: this.turn + 1,
+            //     };
+            // } else {
+            //     c.flags.delayUntil = null;
+            // }
+            c.flags.holdingAnAction = {
+                initSegment: combat.flags.hero6efoundryvttv2.segment,
+                targetSegment:
+                    combat.flags.hero6efoundryvttv2.segment >= 12 ? 1 : combat.flags.hero6efoundryvttv2.segment + 1,
+            };
 
             await c.update({ [`flags`]: c.flags });
-            return;
+            //return;
         }
 
         return super._onCombatantControl(event, target);
