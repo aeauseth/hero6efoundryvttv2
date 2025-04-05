@@ -140,7 +140,10 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                             console.warn(`Unknown token disposition`, this);
                     }
                     turn.effects = (combatant.actor?.temporaryEffects || []).filter(
-                        (e) => !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) && e.statuses.size > 0,
+                        (e) =>
+                            !e.statuses.has(CONFIG.specialStatusEffects.DEFEATED) &&
+                            e.statuses.size > 0 &&
+                            CONFIG.statusEffects.find((s) => s.id === e.statuses.first()),
                     );
                     turn.holding = combatant.actor?.statuses.has("holding");
                     turn.hasRolled ??= turn.initiative > 0; // v13
@@ -196,8 +199,8 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
         if (control === "effect" && effectId) {
             const effect = c.actor.temporaryEffects.find((e) => e.id == effectId);
             if (effect) {
-                for (const status of effect.statuses) {
-                    await c.token.actor.toggleStatusEffect(status);
+                for (const statusId of effect.statuses) {
+                    await c.token.actor.toggleStatusEffect(statusId);
                 }
             }
             return;
