@@ -116,7 +116,9 @@ export class HeroSystem6eCombat extends Combat {
             }
 
             if (this.turns[this.turn]?.hasPhase(this.flags[game.system.id].segment)) {
-                break;
+                if (!this.settings.skipDefeated || !this.turns[this.turn].isDefeated) {
+                    break;
+                }
             }
         }
         await this.update({ turn: this.turn, [`flags.${game.system.id}.segment`]: this.flags[game.system.id].segment });
