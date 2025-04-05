@@ -1250,8 +1250,10 @@ export class HeroSystem6eActor extends Actor {
         // Remove all status effects
         for (const status of this.statuses) {
             const ae = Array.from(this.effects).find((effect) => effect.statuses.has(status));
-            for (const status of ae.statuses) {
-                await this.toggleStatusEffect(status, { active: false });
+            for (const statusId of ae.statuses) {
+                if (CONFIG.statusEffects.find((e) => e.id === statusId)) {
+                    await this.toggleStatusEffect(status, { active: false });
+                }
             }
         }
 
