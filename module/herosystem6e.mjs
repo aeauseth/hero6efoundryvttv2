@@ -405,6 +405,21 @@ function rollItemMacro(itemName, itemType) {
     // The selected actor does not have an item with this name.
     if (!item) {
         item = null;
+
+        // Prefer active Combatant
+        if (game.combat?.current?.tokenId) {
+            const token = canvas.tokens.ownedTokens.find((t) => t.id === game.combat.current.tokenId);
+            if (token) {
+                actor = token.actor;
+                item = actor.items.find(
+                    (i) => i.name === itemName && (!itemType || i.type == itemType || i.system.subType === itemType),
+                );
+                if (item) {
+                    return item.roll();
+                }
+            }
+        }
+
         // Search all owned tokens for this item
         for (let token of canvas.tokens.ownedTokens) {
             actor = token.actor;

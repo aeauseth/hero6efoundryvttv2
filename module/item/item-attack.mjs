@@ -201,6 +201,7 @@ export async function collectActionDataBeforeToHitOptions(item) {
     if ((item.system.EFFECT || "").match(/v\/\d+/)) {
         // Educated guess for token
         const token =
+            canvas.tokens.ownedTokens.find((t) => t.id === game.combat.current.tokenId) ||
             actor.getActiveTokens().find((t) => canvas.tokens.controlled.find((c) => c.id === t.id)) ||
             actor.getActiveTokens()[0];
 

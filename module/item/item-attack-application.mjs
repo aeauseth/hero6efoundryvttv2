@@ -25,7 +25,7 @@ export class ItemAttackFormApplication extends FormApplication {
     constructor(data) {
         super();
         this.data = data;
-        this.options.title = `${this.data.originalItem.actor?.name} roll to hit`;
+        this.options.title = `${this.data.token.name} roll to hit`;
 
         const _targetToken = async function () {
             // Necessary for situations where it is not possible
