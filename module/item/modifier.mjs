@@ -42,6 +42,16 @@ export class HeroSystem6eModifier {
                     json,
                     options,
                 );
+
+                // We may be able to fix the legacy mistaken value on the fly so a re-upload isn't really necessary
+                if (key === "adders") {
+                    try {
+                        delete options.item.system.MODIFIER.find((m) => m.XMLID === json.XMLID)[key];
+                        options.item.update({ [`system.MODIFIER`]: options.item.system.MODIFIER });
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
             }
         }
 

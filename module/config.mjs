@@ -298,7 +298,7 @@ HERO.hitLocations = Object.freeze({
 });
 
 HERO.isSpecialHitLocation = function (location) {
-    return HERO.hitLocations[location].isSpecialHl;
+    return HERO.hitLocations[location]?.isSpecialHl ?? false;
 };
 
 HERO.sidedLocations = new Set(["Hand", "Shoulder", "Arm", "Thigh", "Leg", "Foot"]);
@@ -8257,6 +8257,17 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
     );
     addPower(
         {
+            // Typically part of SIDEEFFECTS
+            key: "ALWAYSOCCURS",
+            behaviors: ["modifier"],
+            costPerLevel: fixedValueFunction(0),
+            dcAffecting: fixedValueFunction(false),
+            xml: `<MODIFIER XMLID="ALWAYSOCCURS" ID="1743877800818" BASECOST="1.0" LEVELS="0" ALIAS="Side Effect occurs automatically whenever Power is used" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No"></MODIFIER>`,
+        },
+        {},
+    );
+    addPower(
+        {
             key: "ALWAYSDIRECT",
             behaviors: ["modifier"],
             costPerLevel: fixedValueFunction(0),
@@ -8535,6 +8546,16 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costPerLevel: fixedValueFunction(0),
             dcAffecting: fixedValueFunction(true),
             xml: `<MODIFIER XMLID="CONTINUOUS" ID="1713378099716" BASECOST="1.0" LEVELS="0" ALIAS="Continuous" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No"></MODIFIER>`,
+        },
+        {},
+    );
+    addPower(
+        {
+            key: "CONTINUOUSCONCENTRATION",
+            behaviors: ["modifier"],
+            costPerLevel: fixedValueFunction(0),
+            dcAffecting: fixedValueFunction(true),
+            xml: `<MODIFIER XMLID="CONTINUOUSCONCENTRATION" ID="1743878031238" BASECOST="1.0" LEVELS="0" ALIAS="Must Concentrate throughout use of Constant Power" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No"></MODIFIER>`,
         },
         {},
     );
@@ -9556,17 +9577,17 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
 // Turns out this is actually correct BASECOST can be 0, and COSTPERLEVEL is calculated.
 // Some MODIFIERS (like EXPANDEDEFFECT) base a BASECOST -0.5 with LEVELS=2 and CostPerLevel 0.5, making them appear to be limitations, but actually advantages.
 // Plan is to remove ModifierOverride and add them to the powers list as modifiers.
-HERO.ModifierOverride = {
-    ALWAYSOCCURS: { dcAffecting: fixedValueFunction(false), BASECOST: 0, MULTIPLIER: 2 },
-    CONTINUOUSCONCENTRATION: { dcAffecting: fixedValueFunction(false), BASECOST: -0.25 },
-    DEFBONUS: { dcAffecting: fixedValueFunction(false), BASECOST: 2 },
-};
+// HERO.ModifierOverride = {
+//     //ALWAYSOCCURS: { dcAffecting: fixedValueFunction(false), BASECOST: 0, MULTIPLIER: 2 },
+//     //CONTINUOUSCONCENTRATION: { dcAffecting: fixedValueFunction(false), BASECOST: -0.25 },
+//     //DEFBONUS: { dcAffecting: fixedValueFunction(false), BASECOST: 2 },
+// };
 
-HERO.ModifierOverride5e = {
-    // ARMORPIERCING: {
-    //     BASECOST: 0.5,
-    // },
-};
+// HERO.ModifierOverride5e = {
+//     // ARMORPIERCING: {
+//     //     BASECOST: 0.5,
+//     // },
+// };
 
 // Valid Power Options (found these in Custom Power)
 HERO.ValidPowerOptions = {

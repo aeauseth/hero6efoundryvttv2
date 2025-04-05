@@ -259,9 +259,9 @@ export async function doAoeActionToHit(item, options) {
         return ui.notifications.error(`Attack AOE template was not found.`);
     }
 
-    const distanceToken = calculateDistanceBetween(aoeTemplate, token).distance;
+    const distance = calculateDistanceBetween(aoeTemplate, token).distance;
     let dcvTargetNumber = 0;
-    if (distanceToken > (actor.system.is5e ? 1 : 2)) {
+    if (distance > (actor.system.is5e ? 1 : 2)) {
         dcvTargetNumber = 3;
     }
 
@@ -298,7 +298,7 @@ export async function doAoeActionToHit(item, options) {
             normalRange
         )
     ) {
-        const rangePenalty = -calculateRangePenaltyFromDistanceInMetres(distanceToken);
+        const rangePenalty = -calculateRangePenaltyFromDistanceInMetres(distance, actor);
 
         // PENALTY_SKILL_LEVELS (range)
         const pslRange = penaltySkillLevelsForAttack(item).find(
@@ -310,7 +310,10 @@ export async function doAoeActionToHit(item, options) {
         }
 
         if (rangePenalty) {
-            attackHeroRoller.addNumber(rangePenalty, "Range penalty");
+            attackHeroRoller.addNumber(
+                rangePenalty,
+                `Range penalty (${getRoundedDownDistanceInSystemUnits(distance, item.actor)}${getSystemDisplayUnits(item.actor.is5e)})`,
+            );
         }
 
         // Brace (+2 OCV only to offset the Range Modifier)
@@ -422,9 +425,7 @@ export async function doAoeActionToHit(item, options) {
         await facingHeroRoller.roll();
         const facingRollResult = facingHeroRoller.getBasicTotal();
 
-        const moveDistance = RoundFavorPlayerDown(
-            Math.min(distanceToken / 2, item.actor.system.is5e ? missBy : missBy * 2),
-        );
+        const moveDistance = RoundFavorPlayerDown(Math.min(distance / 2, item.actor.system.is5e ? missBy : missBy * 2));
         hitRollText = `AOE origin MISSED by ${missBy}. Move AOE origin ${
             moveDistance + getSystemDisplayUnits(item.actor.is5e)
         } in the <b>${facingRollResult}</b> direction.`;
@@ -661,9 +662,19 @@ async function doSingleTargetActionToHit(item, options) {
             ui.notifications.warn(`${actor.name} has no token in this scene.  Range penalties will be ignored.`);
         }
 
-        const target = targets[0];
+        const isAoE = item.getAoeModifier();
+        const aoeTemplate =
+            game.scenes.current.templates.find((o) => o.flags.itemId === item.id) ||
+            game.scenes.current.templates.find((o) => o.author.id === game.user.id);
+        if (isAoE && !aoeTemplate) {
+            return ui.notifications.error(`Attack AOE template was not found.`);
+        }
+
+        // Pick the appropriate target based on the attack type. For AoE it's the base of the AoE template for
+        // a single target attack it's the actual target.
+        const target = isAoE ? aoeTemplate : targets[0];
         const distance = token ? calculateDistanceBetween(token, target).distance : 0;
-        const rangePenalty = -calculateRangePenaltyFromDistanceInMetres(distance);
+        const rangePenalty = -calculateRangePenaltyFromDistanceInMetres(distance, actor);
 
         // PENALTY_SKILL_LEVELS (range)
         const pslRange = penaltySkillLevelsForAttack(item).find(

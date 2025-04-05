@@ -344,7 +344,7 @@ export class ItemAttackFormApplication extends FormApplication {
 
             if (!this.data.effectiveItem.system.noHitLocations && !aoe) {
                 for (const [key, obj] of Object.entries(CONFIG.HERO.hitLocations)) {
-                    this.data.hitLoc.push({ key: key, label: obj.label });
+                    this.data.hitLoc.push({ key: key, label: `${obj.label} (${obj.ocvMod})` });
                 }
 
                 if (this.data.hitLocationSideEnabled) {

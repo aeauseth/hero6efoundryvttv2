@@ -121,42 +121,43 @@ export function getPowerInfo(options) {
 }
 
 export function getModifierInfo(options) {
-    const xmlid =
-        options.xmlid || options.item?.system?.XMLID || options.item?.system?.xmlid || options.item?.system?.id;
+    return getPowerInfo(options);
+    // const xmlid =
+    //     options.xmlid || options.item?.system?.XMLID || options.item?.system?.xmlid || options.item?.system?.id;
 
-    // Determine is5e
-    let is5e = options?.actor?.is5e;
-    if (is5e === undefined) {
-        is5e = options.item?.actor?.is5e;
-    }
-    if (is5e === undefined) {
-        is5e = options.item?.is5e;
-    }
+    // // Determine is5e
+    // let is5e = options?.actor?.is5e;
+    // if (is5e === undefined) {
+    //     is5e = options.item?.actor?.is5e;
+    // }
+    // if (is5e === undefined) {
+    //     is5e = options.item?.is5e;
+    // }
 
-    if (typeof is5e === "undefined") {
-        // This has a problem if we're passed in an XMLID for a power as we don't know the actor so we don't know if it's 5e or 6e
-        console.warn(`Unable to determine edition of ${xmlid} for ${options.item?.name}. Assuming 6e.`);
-    }
+    // if (typeof is5e === "undefined") {
+    //     // This has a problem if we're passed in an XMLID for a power as we don't know the actor so we don't know if it's 5e or 6e
+    //     console.warn(`Unable to determine edition of ${xmlid} for ${options.item?.name}. Assuming 6e.`);
+    // }
 
-    let modifierOverrideInfo = CONFIG.HERO.ModifierOverride[xmlid];
-    if (!modifierOverrideInfo || is5e) {
-        modifierOverrideInfo = {
-            ...modifierOverrideInfo,
-            ...CONFIG.HERO.ModifierOverride5e[xmlid],
-        };
-    }
+    // // let modifierOverrideInfo = CONFIG.HERO.ModifierOverride[xmlid];
+    // // if (!modifierOverrideInfo || is5e) {
+    // //     modifierOverrideInfo = {
+    // //         ...modifierOverrideInfo,
+    // //         ...CONFIG.HERO.ModifierOverride5e[xmlid],
+    // //     };
+    // // }
 
-    if (Object.entries(modifierOverrideInfo).length == 0) {
-        modifierOverrideInfo = getPowerInfo(options);
-    } else {
-        console.warn(
-            `${options.item?.actor?.name}/${options.item?.name}/${options.item?.system?.XMLID}/${xmlid}: modifierOverrideInfo using older format`,
-            xmlid,
-            options,
-        );
-    }
+    // if (Object.entries(modifierOverrideInfo).length == 0) {
+    //     modifierOverrideInfo = getPowerInfo(options);
+    // } else {
+    //     console.warn(
+    //         `${options.item?.actor?.name}/${options.item?.name}/${options.item?.system?.XMLID}/${xmlid}: modifierOverrideInfo using older format`,
+    //         xmlid,
+    //         options,
+    //     );
+    // }
 
-    return modifierOverrideInfo;
+    // return modifierOverrideInfo;
 }
 
 function _isNonIgnoredCharacteristicsAndMovementPowerForActor(actor) {

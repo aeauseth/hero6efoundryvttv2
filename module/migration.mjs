@@ -158,17 +158,17 @@ async function removeStrengthPlaceholderAndCreateActiveProperty(actor) {
         await actor.items.find((item) => item.system.ALIAS === "__InternalStrengthPlaceholder")?.delete();
 
         // Create the _active object for all items
-        const modifiedItems = actor.items
+        const updates = actor.items
             .map((item) => {
                 if (!item.system._active) {
-                    return item.update({ "system._active": {} });
+                    return { _id: item._id, "system._active": {} };
                 }
 
                 return undefined;
             })
             .filter(Boolean);
 
-        await Promise.all(modifiedItems);
+        await actor.updateEmbeddedDocuments("Item", updates);
     } catch (e) {
         const msg = `Migration of actors to 4.0.26 failed for ${actor?.name}. Please report.`;
         console.error(msg, e);

@@ -2,10 +2,11 @@
 
 ## Version 4.0.26 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
 
-- Powers and strength can now be pushed, using superheroic rules, or reduced in to-hit dialog
+- Powers and strength can now be pushed, using superheroic rules, or reduced in to-hit dialog.
 - Support Naked Advantages for attack powers.
 - Support advantage transfer to strength for Hand-to-Hand Attacks.
 - Fix charge usage for items using autofire.
+- Add Special Hit Locations.
 
 ## Version 4.0.25 20250329
 

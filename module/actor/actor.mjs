@@ -2584,19 +2584,19 @@ export class HeroSystem6eActor extends Actor {
             //     newValue = Math.floor(newValue);
             // }
 
+            // Only update characteristics if there are no active effects modifying the characteristic
+            //const charHasEffect = this.appliedEffects.find((e) => e.changes.find((c) => c.key.includes(key)));
             let newValue = parseInt(this.system?.[key.toUpperCase()]?.LEVELS || 0); // uppercase?  LEVELS?  This probably hasn't worked in a long time!
             newValue += this.getCharacteristicBase(key) || 0; // 5e will have empty base for ocv/dcv and other figured characteristics
 
-            if (this.system.characteristics[key].max !== newValue) {
-                if (this.id) {
-                    //changes[`system.characteristics.${key.toLowerCase()}.max`] = Math.floor(newValue)
-                    await this.update({
-                        [`system.characteristics.${key.toLowerCase()}.max`]: Math.floor(newValue),
-                    });
-                } else {
-                    this.system.characteristics[key.toLowerCase()].max = Math.floor(newValue);
-                }
+            newValue = Math.floor(newValue); // For 5e SPD
 
+            if (this.system.characteristics[key].max !== newValue) {
+                //if (charHasEffect) debugger;
+                this.system.characteristics[key.toLowerCase()].max = Math.floor(newValue);
+                if (this.id) {
+                    changes[`system.characteristics.${key.toLowerCase()}.max`] = Math.floor(newValue);
+                }
                 changed = true;
             }
             if (
@@ -2604,21 +2604,17 @@ export class HeroSystem6eActor extends Actor {
                 this.system.characteristics[key.toLowerCase()].max !== null &&
                 overrideValues
             ) {
+                //if (charHasEffect) debugger;
+                this.system.characteristics[key.toLowerCase()].value =
+                    this.system.characteristics[key.toLowerCase()].max;
                 if (this.id) {
-                    await this.update(
-                        {
-                            [`system.characteristics.${key.toLowerCase()}.value`]:
-                                this.system.characteristics[key.toLowerCase()].max,
-                        },
-                        { hideChatMessage: true },
-                    );
-                } else {
-                    this.system.characteristics[key.toLowerCase()].value =
+                    changes[`system.characteristics.${key.toLowerCase()}.value`] =
                         this.system.characteristics[key.toLowerCase()].max;
                 }
                 changed = true;
             }
             if (this.system.characteristics[key].core !== newValue && overrideValues) {
+                //if (charHasEffect) debugger;
                 changes[`system.characteristics.${key.toLowerCase()}.core`] = newValue;
                 this.system.characteristics[key.toLowerCase()].core = newValue;
                 changed = true;
@@ -2627,14 +2623,15 @@ export class HeroSystem6eActor extends Actor {
             // Rollable Characteristics
             const rollableChanges = this.updateRollable(key.toLowerCase());
             if (rollableChanges) {
+                //if (charHasEffect) debugger;
                 changed = true;
-
                 foundry.utils.mergeObject(changes, rollableChanges);
             }
         }
 
         // Save changes
         if (changed && this.id) {
+            //console.log(`update ${Object.keys(changes).length} for ${this.name}`, changes);
             await this.update(changes);
         }
 
@@ -2763,9 +2760,11 @@ export class HeroSystem6eActor extends Actor {
             if (!this.system.is5e && characteristic.value < 0) {
                 characteristic.roll = 9;
             }
-            return {
-                [`system.characteristics.${key}.roll`]: characteristic.roll,
-            };
+            if (this.system.characteristics[key].roll !== characteristic.roll) {
+                return {
+                    [`system.characteristics.${key}.roll`]: characteristic.roll,
+                };
+            }
         }
 
         return undefined;
