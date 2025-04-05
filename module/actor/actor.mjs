@@ -746,6 +746,7 @@ export class HeroSystem6eActor extends Actor {
         const thisActorHoldingAnAction = this.statuses.has("holding");
 
         if (game.combat?.active && !thisActorsCombatTurn && !thisActorHoldingAnAction) {
+            console.warn(`Is there combat and is it the actor's turn to act?`, this);
             return true;
         }
 

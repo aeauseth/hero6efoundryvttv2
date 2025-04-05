@@ -429,7 +429,10 @@ export class HeroSystem6eItem extends Item {
     async roll(event) {
         if (!this.actor.canAct(true, event)) return;
 
-        if (this.actor.needsToAbortToAct() && !this.canBeAbortedTo()) return;
+        if (this.actor.needsToAbortToAct() && !this.canBeAbortedTo()) {
+            await ui.notifications.error(`${this.actor.name} cannot act because they are not the active combatant`);
+            return;
+        }
 
         if (this.baseInfo.behaviors.includes("dice") || this.baseInfo.behaviors.includes("to-hit")) {
             // FIXME: Martial maneuvers all share the MANEUVER XMLID. Need to extract out things from that (and fix the broken things).
