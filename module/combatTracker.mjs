@@ -46,6 +46,15 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
         const combat = this.viewed;
         if (!combat) return context;
 
+        // Remove extra combatants (a mini-migration)
+        for (let i = 0; i < combat.combatants.size; i++) {
+            const dups = combat.combatants.contents.filter((c) => c.tokenId === combat.combatants.contents[i].tokenId);
+            if (dups.length > 1) {
+                await dups[0].delete();
+                //return context;
+            }
+        }
+
         await this._prepareTrackerContext(context, options);
 
         return context;
