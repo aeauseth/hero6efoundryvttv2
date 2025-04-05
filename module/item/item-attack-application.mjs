@@ -25,7 +25,7 @@ export class ItemAttackFormApplication extends FormApplication {
     constructor(data) {
         super();
         this.data = data;
-        this.options.title = `${this.data.originalItem.actor?.name} roll to hit`;
+        this.options.title = `${this.data.token.name} roll to hit`;
 
         const _targetToken = async function () {
             // Necessary for situations where it is not possible
@@ -283,11 +283,11 @@ export class ItemAttackFormApplication extends FormApplication {
             // and doesn't change afterwards even if we come through here again
             // todo: figure out how to adjust the title when we want it to
             if (this.data.action.maneuver.isMultipleAttack) {
-                this.options.title = `${this.data.effectiveItem.actor?.name} multiple attack`;
+                this.options.title = `${this.data.token.name} multiple attack`;
             } else if (this.data.action.maneuver.isHaymakerAttack) {
-                this.options.title = `${this.data.effectiveItem.actor?.name} haymaker attack`;
+                this.options.title = `${this.data.token.name} haymaker attack`;
             } else {
-                this.options.title = `${this.data.effectiveItem.actor?.name} select attack options and roll to hit`;
+                this.options.title = `${this.data.token.name} attack`;
             }
         } catch (error) {
             console.error(error);

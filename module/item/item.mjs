@@ -430,8 +430,8 @@ export class HeroSystem6eItem extends Item {
         if (!this.actor.canAct(true, event)) return;
 
         if (this.actor.needsToAbortToAct() && !this.canBeAbortedTo()) {
-            await ui.notifications.error(`${this.actor.name} cannot act because they are not the active combatant`);
-            return;
+            await ui.notifications.warn(`${this.actor.name} is not the active combatant`);
+            //return;
         }
 
         if (this.baseInfo.behaviors.includes("dice") || this.baseInfo.behaviors.includes("to-hit")) {
