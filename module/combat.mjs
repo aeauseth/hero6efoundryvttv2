@@ -121,7 +121,12 @@ export class HeroSystem6eCombat extends Combat {
                 }
             }
         }
-        await this.update({ turn: this.turn, [`flags.${game.system.id}.segment`]: this.flags[game.system.id].segment });
+
+        await this.update({
+            turn: this.turn,
+            [`flags.${game.system.id}.segment`]: this.flags[game.system.id].segment,
+            turns: this.setupTurns(),
+        });
     }
 
     async previousTurn() {
@@ -728,5 +733,39 @@ export class HeroSystem6eCombat extends Combat {
                 whisper: ChatMessage.getWhisperRecipients("GM"),
             });
         }
+    }
+
+    /**
+     * Get the Combatant who has the next turn.
+     * @type {Combatant}
+     */
+    get nextCombatant() {
+        let _turn = this.turn;
+        let _segment = this.flags[game.system.id].segment;
+        // Loop thru turns to find the next combatant that hasPhase on this segment
+        for (let i = 0; i <= this.turns.length * 12; i++) {
+            _turn++;
+            if (_turn >= this.turns.length) {
+                _turn = 0;
+                _segment++;
+            }
+            if (_segment > 12) {
+                _segment = 1;
+            }
+
+            if (this.turns[_turn]?.hasPhase(_segment)) {
+                if (!this.settings.skipDefeated || !this.turns[_turn].isDefeated) {
+                    return this.turns[_turn];
+                }
+            }
+        }
+        console.warn("Unable to determine HERO nextCombatant");
+        return super.nextCombatant;
+    }
+
+    _sortCombatants(a, b) {
+        const ia = a.flags.nextPhase?.initiative || (Number.isNumeric(a.initiative) ? a.initiative : -Infinity);
+        const ib = b.flags.nextPhase?.initiative || (Number.isNumeric(b.initiative) ? b.initiative : -Infinity);
+        return ib - ia || (a.id > b.id ? 1 : -1);
     }
 }
