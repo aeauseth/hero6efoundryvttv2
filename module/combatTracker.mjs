@@ -28,7 +28,16 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
     }
 
     addHeroListeners(html) {
-        html.find(".segment-has-items").click((ev) => this._onSegmentToggleContent(ev));
+        //html.find(".segment-has-items").click((ev) => this._onSegmentToggleContent(ev));
+        html.on("click", "#combat-tracker .segment-has-items", (ev) => this._onSegmentToggleContent(ev));
+
+        if (game.user.isGM) {
+            // REF: https://gitlab.com/asacolips-projects/foundry-mods/combat-enhancements/-/blob/master/module/combat.js
+            html.on("dragstart", "#combat-tracker .combatant", (ev) => this._onDragStart(ev));
+            //html.on("dragenter", "#combat-tracker .combatant", (ev) => ev.preventDefault());
+            html.on("dragover", "#combat-tracker .combatant", (ev) => this._onDragOver(ev));
+            html.on("drop", "#combat-tracker .combatant", (ev) => this._onDrop(ev));
+        }
     }
 
     // // v13 uses _onRender instead of activateListeners
@@ -145,8 +154,9 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                             e.statuses.size > 0 &&
                             CONFIG.statusEffects.find((s) => s.id === e.statuses.first()),
                     );
-                    turn.holding = combatant.actor?.statuses.has("holding");
+                    turn.holding = combatant.actor?.statuses.has("holding") || combatant.flags?.nextPhase?.initiative;
                     turn.hasRolled ??= turn.initiative > 0; // v13
+                    turn.flags ??= combatant.flags;
                     return turn;
                 });
                 context.turns = turnsDisposition;
@@ -166,9 +176,22 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
                 }
             }
             this.viewed.flags.segments = context.segments;
+
+            // Custom sort current segment (needed for holding actions)
+            for (let s = 1; s <= 12; s++) {
+                if (s !== combat.flags[game.system.id].segment) {
+                    context.segments[s] = context.segments[s].sort(this._sortCombatantsOffSegment);
+                }
+            }
         } catch (e) {
             console.error(e);
         }
+    }
+
+    _sortCombatantsOffSegment(a, b) {
+        const ia = Number.isNumeric(a.initiative) ? a.initiative : -Infinity;
+        const ib = Number.isNumeric(b.initiative) ? b.initiative : -Infinity;
+        return ib - ia || (a.id > b.id ? 1 : -1);
     }
 
     scrollToTurn() {
@@ -206,23 +229,23 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
             return;
         }
 
-        if (control === "holdingAnAction" || control === "pingCombatant") {
-            // c.flags.holdingAnAction = !c.flags.holdingAnAction;
-            // if (c.flags.holdingAnAction) {
-            //     c.flags.delayUntil = {
-            //         segment: parseInt(segmentId),
-            //         turn: this.turn + 1,
-            //     };
-            // } else {
-            //     c.flags.delayUntil = null;
-            // }
-            // c.flags.holdingAnAction = {
-            //     initSegment: combat.flags.hero6efoundryvttv2.segment,
-            //     targetSegment:
-            //         combat.flags.hero6efoundryvttv2.segment >= 12 ? 1 : combat.flags.hero6efoundryvttv2.segment + 1,
-            // };
+        if (control === "delayCombatant") {
+            console.log(`nextCombatant: ${combat.nextCombatant.name}`);
 
+            // Does the nextCombatant go this segment?  If so we will go after them.
+            const nextCombatant = combat.nextCombatant;
+            if (nextCombatant.hasPhase(combat.flags[game.system.id].segment)) {
+                c.flags.nextPhase = {
+                    // initSegment: combat.flags.hero6efoundryvttv2.segment,
+                    // targetSegment: combat.flags.hero6efoundryvttv2.segment,
+                    segment: combat.flags.hero6efoundryvttv2.segment,
+                    initiative: (nextCombatant.flags?.nextPhase?.initiative || nextCombatant.initiative) - 0.001,
+                };
+            }
+            const _prevTurn = combat.turn;
             await c.update({ [`flags`]: c.flags });
+            await combat.update({ turns: combat.setupTurns() });
+            await combat.update({ turn: _prevTurn });
             //return;
         }
 
@@ -236,5 +259,57 @@ export class HeroSystem6eCombatTracker extends CombatTracker {
         const segment = header.closest(".segment-container");
         const content = segment.querySelector(".segment-content");
         content.style.display = content.style.display === "none" ? "block" : "none";
+    }
+
+    async _onDragStart(event) {
+        // Set the drag data for later usage.
+        const target = event.currentTarget;
+        const { segmentId } = target.closest("[data-segment-id]")?.dataset ?? {};
+        const { combatantId } = target.dataset;
+        let combatant = {};
+        if (combatantId) {
+            combatant = game.combat.combatants.find((c) => c.id === combatantId);
+        }
+        const dragData = { combatantId, segmentId, name: combatant?.name };
+        event.originalEvent.dataTransfer.setData("text/plain", JSON.stringify(dragData));
+
+        //console.log("dragstart", dragData);
+    }
+
+    async _onDragOver(event) {
+        // event.preventDefault();
+        // const target = event.currentTarget;
+        // const { segmentId } = target.closest("[data-segment-id]")?.dataset ?? {};
+        // const { combatantId } = target.dataset;
+        // let combatant = {};
+        // if (combatantId) {
+        //     combatant = game.combat.combatants.find((c) => c.id === combatantId);
+        // }
+        // const overData = { combatantId, segmentId, name: combatant?.name };
+        //console.log(overData);
+
+        event.originalEvent.dataTransfer.dropEffect = "move";
+    }
+
+    async _onDrop(event) {
+        try {
+            const target = event.currentTarget;
+            const { segmentId } = target.closest("[data-segment-id]")?.dataset ?? {};
+            const { combatantId } = target.dataset;
+            let combatant = {};
+            if (combatantId) {
+                combatant = game.combat.combatants.find((c) => c.id === combatantId);
+            }
+            const dropData = { combatantId, segmentId, name: combatant?.name };
+            //console.log("dropData", dropData);
+
+            const dragData = JSON.parse(event.originalEvent.dataTransfer.getData("text/plain"));
+            //console.log("drop", dragData);
+
+            console.log(`Move ${dragData.name} from segment ${dragData.segmentId} to ${dropData.segmentId}`);
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
     }
 }

@@ -5,13 +5,16 @@
         <li class="segment-container">
             <h3 class="{{#if this.length}}segment-has-items{{else}}segment-inactive{{/if}} segment-header {{#if (eq @index @root.combat.current.segment)}}segment-active{{/if}}">Segment {{@index}} {{#if @root/alphaTesting}}[tokens:{{this.length}}]{{/if}}</h3>
             <ol class="segment-content" {{#if (or (eq @index @root.combat.current.segment) (and (eq @root.combat.round 0) (eq @index 12)))}}{{else}} 
-            style="display:none"
+            style="display:none1"
                 {{/if}} data-segment-id="{{@index}}">
 
                 {{!-- loop thru each turn/combatant --}}
                 {{#each this}}
 
-                <li class="combatant directory-item {{this.css}} {{#if (and this.active (eq this.segment @root/combat.flags.hero6efoundryvttv2.segment))}}active{{/if}}" data-combatant-id="{{this.id}}">
+                <li class="combatant directory-item {{this.css}} {{#if (and this.active (eq this.segment @root/combat.flags.hero6efoundryvttv2.segment))}}active{{/if}}" 
+                    data-combatant-id="{{this.id}}"
+                    draggable="true"
+                >
                     {{#unless this.holding}}
                         <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
                     {{/unless}}
@@ -57,27 +60,18 @@
                                     aria-label="{{localize 'COMBAT.PingCombatant'}}"
                                     data-control="pingCombatant">
                                 </button>
-                                {{!-- <a class="combatant-control" 
-                                data-action="pingCombatant" 
-                                aria-label="{{localize 'COMBAT.PingCombatant'}}" role="button" 
-                                data-tooltip="COMBAT.PingCombatant" 
-                                data-control="pingCombatant">
-                                    <i class="fa-solid fa-bullseye-arrow"></i>
-                                </a> --}}
                                 {{/if}}
 
-                                {{#if (or this.flags.holding (eq this.flags.segment @root/combat.flags.hero6efoundryvttv2.segment))}}
-                                    <a class="combatant-control {{#if this.holding}}active{{/if}}" data-action="pingCombatant" aria-label="Holding An Action" role="button" data-tooltip="Holding An Action" data-control="holdingAnAction">
-                                        {{!-- <img class="token-effect" src="icons/svg/clockwork.svg"> --}}
-                                        <i class="fa-solid fa-child-reaching"></i>
-                                    </a>
+                                {{#if (and this.active (eq this.segment @root/combat.flags.hero6efoundryvttv2.segment))}}
+                                    <button type="button" class="inline-control combatant-control icon fa-solid fa-hourglass-start" 
+                                        data-action="delayCombatant" 
+                                        data-tooltip="COMBAT.DelayCombatant"
+                                        aria-label="{{localize 'COMBAT.DelayCombatant'}}"
+                                        data-control="delayCombatant">
+                                    </button>
                                 {{/if}}
 
-                                {{!-- {{#unless ../user.isGM}}
-                                <a class="combatant-control" data-action="activateCombatant" aria-label="{{localize 'COMBAT.PanToCombatant'}}" role="button" data-tooltip="COMBAT.PanToCombatant" data-control="panToCombatant">
-                                    <i class="fa-solid fa-arrows-to-eye"></i>
-                                </a>
-                                {{/unless}} --}}
+
                                 <div class="token-effects">
                                     {{#each this.effects}}
                                     <a class="combatant-control" data-tooltip="{{this.name}}" data-control="effect" data-effect-id="{{this.id}}">
