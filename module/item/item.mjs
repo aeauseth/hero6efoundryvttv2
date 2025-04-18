@@ -1093,11 +1093,6 @@ export class HeroSystem6eItem extends Item {
     }
 
     // An attempt to cache getPowerInfo for performance reasons.
-    //_baseInfo ??= getPowerInfo({ item: this, xmlTag: this.system.xmlTag });
-    getBaseInfo() {
-        console.warn("Use baseInfo instead of getBaseInfo");
-        return this.baseInfo;
-    }
     get baseInfo() {
         // cache getPowerInfo
         this._baseInfo ??= getPowerInfo({ item: this, xmlTag: this.system.xmlTag });
@@ -5291,11 +5286,11 @@ export class HeroSystem6eItem extends Item {
                 //console.log(ae);
                 for (const change of ae.changes) {
                     if (change.key.match(new RegExp(this.system.XMLID, "i"))) {
-                        const item = fromUuidSync(ae.flags?.target?.[0]);
+                        const item = fromUuidSync(ae.flags?.target); // This should not be an array ?.[0]
                         if (!item) {
                             console.warn(`${ae.name} has no associated item`, this, ae);
-                        }
-                        if (item.id === this.id || !item) {
+                            return Math.max(0, _adjustedLevels);
+                        } else if (item.id === this.id) {
                             //console.warn(`${ae.name} should be on item not on actor`, this, ae);
                             _adjustedLevels += parseInt(change.value || 0);
                         }

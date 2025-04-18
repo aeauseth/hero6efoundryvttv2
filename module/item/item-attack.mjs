@@ -75,38 +75,49 @@ function isStunBasedEffectRoll(item) {
 /**
  * Turn an item into JSON.
  * Reverse the process with rehydrateAttackItem
- * @param {*} item - what should be dehydrated
+ * @param {HeroSystem6eItem} item - what should be dehydrated
  */
 export function dehydrateAttackItem(item) {
-    const dehydratedItem = foundry.utils.deepClone(item);
+    const dehydratedItem = item.toObject(false);
 
     // If there is a strength item, dehydrate it
-    if (dehydratedItem.system._active.effectiveStrItem) {
-        dehydratedItem.system._active.effectiveStrItem = dehydratedItem.system._active.effectiveStrItem.toObject(false);
+    if (item.system._active.effectiveStrItem) {
+        dehydratedItem.system._active.effectiveStrItem = item.system._active.effectiveStrItem.toObject(false);
     }
 
     // If there are linked endurance items, then we need to dehydrate them as well.
-    if (dehydratedItem.system._active.linkedEnd && dehydratedItem.system._active.linkedEnd.length > 0) {
-        dehydratedItem.system._active.linkedEnd.forEach((linkedEndItem) => {
-            linkedEndItem.item = linkedEndItem.item.toObject(false);
+    if (item.system._active.linkedEnd && dehydratedItem.system._active.linkedEnd.length > 0) {
+        dehydratedItem.system._active.linkedEnd = item.system._active.linkedEnd.map((linkedEndItem) => {
+            return {
+                item: linkedEndItem.item.toObject(false),
+                uuid: linkedEndItem.uuid,
+            };
         });
     }
 
     // If there are linked associated items, then we need to dehydrate them as well.
-    if (dehydratedItem.system._active.linkedAssociated && dehydratedItem.system._active.linkedAssociated.length > 0) {
-        dehydratedItem.system._active.linkedAssociated.forEach((linkedItem) => {
-            linkedItem.item = linkedItem.item.toObject(false);
-        });
+    if (item.system._active.linkedAssociated && dehydratedItem.system._active.linkedAssociated.length > 0) {
+        dehydratedItem.system._active.linkedAssociated = item.system._active.linkedAssociated.map(
+            (linkedAssociatedItem) => {
+                return {
+                    item: linkedAssociatedItem.item.toObject(false),
+                    uuid: linkedAssociatedItem.uuid,
+                };
+            },
+        );
     }
 
     // If there are linked items, then we need to dehydrate them as well.
     if (dehydratedItem.system._active.linked && dehydratedItem.system._active.linked.length > 0) {
-        dehydratedItem.system._active.linked.forEach((linkedItem) => {
-            linkedItem.item = linkedItem.item.toObject(false);
+        dehydratedItem.system._active.linked = item.system._active.linked.map((linkedItem) => {
+            return {
+                item: linkedItem.item.toObject(false),
+                uuid: linkedItem.uuid,
+            };
         });
     }
 
-    const stringifiedItem = JSON.stringify(dehydratedItem.toObject(false));
+    const stringifiedItem = JSON.stringify(dehydratedItem);
     return stringifiedItem;
 }
 
@@ -117,16 +128,16 @@ export function dehydrateAttackItem(item) {
 function rehydrateActorAndAttackItem(rollInfo) {
     const actor = fromUuidSync(rollInfo.actorUuid);
 
-    return redydrateAttackItem(rollInfo, actor);
+    return redydrateAttackItem(rollInfo.itemJsonStr, actor);
 }
 
 /**
  * Rehydrates a JSON object created by dehydrateAttackItem
- * @param {Object} rollInfo
+ * @param {string} itemJsonStr
  * @param {*} actor
  */
-function redydrateAttackItem(rollInfo, actor) {
-    const item = HeroSystem6eItem.fromSource(JSON.parse(rollInfo.itemJsonStr), {
+function redydrateAttackItem(itemJsonStr, actor) {
+    const item = HeroSystem6eItem.fromSource(JSON.parse(itemJsonStr), {
         parent: actor,
     });
 
@@ -1173,8 +1184,8 @@ function getAttackTags(item) {
     }
 
     // Item adders
-    if (item.system.adders) {
-        for (const adder of item.system.adders) {
+    if (item.adders) {
+        for (const adder of item.adders) {
             switch (adder.XMLID) {
                 case "MINUSONEPIP":
                 case "PLUSONEHALFDIE":
@@ -2057,7 +2068,7 @@ export async function _onApplyDamage(event, actorParam, itemParam) {
 
     const actor = actorParam || fromUuidSync(damageData.actorUuid);
 
-    const item = itemParam || redydrateAttackItem(damageData, actorParam || actor).item;
+    const item = itemParam || redydrateAttackItem(damageData.itemJsonStr, actorParam || actor).item;
 
     if (targetTokens.length === 0) {
         // Check to make sure we have a selected token
@@ -3639,7 +3650,7 @@ export async function userInteractiveVerifyOptionallyPromptThenSpendResources(it
     const resourceUsingItems = [
         item,
         ...(item.system._active.linkedEnd || []).map((linkedEndInfo) => linkedEndInfo.item),
-        ...(item.system._active.linkedAssociated || []).map((linkedEndInfo) => linkedEndInfo.item),
+        ...(item.system._active.linkedAssociated || []).map((linkedAssociatedInfo) => linkedAssociatedInfo.item),
 
         // PH: FIXME: This should probably be recursive as these linked items could have linked endurance
         // only items or linked items of their own (presumably).

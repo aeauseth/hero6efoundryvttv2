@@ -268,7 +268,7 @@ export class ItemAttackFormApplication extends FormApplication {
                         (linkedEndInfo) => linkedEndInfo.item,
                     ),
                     ...(this.data.effectiveItem.system._active.linkedAssociated || []).map(
-                        (linkedInfo) => linkedInfo.item,
+                        (linkedAssociatedInfo) => linkedAssociatedInfo.item,
                     ),
 
                     // PH: FIXME: This should probably be recursive as these linked items could have linked endurance

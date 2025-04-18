@@ -534,12 +534,7 @@ export function calculateAddedDicePartsFromItem(item, baseDamageItem, options) {
     // Skill Roll or have TF: SCUBA. A character who stands
     // in water while he fights is at -2 DCV (and typically also suffer
     // Poor Footing penalties) unless he makes a Breakfall roll.
-    if (
-        item.actor?.statuses?.has("underwater")
-        // &&
-        // (baseDamageItem.system.XMLID === "__STRENGTHDAMAGE" ||
-        //     baseDamageItem.system.ALIAS === "__InternalStrengthPlaceholder")
-    ) {
+    if (item.actor?.statuses?.has("underwater")) {
         const underwaterDc = 2; // NOTE: Working with 2 DC and then subtracting
         const underwaterDiceParts = calculateDicePartsFromDcForItem(baseDamageItem, underwaterDc);
         const formula = dicePartsToFullyQualifiedEffectFormula(baseDamageItem, underwaterDiceParts);
