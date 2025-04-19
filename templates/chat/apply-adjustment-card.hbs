@@ -2,9 +2,14 @@
 <div class="hero chat-card item-card to-hit-card" data-actor-id="{{actor._id}}" data-item-id="{{item._id}}" {{#if
   tokenId}}data-token-id="{{tokenId}}" {{/if}}>
 
-    <header class="card-header flexrow">
-        <img src="{{item.img}}" title="{{item.name}}" width="36" height="36" />
-        <h3>vs {{targetActor.name}}</h3>
+    <header class="card-header">
+        {{#if startRound}}
+            <div class="combat-info">Combat: Round={{startRound}} Segment={{startSegment}}</div>
+        {{/if}}
+        <div class="flexrow">
+            <img src="{{item.img}}" title="{{item.name}}" width="36" height="36" />
+            <h3>vs {{targetActor.name}}</h3>
+        </div>
     </header>
 
     <div>

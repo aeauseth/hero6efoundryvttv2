@@ -2159,7 +2159,9 @@ export class HeroSystem6eActor extends Actor {
                 changes["img"] = relativePathName;
             } catch (e) {
                 console.error(e);
-                ui.notifications.warn(`${this.name} failed to upload ${filename}.`);
+                ui.notifications.warn(
+                    `${this.name} failed to upload ${filename}. Make sure user has [Use File Browser] and [Upload New Files] permissions. Also make sure the folder isn't in [Privacy Mode] indicated with a purple background within FoundryVTT.`,
+                );
             }
 
             delete heroJson.CHARACTER.IMAGE;

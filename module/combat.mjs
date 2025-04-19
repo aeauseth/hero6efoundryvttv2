@@ -1,6 +1,6 @@
 import { HEROSYS } from "./herosystem6e.mjs";
 import { clamp } from "./utility/compatibility.mjs";
-import { whisperUserTargetsForActor, expireEffects } from "./utility/util.mjs";
+import { whisperUserTargetsForActor, expireEffects, toHHMMSS } from "./utility/util.mjs";
 import { userInteractiveVerifyOptionallyPromptThenSpendResources } from "./item/item-attack.mjs";
 import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs";
 
@@ -438,6 +438,19 @@ export class HeroSystem6eCombat extends Combat {
             await masterCombatant.update({ "flags.spentEndOn": roundSegmentKey });
 
             let content = "";
+            let tempContent = "";
+            let startContent = "";
+
+            if (combatant.actor.statuses.size > 0) {
+                startContent += `Has the following statuses: ${Array.from(combatant.actor.statuses).join(", ")}<br>`;
+            }
+
+            for (const ae of combatant.actor.temporaryEffects.filter((ae) => ae.statuses.size === 0)) {
+                tempContent += `<li>${ae.name} fades in ${toHHMMSS(ae._prepareDuration().remaining)}</li>`;
+            }
+            if (tempContent) {
+                startContent += `Has the following temporary effects: <ul>${tempContent}</ul>`;
+            }
 
             /**
              * @type {HeroSystemItemResourcesToUse}
@@ -486,30 +499,43 @@ export class HeroSystem6eCombat extends Combat {
                     spentResources.totalEnd += endCostPerTurn;
                     spentResources.end += endCostPerTurn;
 
-                    content += `<li>${encumbered.name} (${endCostPerTurn})</li>`;
+                    if (endCostPerTurn > 0) {
+                        content += `<li>${encumbered.name} (${endCostPerTurn})</li>`;
 
-                    // TODO: There should be a better way of integrating this with userInteractiveVerifyOptionallyPromptThenSpendResources
-                    // TODO: This is wrong as it does not use STUN when there is no END
-                    const value = parseInt(this.combatant.actor.system.characteristics.end.value);
-                    const newEnd = value - endCostPerTurn;
+                        // TODO: There should be a better way of integrating this with userInteractiveVerifyOptionallyPromptThenSpendResources
+                        // TODO: This is wrong as it does not use STUN when there is no END
+                        const value = parseInt(this.combatant.actor.system.characteristics.end.value);
+                        const newEnd = value - endCostPerTurn;
 
-                    await this.combatant.actor.update({
-                        "system.characteristics.end.value": newEnd,
-                    });
+                        await this.combatant.actor.update({
+                            "system.characteristics.end.value": newEnd,
+                        });
+                    }
                 }
             }
 
             if (
-                content !== "" &&
-                (spentResources.totalEnd > 0 || spentResources.totalReserveEnd > 0 || spentResources.totalCharges > 0)
+                startContent !== "" ||
+                content !== "" ||
+                spentResources.totalEnd > 0 ||
+                spentResources.totalReserveEnd > 0 ||
+                spentResources.totalCharges > 0
             ) {
                 const segment = this.combatant.flags.segment;
 
-                content = `Spent ${spentResources.totalEnd} END, ${spentResources.totalReserveEnd} reserve END, and ${
-                    spentResources.totalCharges
-                } charge${spentResources.totalCharges > 1 ? "s" : ""} on turn ${
-                    this.round
-                } segment ${segment}:<ul>${content}</ul>`;
+                if (
+                    spentResources.totalEnd > 0 ||
+                    spentResources.totalReserveEnd > 0 ||
+                    spentResources.totalCharges > 0
+                ) {
+                    content = `${startContent}Spent ${spentResources.totalEnd} END, ${spentResources.totalReserveEnd} reserve END, and ${
+                        spentResources.totalCharges
+                    } charge${spentResources.totalCharges > 1 ? "s" : ""} on turn ${
+                        this.round
+                    } segment ${segment}:<ul>${content}</ul>`;
+                } else {
+                    content = startContent;
+                }
 
                 const token = combatant.token;
                 const speaker = ChatMessage.getSpeaker({
@@ -587,7 +613,7 @@ export class HeroSystem6eCombat extends Combat {
                 active: false,
             });
 
-            const content = `${combatant.actor.name} recovers from being stunned.`;
+            const content = `${combatant.token.name} recovers from being stunned.`;
 
             const chatData = {
                 author: game.user._id,
@@ -596,6 +622,10 @@ export class HeroSystem6eCombat extends Combat {
             };
 
             await ChatMessage.create(chatData);
+        } else if (combatant.actor.statuses.has("knockedOut")) {
+            if (combatant.actor.system.characteristics.stun?.value >= -10) {
+                await combatant.actor.TakeRecovery(false, combatant.token);
+            }
         }
     }
 

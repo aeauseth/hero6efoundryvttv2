@@ -1,5 +1,5 @@
 import { HEROSYS } from "../herosystem6e.mjs";
-import { getPowerInfo, hdcTimeOptionIdToSeconds } from "./util.mjs";
+import { getPowerInfo, hdcTimeOptionIdToSeconds, tokenEducatedGuess } from "./util.mjs";
 import { HeroSystem6eActor } from "../actor/actor.mjs";
 import { calculateDicePartsForItem } from "./damage.mjs";
 
@@ -290,62 +290,70 @@ function _determineEffectDurationInSeconds(item, rawActivePointsDamage) {
     return seconds;
 }
 
-function _createNewAdjustmentEffect(
-    item,
-    potentialCharacteristic, // TODO: By this point we should know which it is.
-    targetPower,
-    rawActivePointsDamage,
-    targetActor,
-    targetSystem,
-    action,
-) {
+function _createNewAdjustmentEffect(options) {
+    const {
+        attackItem,
+        targetUpperCaseName: potentialCharacteristic, // TODO: By this point we should know which it is.
+        targetPower,
+        thisAttackActivePointsEffect: rawActivePointsDamage,
+        targetActor,
+        targetSystem,
+        attackerToken,
+        action,
+    } = options;
+
     // Create new ActiveEffect
     // TODO: Add a document field
 
     // Educated guess for token
-    const itemTokenName =
-        canvas.tokens.get(action?.current?.attackerTokenId)?.name ||
-        item.actor?.getActiveTokens().find((t) => canvas.tokens.controlled.find((c) => c.id === t.id))?.name ||
-        item.actor?.getActiveTokens()?.[0]?.name ||
-        item.actor?.name ||
-        "undefined";
+    const _attackerToken = tokenEducatedGuess({
+        token: attackerToken,
+        tokenId: action?.current?.attackerTokenId,
+        item: attackItem,
+    });
+    const itemTokenName = _attackerToken?.name || attackItem.actor?.name || "undefined";
+    // canvas.tokens.get(action?.current?.attackerTokenId)?.name ||
+    // item.actor?.getActiveTokens().find((t) => canvas.tokens.controlled.find((c) => c.id === t.id))?.name ||
+    // item.actor?.getActiveTokens()?.[0]?.name ||
+    // item.actor?.name ||
+    // "undefined";
 
     const activeEffect = {
-        name: `${item.system.XMLID || "undefined"} 0 ${
+        name: `${attackItem.system.XMLID || "undefined"} 0 ${
             (targetPower?.name || potentialCharacteristic)?.toUpperCase() // TODO: This will need to change for multiple effects
         } (0 AP) [by ${itemTokenName}]`,
         // id: `${item.system.XMLID}.${item.id}.${
         //     targetPower?.name || potentialCharacteristic // TODO: This will need to change for multiple effects
         // }`,
-        img: item.img,
+        img: attackItem.img,
         changes: [], //[_createAEChangeBlock(potentialCharacteristic, targetSystem)],
         duration: {
-            seconds: _determineEffectDurationInSeconds(item, rawActivePointsDamage),
+            seconds: _determineEffectDurationInSeconds(attackItem, rawActivePointsDamage),
         },
         flags: {
             type: "adjustment",
             version: 3,
             adjustmentActivePoints: 0,
             affectedPoints: 0,
-            XMLID: item.system.XMLID,
+            XMLID: attackItem.system.XMLID,
             source: targetActor.name,
-            target: [targetPower?.uuid || potentialCharacteristic],
+            target: targetPower?.uuid || potentialCharacteristic,
+            targetDisplay: fromUuidSync(targetPower?.uuid).XMLID || potentialCharacteristic,
             key: targetPower?.system?.XMLID || potentialCharacteristic,
             itemTokenName,
-            attackerTokenId: action?.current?.attackerTokenId,
+            attackerTokenId: _attackerToken?.id,
             createTime: game.time.worldTime,
             initialCostPerActivePoint: determineCostPerActivePoint(potentialCharacteristic, targetPower, targetSystem),
-
-            // changes: [
-            //     {
-            //         source: item.uuid,
-            //         seconds: _determineEffectDurationInSeconds(item, rawActivePointsDamage),
-            //         adjustmentActivePoints: 0,
-            //     },
-            // ],
+            startRound: game.combat?.round,
+            startSegment: game.combat?.current?.segment,
+            startInitiative: game.combat?.current?.initiative,
+            startCombatId: game.combat?.id,
         },
-        origin: item.uuid,
-        description: item.system.description, // Issues with core FoundryVTT where description doesn't show, nor is editable.
+        // We likely created an effective Item, so store the originalUuid
+        origin: fromUuidSync(attackItem.uuid)?.uuid || fromUuidSync(attackItem.system._active?.__originalUuid)?.uuid,
+        // We likely created an effective Item, so store the JSON
+        originJson: JSON.stringify(attackItem),
+        description: attackItem.system.description, // Issues with core FoundryVTT where description doesn't show, nor is editable.
         transfer: true,
         disabled: false,
     };
@@ -496,7 +504,7 @@ export async function performAdjustment(
 
     const activeEffect =
         existingEffect ||
-        _createNewAdjustmentEffect(
+        _createNewAdjustmentEffect({
             attackItem,
             targetUpperCaseName,
             targetPower,
@@ -505,7 +513,7 @@ export async function performAdjustment(
             targetSystem,
             attackerToken,
             action,
-        );
+        });
 
     const maximumEffectActivePoints = determineMaxAdjustment(attackItem, simplifiedHealing, potentialCharacteristic);
     //let totalActivePointAffectedDifference = 0;
@@ -536,6 +544,7 @@ export async function performAdjustment(
                 defenseDescription,
                 effectsDescription,
                 targetUpperCaseName,
+                nameOfCharOrPower,
                 isFade: true,
                 isEffectFinished: true,
                 targetActor,
@@ -694,6 +703,7 @@ export async function performAdjustment(
                 defenseDescription,
                 effectsDescription,
                 targetUpperCaseName, //potentialCharacteristic,
+                nameOfCharOrPower,
                 isFade,
                 isEffectFinished,
                 targetActor,
@@ -1104,6 +1114,7 @@ export async function performAdjustment(
         defenseDescription,
         effectsDescription,
         targetUpperCaseName,
+        nameOfCharOrPower,
         isFade,
         isEffectFinished,
         targetActor,
@@ -1209,14 +1220,7 @@ async function updateCharacteristicValue(activeEffect, { targetSystem, previousC
                     targetStartingValue + totalPointsDifference,
                     targetStartingMax, // + totalPointsDifference,
                 );
-                // if (previousChanges.length > 0) {
-                //     debugger;
-                // }
                 await targetSystem.update({ [`system.characteristics.${char}.value`]: newValue });
-                // console.log(
-                //     `characteristices ${char}.value = ${targetStartingValue} ${char}.max = ${targetStartingMax}`,
-                // );
-                // console.log(`Updated characteristices ${char}.value from ${targetStartingValue} to ${newValue}`);
 
                 if (CONFIG.debug.adjustmentFadeKeep) {
                     const delay = (ms) => new Promise((res) => setTimeout(res, ms || 100));
@@ -1229,8 +1233,11 @@ async function updateCharacteristicValue(activeEffect, { targetSystem, previousC
                     }
                 }
             } else {
-                console.error(`Unhandled characteristic `, char, activeEffect);
-                //debugger;
+                if (getPowerInfo({ xmlid: change.key.toUpperCase() })?.xmlTag === "POWER") {
+                    console.debug(`Skipping POWER`, char, activeEffect);
+                } else {
+                    console.error(`Unhandled characteristic `, char, activeEffect);
+                }
             }
         }
         // const targetStartingValue = targetSystem.characteristics[targetValuePath];
@@ -1306,6 +1313,7 @@ function _generateAdjustmentChatCard(
         defenseDescription,
         effectsDescription,
         targetUpperCaseName,
+        nameOfCharOrPower,
         isFade,
         isEffectFinished,
         targetActor,
@@ -1336,7 +1344,7 @@ function _generateAdjustmentChatCard(
             adjustmentDamageRaw: Math.abs(thisAttackActivePointsEffectRaw),
             thisAttackActivePointsEffect: Math.abs(thisAttackActivePointsEffect),
             adjustmentDamageThisApplication,
-            adjustmentTarget: targetUpperCaseName,
+            adjustmentTarget: fromUuidSync(nameOfCharOrPower)?.system.XMLID || targetUpperCaseName,
             adjustmentTotalActivePointEffect: totalEffectActivePointsForXmlid,
             thisAttackActivePointAdjustmentNotAppliedDueToMax,
             thisAttackActivePointEffectNotAppliedDueToNotExceedingHealing,
@@ -1355,6 +1363,8 @@ function _generateAdjustmentChatCard(
         targetActor,
         targetToken,
         attackerToken,
+        startRound: game.combat?.round,
+        startSegment: game.combat?.current?.segment,
     };
 
     return cardData;

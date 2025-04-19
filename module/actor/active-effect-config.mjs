@@ -34,6 +34,10 @@ export class HeroSystemActiveEffectConfig extends ActiveEffectConfig {
                 }
             }
 
+            context.data.startTimeDisplay = new Date(context.data.duration.startTime * 1000)
+                .toUTCString()
+                .replace(" GMT", "");
+
             context.remaining = context.data.duration.startTime + context.data.duration.seconds - game.time.worldTime;
         } catch (e) {
             console.error(e);

@@ -126,25 +126,31 @@
     <!-- Duration Tab -->
     <section class="tab" data-tab="duration">
         <div class="form-group">
-            <label>{{ localize "EFFECT.DurationSecs" }}</label>
+            <label>Effect fades every (seconds)</label>
             <div class="form-fields">
                 <input type="number" name="duration.seconds" value="{{ data.duration.seconds }}"/>
             </div>
         </div>
         <div class="form-group">
-            <label>{{ localize "EFFECT.DurationRemaining" }}</label>
+            <label>Effect will fade in (seconds)</label>
             <div class="form-fields">
                 <input type="number" name="duration.remaining" value="{{ remaining }}" disabled/>
             </div>
         </div>
         <div class="form-group">
             <label>{{ localize "EFFECT.StartTime" }}</label>
-            <div class="form-fields">
+            {{!-- <div class="form-fields">
                 <input type="number" name="duration.startTime" value="{{ data.duration.startTime }}"/>
+            </div> --}}
+            <div class="form-fields">
+                <label>WorldTime</label>
+                <input type="number" name="duration.startTime" value="{{ data.duration.startTime }}"/>
+                <label>Date</label>
+                <input type="string" name="startTimeDisplay" value="{{ data.startTimeDisplay }}" disabled/>
             </div>
         </div>
         <hr/>
-        <div class="form-group">
+        {{!-- <div class="form-group">
             <label>{{ localize "EFFECT.DurationTurns" }}</label>
             <div class="form-fields">
                 <label>{{ localize "COMBAT.Rounds" }}</label>
@@ -152,21 +158,30 @@
                 <label>{{ localize "COMBAT.Turns" }}</label>
                 <input type="number" name="duration.turns" value="{{ data.duration.turns }}"/>
             </div>
-        </div>
-        <div class="form-group">
+        </div> --}}
+        {{!-- <div class="form-group">
             <label>{{ localize "EFFECT.Combat" }}</label>
             <div class="form-fields">
                 <input type="text" name="duration.combat" value="{{ data.duration.combat }}" disabled/>
             </div>
-        </div>
+        </div> --}}
 
-        <div class="form-group">
+        {{!-- <div class="form-group">
             <label>{{ localize "EFFECT.StartTurns" }}</label>
             <div class="form-fields">
                 <label>{{ localize "COMBAT.Round" }}</label>
                 <input type="number" name="duration.startRound" value="{{ data.duration.startRound }}"/>
                 <label>{{ localize "COMBAT.Turn" }}</label>
                 <input type="number" name="duration.startTurn" value="{{ data.duration.startTurn }}"/>
+            </div>
+        </div> --}}
+        <div class="form-group">
+            <label>Effect Started</label>
+            <div class="form-fields">
+                <label>Round</label>
+                <input type="number" name="data.flags.startRound" value="{{ data.flags.startRound }}" disabled/>
+                <label>Segment</label>
+                <input type="number" name="data.flags.startSegment" value="{{ data.flags.startSegment }}" disabled/>
             </div>
         </div>
     </section>

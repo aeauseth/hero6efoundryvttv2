@@ -881,4 +881,19 @@ export class ItemAttackFormApplication extends FormApplication {
     }
 }
 
+export function getAoeTemplateForItem(item) {
+    let aoeTemplate = game.scenes.current.templates.find(
+        (o) => o.flags.itemId === fromUuidSync(item.system._active?.__originalUuid)?.id,
+    );
+    if (aoeTemplate) return aoeTemplate;
+    console.warn(`Unable to match aoeTemplate with item.  Why are you looking for a template?`);
+
+    aoeTemplate = game.scenes.current.templates.find((o) => o.author.id === game.user.id);
+    if (aoeTemplate) {
+        console.warn(`Found a template user owns, so using that as a fallback`);
+    }
+
+    return aoeTemplate;
+}
+
 window.ItemAttackFormApplication = ItemAttackFormApplication;

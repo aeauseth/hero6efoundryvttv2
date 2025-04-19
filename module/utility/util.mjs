@@ -243,7 +243,7 @@ export async function expireEffects(actor) {
 
     const temporaryEffects = actor.temporaryEffects;
 
-    let adjustmentChatMessages = [];
+    const adjustmentChatMessages = [];
     for (const ae of temporaryEffects) {
         // Sanity Check
         if (ae._prepareDuration().remaining > 0 && !ae.duration.startTime) {
@@ -263,6 +263,10 @@ export async function expireEffects(actor) {
         // Need to loop as multiple fades may be required.
         // The null check is for AE that have no duration.
         while (ae._prepareDuration().remaining <= 0 && ae._prepareDuration().remaining !== null) {
+            const origin = fromUuidSync(ae.origin);
+            const item =
+                origin instanceof HeroSystem6eItem ? origin : ae.parent instanceof HeroSystem6eItem ? ae.parent : null;
+
             // What is this effect related to?
             if (ae.flags.type === "adjustment") {
                 // Fade by up to 5 Active Points
@@ -273,19 +277,11 @@ export async function expireEffects(actor) {
                     _fade = -5; //Math.max(ae.flags.adjustmentActivePoints, -5);
                 }
 
-                const origin = fromUuidSync(ae.origin);
-                const item =
-                    origin instanceof HeroSystem6eItem
-                        ? origin
-                        : ae.parent instanceof HeroSystem6eItem
-                          ? ae.parent
-                          : null;
-
                 if (item) {
                     adjustmentChatMessages.push(
                         await performAdjustment(
                             item,
-                            ae.flags.target[0], // nameOfCharOrPower
+                            ae.flags.target, // nameOfCharOrPower
                             -_fade, // thisAttackRawActivePointsDamage
                             "None - Effect Fade", // defenseDescription
                             "", // effectsDescription
@@ -327,7 +323,7 @@ export async function expireEffects(actor) {
                 }
             } else {
                 // Catch all to delete the expired AE.
-                // May need to revisit and make exception for statuses (like prone)
+                // May need to revisit and make exception for statuses (like prone/recovery)
                 if (ae.parent instanceof HeroSystem6eActor) {
                     const cardHtml = `${ae.name.replace(/\d+ segments remaining/, "")} has expired.`;
                     const chatData = {
@@ -335,8 +331,8 @@ export async function expireEffects(actor) {
                         content: cardHtml,
                         //speaker: speaker,
                     };
-                    const chatMessage = ChatMessage.create(chatData);
-                    adjustmentChatMessages.push(chatMessage);
+                    await ChatMessage.create(chatData);
+                    //adjustmentChatMessages.push(chatMessage);  // Not a adjustment card (but could be if we filled in additional props)
                     await ae.delete();
                 }
                 break;
@@ -363,6 +359,7 @@ export async function expireEffects(actor) {
             }
         }
     }
+
     await renderAdjustmentChatCards(adjustmentChatMessages);
 }
 
@@ -460,8 +457,47 @@ export function toHHMMSS(secs) {
     var minutes = Math.floor(sec_num / 60) % 60;
     var seconds = sec_num % 60;
 
+    if (hours === 0 && minutes === 0) {
+        return `${seconds}s`;
+    }
+
     return [hours, minutes, seconds]
         .map((v) => (v < 10 ? "0" + v : v))
         .filter((v, i) => v !== "00" || i > 0)
         .join(":");
+}
+
+export function tokenEducatedGuess(options = {}) {
+    // TokenId
+    const token = options.token || canvas.tokens.get(options.tokenId);
+    if (token) {
+        return token;
+    }
+
+    // Actor from Item
+    options.actorId ??= options.item.actor.id;
+
+    // Actor in combat should provide a token
+    const combatant = game.combat?.combatants?.contents.find((o) => o.actorId === options.item.actor.id);
+    if (combatant) {
+        return canvas.tokens.get(combatant.tokenId);
+    }
+
+    // Controled token of provided actor
+    const controledToken = options.actor
+        ?.getActiveTokens()
+        .find((t) => canvas.tokens.controlled.find((c) => c.id === t.id));
+    if (controledToken) {
+        return controledToken;
+    }
+
+    // Any token on this canvas for Actor
+    const anyToken = options.actor?.getActiveTokens()?.[0];
+    if (anyToken) {
+        return anyToken;
+    }
+
+    console.error(`Unable to determine token`, options);
+
+    return null;
 }

@@ -12,7 +12,7 @@ import {
 import { performAdjustment, renderAdjustmentChatCards } from "../utility/adjustment.mjs";
 import { getRoundedDownDistanceInSystemUnits, getSystemDisplayUnits } from "../utility/units.mjs";
 import { HeroSystem6eItem, requiresASkillRollCheck, RequiresACharacteristicRollCheck } from "../item/item.mjs";
-import { ItemAttackFormApplication } from "../item/item-attack-application.mjs";
+import { ItemAttackFormApplication, getAoeTemplateForItem } from "../item/item-attack-application.mjs";
 import { DICE_SO_NICE_CUSTOM_SETS, HeroRoller } from "../utility/dice.mjs";
 import { clamp } from "../utility/compatibility.mjs";
 import { calculateVelocityInSystemUnits } from "../ruler.mjs";
@@ -128,7 +128,7 @@ export function dehydrateAttackItem(item) {
 function rehydrateActorAndAttackItem(rollInfo) {
     const actor = fromUuidSync(rollInfo.actorUuid);
 
-    return redydrateAttackItem(rollInfo.itemJsonStr, actor);
+    return rehydrateAttackItem(rollInfo.itemJsonStr, actor);
 }
 
 /**
@@ -136,7 +136,7 @@ function rehydrateActorAndAttackItem(rollInfo) {
  * @param {string} itemJsonStr
  * @param {*} actor
  */
-function redydrateAttackItem(itemJsonStr, actor) {
+function rehydrateAttackItem(itemJsonStr, actor) {
     const item = HeroSystem6eItem.fromSource(JSON.parse(itemJsonStr), {
         parent: actor,
     });
@@ -310,9 +310,7 @@ export async function doAoeActionToHit(item, options) {
 
     const action = Attack.getActionInfo(item, Array.from(game.user.targets), options);
 
-    const aoeTemplate =
-        game.scenes.current.templates.find((o) => o.flags.itemId === item.id) ||
-        game.scenes.current.templates.find((o) => o.author.id === game.user.id);
+    const aoeTemplate = getAoeTemplateForItem(item);
     if (!aoeTemplate) {
         return ui.notifications.error(`Attack AOE template was not found.`);
     }
@@ -716,9 +714,7 @@ async function doSingleTargetActionToHit(item, options) {
         }
 
         const isAoE = item.getAoeModifier();
-        const aoeTemplate =
-            game.scenes.current.templates.find((o) => o.flags.itemId === item.id) ||
-            game.scenes.current.templates.find((o) => o.author.id === game.user.id);
+        const aoeTemplate = isAoE ? getAoeTemplateForItem(item) : null;
         if (isAoE && !aoeTemplate) {
             return ui.notifications.error(`Attack AOE template was not found.`);
         }
@@ -880,9 +876,7 @@ async function doSingleTargetActionToHit(item, options) {
     heroRoller.addDice(-3);
 
     const aoeModifier = item.getAoeModifier();
-    const aoeTemplate =
-        game.scenes.current.templates.find((template) => template.flags.itemId === item.id) ||
-        game.scenes.current.templates.find((template) => template.author.id === game.user.id);
+    const aoeTemplate = aoeModifier ? getAoeTemplateForItem(item) : null;
     const explosion = item.hasExplosionAdvantage();
     const SELECTIVETARGET = aoeModifier?.ADDER ? aoeModifier.ADDER.find((o) => o.XMLID === "SELECTIVETARGET") : null;
     const NONSELECTIVETARGET = aoeModifier?.ADDER
@@ -2068,7 +2062,7 @@ export async function _onApplyDamage(event, actorParam, itemParam) {
 
     const actor = actorParam || fromUuidSync(damageData.actorUuid);
 
-    const item = itemParam || redydrateAttackItem(damageData.itemJsonStr, actorParam || actor).item;
+    const item = itemParam || rehydrateAttackItem(damageData.itemJsonStr, actorParam || actor).item;
 
     if (targetTokens.length === 0) {
         // Check to make sure we have a selected token
@@ -2094,9 +2088,15 @@ export async function _onApplyDamage(event, actorParam, itemParam) {
                 const token = canvas.scene.tokens.get(targetToken.tokenId);
                 const ae = token.actor?.temporaryEffects.find((o) => o.flags.XMLID === "ENTANGLE");
                 if (ae) {
-                    const entangle = fromUuidSync(ae.origin);
+                    const { item: entangle } = rehydrateAttackItem(
+                        ae.flags.dehydratedEntangleItem,
+                        fromUuidSync(ae.flags.dehydratedEntangleActorUuid),
+                    );
+                    if (!entangle) {
+                        console.error(ae);
+                        return ui.notifications.error(`Entangle details are no longer available.`);
+                    }
                     if (entangle.findModsByXmlid("TAKESNODAMAGE") || entangle.findModsByXmlid("BOTHDAMAGE")) {
-                        // PH: FIXME: Is action correct here?
                         await _onApplyDamageToSpecificToken(item, damageData, action, {
                             ...targetToken,
                             targetEntangle: false,
@@ -2139,13 +2139,12 @@ export async function _onApplyDamageToSpecificToken(item, _damageData, action, t
 
     const damageRoller = HeroRoller.fromJSON(damageData.roller);
 
-    const aoeTemplate =
-        game.scenes.current.templates.find((o) => o.flags.itemId === item.id) ||
-        game.scenes.current.templates.find((o) => o.author.id === game.user.id);
     const explosion = item.hasExplosionAdvantage();
     if (explosion) {
-        // Distance from center
+        const aoeTemplate = getAoeTemplateForItem(item);
+
         if (aoeTemplate) {
+            // Distance from center
             if (
                 game.scenes.current.grid.type === CONST.GRID_TYPES.SQUARE &&
                 game.settings.get("core", "gridDiagonals") !== CONST.GRID_DIAGONALS.EXACT
@@ -2678,6 +2677,8 @@ export async function _onApplyEntangleToSpecificToken(item, token, originalRoll)
             entangleDefense,
             XMLID: item.system.XMLID,
             source: item.actor.name,
+            dehydratedEntangleItem: dehydrateAttackItem(item),
+            dehydratedEntangleActorUuid: item.actor.uuid,
         },
         origin: item.uuid,
     };
