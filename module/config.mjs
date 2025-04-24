@@ -548,7 +548,7 @@ function noDamageBaseEffectDicePartsBundle(item /* , _options */) {
             constant: 0,
         },
         tags: [{ value: "0", name: `BAD TAG`, title: "Should not have been called. Please report." }],
-        baseAttackItem: null,
+        baseAttackItem: item,
     };
 }
 
@@ -5218,19 +5218,20 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             behaviors: ["to-hit"],
             perceivability: "obvious",
             costPerLevel: function (item) {
+                const is5e = item.is5e;
                 switch (item.system.OPTIONID) {
                     case "SIGHTGROUP":
-                        return 5; // Targeting sense gruop
+                        return is5e ? 10 : 5; // Targeting sense gruop
                     case "HEARINGGROUP":
                     case "MENTALGROUP":
                     case "RADIOGROUP":
                     case "SMELLGROUP":
                     case "TOUCHGROUP":
-                        return 3; // Non-targeting sense group
+                        return is5e ? 5 : 3; // Non-targeting sense group
                     default:
                         console.error(`DARKNESS OPTIONID ${item.system.OPTIONID} is not handled`);
                 }
-                return 5;
+                return is5e ? 10 : 5;
             },
             duration: "constant",
             range: HERO.RANGE_TYPES.STANDARD,
@@ -6402,7 +6403,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: true,
             costPerLevel: fixedValueFunction(2 / 3),
             cost: function (item) {
-                // 2 CP per 3 Active Points'
+                // 2 CP per 3 Active Points
                 const levels = parseInt(item.system.LEVELS);
                 return Math.ceil((levels * this.costPerLevel()) / 3) * 2;
             },
@@ -7889,6 +7890,18 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         },
         {},
     );
+
+    addPower(undefined, {
+        // 5e adjustment related
+        key: "INCREASEDMAX",
+        behaviors: ["adder"],
+        costPerLevel: fixedValueFunction(1 / 2),
+        cost: function (item) {
+            const levels = parseInt(item.LEVELS || 0);
+            return levels > 0 ? Math.ceil(levels / 2) : 0;
+        },
+        xml: `<ADDER XMLID="INCREASEDMAX" ID="1734826313991" BASECOST="0.0" LEVELS="3" ALIAS="Increased Maximum (+3 points)" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="No" INCLUDEINBASE="No" DISPLAYINSTRING="Yes" GROUP="No" LVLCOST="1.0" LVLVAL="2.0" SELECTED="YES"></ADDER>`,
+    });
     addPower(
         {
             // CLIPS related
@@ -7960,6 +7973,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         },
         {},
     );
+
     addPower(
         {
             // DAMAGENEGATION related

@@ -2878,7 +2878,7 @@ export class HeroSystem6eActor extends Actor {
                 templateType = "Computer";
             }
 
-            if (templateType === "" && this.type !== "base2") {
+            if (templateType === "" && this.type !== "base2" && this.flags.uploading !== true) {
                 // Custom Templates
                 // Automations
                 // Barrier

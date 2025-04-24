@@ -1,7 +1,7 @@
 import { HEROSYS } from "./herosystem6e.mjs";
 import { clamp } from "./utility/compatibility.mjs";
 import { whisperUserTargetsForActor, expireEffects, toHHMMSS } from "./utility/util.mjs";
-import { userInteractiveVerifyOptionallyPromptThenSpendResources } from "./item/item-attack.mjs";
+import { rehydrateAttackItem, userInteractiveVerifyOptionallyPromptThenSpendResources } from "./item/item-attack.mjs";
 import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs";
 
 // export class HeroSystem6eCombat extends Combat {}
@@ -403,11 +403,23 @@ export class HeroSystem6eCombat extends Combat {
         );
         const maneuverNextPhaseTogglePromises = maneuverNextPhaseAes
             .filter((ae) => ae.flags.toggle)
-            .map((toggleAes) => fromUuidSync(toggleAes.flags.itemUuid).toggle());
+            .map((toggleAes) => {
+                const maneuver =
+                    fromUuidSync(toggleAes.flags.itemUuid) ||
+                    rehydrateAttackItem(
+                        toggleAes.flags.dehydratedManeuverItem,
+                        fromUuidSync(toggleAes.flags.dehydratedManeuverActorUuid),
+                    ).item;
+
+                return maneuver.toggle();
+            });
         const maneuverNextPhaseNonTogglePromises = maneuverNextPhaseAes
             .filter((ae) => !ae.flags.toggle)
             .map((maneuverAes) => maneuverAes.delete());
-        await Promise.all(maneuverNextPhaseTogglePromises, maneuverNextPhaseNonTogglePromises);
+        const combinedManeuvers = [...maneuverNextPhaseTogglePromises, ...maneuverNextPhaseNonTogglePromises];
+        if (combinedManeuvers.length > 0) {
+            await Promise.all(combinedManeuvers);
+        }
 
         // PH: FIXME: stop abort under certain circumstances
 
@@ -445,7 +457,7 @@ export class HeroSystem6eCombat extends Combat {
                 startContent += `Has the following statuses: ${Array.from(combatant.actor.statuses).join(", ")}<br>`;
             }
 
-            for (const ae of combatant.actor.temporaryEffects.filter((ae) => ae.statuses.size === 0)) {
+            for (const ae of combatant.actor.temporaryEffects.filter((ae) => ae._prepareDuration().duration)) {
                 tempContent += `<li>${ae.name} fades in ${toHHMMSS(ae._prepareDuration().remaining)}</li>`;
             }
             if (tempContent) {

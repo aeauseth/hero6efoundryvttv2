@@ -4979,6 +4979,11 @@ export class HeroSystem6eItem extends Item {
             return this.baseInfo.attackDefenseVs;
         }
 
+        // Adjustment
+        if (this.baseInfo?.type.includes("adjustment")) {
+            return "POWERDEFENSE";
+        }
+
         // Generic defense specification
         if (["PD", "ED", "MD"].includes(this.system.INPUT)) {
             return this.system.INPUT;
@@ -4987,11 +4992,6 @@ export class HeroSystem6eItem extends Item {
         // Mental
         if (this.baseInfo?.type.includes("mental")) {
             return "MD";
-        }
-
-        // Adjustment
-        if (this.baseInfo?.type.includes("adjustment")) {
-            return "POWERDEFENSE";
         }
 
         // Flash
@@ -5200,7 +5200,15 @@ export class HeroSystem6eItem extends Item {
      * However, be aware that HD keep the actual point cost expressed in 1 or 2 decimal points (based on 5e or 6e)
      */
     get activePointCostForDisplay() {
-        return RoundFavorPlayerUp(this.system.activePoints);
+        return RoundFavorPlayerUp(this._activePoints);
+    }
+
+    /**
+     * Get the item's real cost for display purposes. To be similar to HD we round up (so 4.5 goes to 5).
+     * However, be aware that HD keep the actual point cost expressed in 1 or 2 decimal points (based on 5e or 6e)
+     */
+    get realPointCostForDisplay() {
+        return RoundFavorPlayerUp(this._realCost);
     }
 
     /**
@@ -5340,7 +5348,7 @@ export class HeroSystem6eItem extends Item {
 
         // Custom basePoints
         if (this.baseInfo?.cost) {
-            return this.baseInfo?.cost(this);
+            return this.baseInfo.cost(this);
         }
 
         const baseCost = parseFloat(this.system.BASECOST) || 0;
@@ -5668,6 +5676,7 @@ export class HeroSystem6eItem extends Item {
      *
      * PH: FIXME: This doesn't work for at least the following powers:
      * TK
+     * Anything that doesn't have a damage effect (e.g. Darkness)
      */
     damageLevelTweaking(diceParts) {
         const plusOnePipAdderData = getModifierInfo({

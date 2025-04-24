@@ -1,5 +1,6 @@
 import { HeroSystem6eActorActiveEffects } from "../actor/actor-active-effects.mjs";
 import { HeroSystem6eActor } from "../actor/actor.mjs";
+import { dehydrateAttackItem } from "./item-attack.mjs";
 
 /**
  * Maneuvers have some rules of their own that should be considered.
@@ -50,8 +51,21 @@ function addOcvTraitToChanges(maneuverOcvChange) {
     }
 }
 
+/**
+ * Create flags that will allow us to expire effects on the next phase. If the item is an
+ * original item then the item uuid will suffice otherwise the dehydrated item and actor uuid needs to be used
+ *
+ * @param {*} item
+ * @returns
+ */
 function buildManeuverNextPhaseFlags(item) {
-    return { type: "maneuverNextPhaseEffect", itemUuid: item.uuid, toggle: item.isActivatable() };
+    return {
+        type: "maneuverNextPhaseEffect",
+        itemUuid: item.uuid,
+        toggle: item.isActivatable(),
+        dehydratedManeuverItem: dehydrateAttackItem(item),
+        dehydratedManeuverActorUuid: item.actor.uuid,
+    };
 }
 
 /**

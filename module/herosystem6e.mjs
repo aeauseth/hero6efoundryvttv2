@@ -714,35 +714,6 @@ Hooks.on("updateWorldTime", async (worldTime, options) => {
                 }
             }
 
-            // Charges Recover each day
-            // if (today > lastDate) {
-            //     const itemsWithCharges = actor.items.filter((item) => item.system.charges?.max);
-            //     let content = "";
-            //     for (const item of itemsWithCharges) {
-            //         let value = parseInt(item.system.charges.value);
-            //         let max = parseInt(item.system.charges.max);
-            //         if (value < max) {
-            //             content += `Charges recover at midnight:  ${actor.name}/${item.name} ${value} to ${max} charges.  `;
-            //             item.update({ "system.charges.value": max });
-            //         }
-            //     }
-
-            //     if (content) {
-            //         const chatData = {
-            //             author: game.user.id,
-            //             whisper: [
-            //                 ...ChatMessage.getWhisperRecipients(actor.name),
-            //                 ...ChatMessage.getWhisperRecipients("GM"),
-            //             ],
-            //             speaker: ChatMessage.getSpeaker({ actor: actor }),
-            //             blind: true,
-            //             content: content,
-            //         };
-            //         //await
-            //         ChatMessage.create(chatData);
-            //     }
-            // }
-
             // Update Flash name?
             const flashEffects = actor.temporaryEffects.filter((o) => ["FLASH", "MANEUVER"].includes(o.flags.XMLID));
             for (const flashAe of flashEffects) {

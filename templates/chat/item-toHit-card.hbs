@@ -126,7 +126,7 @@
 
             {{#each targetData as |target|}}
                 {{#if (eq target.result.hit "Hit")}}
-                    <button data-visibility="gm" class="roll-mindscan" data-actor-uuid="{{actor.uuid}}" data-item-json-str="{{itemJsonStr}}" data-aim="{{../aim}}" data-aim-side="{{../aimSide}}"
+                    <button data-visibility="gm" class="roll-mindscan" data-actor-uuid="{{../actor.uuid}}" data-item-json-str="{{../itemJsonStr}}" data-aim="{{../aim}}" data-aim-side="{{../aimSide}}"
                         data-effectiveStr="{{../effectiveStr}}" data-effective-levels="{{../effectiveLevels}}" data-target-ids="{{../targetIds}}" data-velocity="{{../velocity}}" 
                         data-boostable-charges="{{../boostableChargesToUse}}" data-target-entangle="{{targetEntangle}}" data-to-hit-roll-total="{{../toHitRollTotal}}" data-target="{{this.id}}">
                         <b>{{this.name}}</b>

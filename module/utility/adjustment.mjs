@@ -338,7 +338,7 @@ function _createNewAdjustmentEffect(options) {
             XMLID: attackItem.system.XMLID,
             source: targetActor.name,
             target: targetPower?.uuid || potentialCharacteristic,
-            targetDisplay: fromUuidSync(targetPower?.uuid).XMLID || potentialCharacteristic,
+            targetDisplay: fromUuidSync(targetPower?.uuid)?.XMLID || potentialCharacteristic,
             key: targetPower?.system?.XMLID || potentialCharacteristic,
             itemTokenName,
             attackerTokenId: _attackerToken?.id,

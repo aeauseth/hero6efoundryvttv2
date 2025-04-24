@@ -125,7 +125,7 @@ export function dehydrateAttackItem(item) {
  * Rehydrates a JSON object created by dehydrateAttackItem
  * @param {Object} rollInfo
  */
-function rehydrateActorAndAttackItem(rollInfo) {
+export function rehydrateActorAndAttackItem(rollInfo) {
     const actor = fromUuidSync(rollInfo.actorUuid);
 
     return rehydrateAttackItem(rollInfo.itemJsonStr, actor);
@@ -136,7 +136,7 @@ function rehydrateActorAndAttackItem(rollInfo) {
  * @param {string} itemJsonStr
  * @param {*} actor
  */
-function rehydrateAttackItem(itemJsonStr, actor) {
+export function rehydrateAttackItem(itemJsonStr, actor) {
     const item = HeroSystem6eItem.fromSource(JSON.parse(itemJsonStr), {
         parent: actor,
     });
@@ -1211,7 +1211,7 @@ function getAttackTags(item) {
     }
 
     // STUN/BODY/EFFECT Only
-    if (item.system.stunBodyDamage !== CONFIG.HERO.stunBodyDamages.stunbody) {
+    if (item.system.stunBodyDamage && item.system.stunBodyDamage !== CONFIG.HERO.stunBodyDamages.stunbody) {
         attackTags.push({
             name: item.system.stunBodyDamage,
             title: item.system.stunBodyDamage,
@@ -1864,7 +1864,7 @@ export async function _onRollMindScan(event) {
         targetName: token?.name,
 
         item,
-        itemJsonStr: toHitData.itemJsonStr, // PH: FIXME: Would be nice to just have this in action data that is always passed through
+        itemJsonStr: toHitData.itemJsonStr,
         actor: item.actor,
     };
 
@@ -2673,6 +2673,7 @@ export async function _onApplyEntangleToSpecificToken(item, token, originalRoll)
         img: HeroSystem6eActorActiveEffects.statusEffectsObj.entangledEffect.img,
         changes: foundry.utils.deepClone(HeroSystem6eActorActiveEffects.statusEffectsObj.entangledEffect.changes),
         name: `${item.system.XMLID} ${body} BODY ${entangleDefense.string}`,
+        description: item.system.description,
         flags: {
             entangleDefense,
             XMLID: item.system.XMLID,

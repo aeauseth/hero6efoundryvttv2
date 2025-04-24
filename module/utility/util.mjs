@@ -241,6 +241,18 @@ export async function expireEffects(actor) {
     //     console.log(`%c ExpireEffects ${actor.name} ${game.time.worldTime}`, "background: #229; color: #bada55");
     // }
 
+    // AARON UGLY HACK
+    // Prevent worldtime + onTurnStart from both running expireEffects at the same time (async issues)
+    window.expireEffects ??= {};
+    if (window.expireEffects[actor.id]) {
+        console.warn(
+            `expireEffects for ${actor.name} was called twice in quick succession which can cause issues. Suppressing this call.`,
+        );
+        return;
+    } else {
+        window.expireEffects[actor.id] = game.time.worldTime;
+    }
+
     const temporaryEffects = actor.temporaryEffects;
 
     const adjustmentChatMessages = [];
@@ -297,7 +309,7 @@ export async function expireEffects(actor) {
                     ui.notifications.warn(
                         `The originating item ${ae.origin} of adjustment ${ae.name} appears to have been deleted. Deleting adjustment's active effect.`,
                     );
-                    ae.delete();
+                    await ae.delete();
                     break;
                 }
 
@@ -318,7 +330,7 @@ export async function expireEffects(actor) {
                 });
 
                 if (bodyValue === bodyMax) {
-                    ae.delete();
+                    await ae.delete();
                     break;
                 }
             } else {
@@ -359,6 +371,8 @@ export async function expireEffects(actor) {
             }
         }
     }
+
+    delete window.expireEffects[actor.id];
 
     await renderAdjustmentChatCards(adjustmentChatMessages);
 }
