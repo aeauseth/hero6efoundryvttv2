@@ -1,0 +1,42 @@
+{{log 'tracker-singleB.hbs' this}}
+<ol class="combat-tracker plain tracker-single">
+    {{#each segments}}
+    <li class="segment-container">
+        <h3 class="{{#if this.length}}segment-has-items{{else}}segment-inactive{{/if}} segment-header {{#if (activeSegment @index @root.combat)}}segment-active{{/if}}">
+            Segment {{@index}}
+        </h3>
+        <ol class="segment-content" {{#if (expandSegment @index @root.combat)}}{{else}} 
+        style="display:none"
+            {{/if}} data-segment-id="{{@index}}">
+        </ol>
+
+        {{#each this}}
+            <li class="combatant directory-item {{this.css}}" data-combatant-id="{{this.id}}">
+                {{#unless this.holding}}
+                    <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
+                {{/unless}}
+                <div class="token-name">
+                    <strong>{{this.name}}</strong>
+                    
+
+
+                </div>
+                {{#if this.holding}}
+                    <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
+                {{/if}}
+
+                {{#if this.hasResource}}
+                <div class="token-resource">
+                    <span class="resource">{{this.resource}}</span>
+                </div>
+                {{/if}}
+
+                <div class="token-initiative">
+                    <span class="initiative" data-tooltip="{{{getScopedFlagValue this @root/gameSystemId 'initiativeTooltip'}}}" >{{this.initiative}}</span>
+                </div>
+            </li>
+        {{/each}}
+
+    </li>
+    {{/each}}
+</ol>

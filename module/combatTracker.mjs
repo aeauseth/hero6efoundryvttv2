@@ -12,7 +12,7 @@ export class HeroSystem6eCombatTracker extends FoundryVttCombatTracker {
         return foundry.utils.mergeObject(super.defaultOptions, {
             // id: "combat",
             template: this.singleCombatantTracker
-                ? `systems/${HEROSYS.module}/templates/combat/combat-tracker.hbs`
+                ? `systems/${HEROSYS.module}/templates/combat/combat-tracker-singleB.hbs`
                 : `systems/${HEROSYS.module}/templates/combat/combat-tracker.hbs`,
             // title: "COMBAT.SidebarTitle",
             // scrollY: [".directory-list"],
@@ -29,7 +29,11 @@ export class HeroSystem6eCombatTracker extends FoundryVttCombatTracker {
     static initializeTemplate() {
         // v13 uses PARTS, defaultOptions isn't even called
         if (HeroSystem6eCombatTracker.PARTS) {
-            HeroSystem6eCombatTracker.PARTS.tracker.template = `systems/${HEROSYS.module}/templates/combat/tracker.hbs`;
+            HeroSystem6eCombatTracker.PARTS.header.template = `systems/${HEROSYS.module}/templates/combat/header.hbs`;
+            HeroSystem6eCombatTracker.PARTS.tracker.template = this.singleCombatantTracker
+                ? `systems/${HEROSYS.module}/templates/combat/tracker-singleB.hbs`
+                : `systems/${HEROSYS.module}/templates/combat/tracker.hbs`;
+            //HeroSystem6eCombatTracker.PARTS.tracker.template = `systems/${HEROSYS.module}/templates/combat/tracker.hbs`;
         }
     }
 
@@ -50,10 +54,10 @@ export class HeroSystem6eCombatTracker extends FoundryVttCombatTracker {
         this.addHeroListeners.call(this, $(this.element));
 
         // Replace V13 Round with Turn
-        const encounterTitle = $(this.element).find(".encounter-title");
-        if (encounterTitle) {
-            encounterTitle.text(encounterTitle.text().replace("Round", "Turn"));
-        }
+        // const encounterTitle = $(this.element).find(".encounter-title");
+        // if (encounterTitle) {
+        //     encounterTitle.text(encounterTitle.text().replace("Round", "Turn"));
+        // }
     }
 
     // V12 getData(options) is replaced by V13 _prepareCombatContext
@@ -66,6 +70,9 @@ export class HeroSystem6eCombatTracker extends FoundryVttCombatTracker {
 
     // V12 getData(options) is replaced by V13 _prepareTrackerContext
     async _prepareTrackerContext(context, options) {
+        // gameSystemId is used to access flags in handlebar files
+        context.gameSystemId = game.system.id;
+
         // v13 has _prepareTrackerContext
         if (super._prepareCombatContext) {
             await super._prepareTrackerContext(context, options);
@@ -83,8 +90,6 @@ export class HeroSystem6eCombatTracker extends FoundryVttCombatTracker {
         if (!context.turns) {
             return;
         }
-
-        context.gameSystemId = game.system.id;
 
         // Augment default turns
         if (!HeroSystem6eCombatTracker.singleCombatantTracker) {

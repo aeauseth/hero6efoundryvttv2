@@ -1,92 +1,73 @@
 {{log 'tracker-single.hbs' this}}
-<ol id="combat-tracker" class="combat-tracker directory-list">
-    {{#each segments}}
+<ol class="combat-tracker plain tracker-single">
+    {{#each turns}}
+        {{#if (checkInit this.initiative)}}
+        <li class="combatant {{ css }}" data-combatant-id="{{ id }}" data-action="activateCombatant">
+            {{!-- TODO: Targets --}}
 
-        <li class="segment-container">
-            <h3 class="{{#if this.length}}segment-has-items{{else}}segment-inactive{{/if}} segment-header {{#if (eq @index @root.combat.current.segment)}}segment-active{{/if}}">Segment {{@index}} {{#if @root/alphaTesting}}[tokens:{{this.length}}]{{/if}}</h3>
-            <ol class="segment-content" {{#if (or (eq @index @root.combat.current.segment) (and (eq @root.combat.round 0) (eq @index 12)))}}{{else}} 
-            style="display:none1"
-                {{/if}} data-segment-id="{{@index}}">
+            {{!-- Image --}}
+            <img class="token-image" src="{{ img }}" alt="{{ name }}" loading="lazy">
 
-                {{!-- loop thru each turn/combatant --}}
-                {{#each this}}
-
-                <li class="combatant directory-item {{this.css}} {{#if (and this.active (eq this.segment (getScopedFlagValue @root/combat @root/gameSystemId "segment")))}}active{{/if}}" 
-                    data-combatant-id="{{this.id}}"
-                    draggable="true"
-                >
-                    {{#unless this.holding}}
-                        <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
+            {{!-- Name & Controls --}}
+            <div class="token-name">
+                <strong class="name">{{ name }}</strong>
+                <div class="combatant-controls">
+                    {{#if @root.user.isGM}}
+                    <button type="button" class="inline-control combatant-control icon fa-solid fa-eye-slash {{#if hidden}}active{{/if}}"
+                            data-action="toggleHidden" data-tooltip aria-label="{{ localize "COMBAT.ToggleVis" }}"></button>
+                    <button type="button" class="inline-control combatant-control icon fa-solid fa-skull {{#if isDefeated}}active{{/if}}"
+                            data-action="toggleDefeated" data-tooltip
+                            aria-label="{{ localize "COMBAT.ToggleDead" }}"></button>
+                    {{/if}}
+                    {{#if canPing}}
+                    <button type="button" class="inline-control combatant-control icon fa-solid fa-bullseye-arrow"
+                            data-action="pingCombatant" data-tooltip
+                            aria-label="{{ localize "COMBAT.PingCombatant" }}"></button>
+                    {{/if}}
+                    {{#unless @root.user.isGM}}
+                    <button type="button" class="inline-control combatant-control icon fa-solid fa-arrows-to-eye"
+                            data-action="panToCombatant" data-tooltip
+                            aria-label="{{ localize "COMBAT.PanToCombatant" }}"></button>
                     {{/unless}}
-                    <div class="token-name">
-                    <strong>{{this.name}}</strong>
-                        {{#if (getScopedFlagValue this @root/gameSystemId "lightningReflexes" "levels")}}
-                            <strong title="Lightning Reflexes">LR {{getScopedFlagValue this @root/gameSystemId "lightningReflexes" "name"}}</strong>
-                        {{else}}
-                            <div class="combatant-controls">
-                                {{#if @root/user.isGM}}
-                                    {{!-- v13 --}}
-                                    <button type="button" class="inline-control combatant-control icon fa-solid fa-eye-slash " 
-                                        data-action="toggleHidden" 
-                                        data-tooltip="COMBAT.ToggleVis" 
-                                        aria-label="Toggle Visibility"  
-                                        data-control="toggleHidden">
-                                    </button>
-
-                                    <button type="button" class="inline-control combatant-control icon fa-solid fa-skull " 
-                                        data-action="toggleDefeated" 
-                                        data-tooltip="COMBAT.ToggleDead" 
-                                        aria-label="{{localize 'COMBAT.ToggleDead'}}"
-                                        data-control="toggleDefeated">
-                                    </button>
-                                {{/if}}
-
-                                {{#if this.canPing}}
-                                    <button type="button" class="inline-control combatant-control icon fa-solid fa-bullseye-arrow" 
-                                        data-action="pingCombatant" 
-                                        data-tooltip="COMBAT.PingCombatant"
-                                        aria-label="{{localize 'COMBAT.PingCombatant'}}"
-                                        data-control="pingCombatant">
-                                    </button>
-                                {{/if}}
-
-                                {{#if (and this.active (eq this.segment (getScopedFlagValue @root/combat @root/gameSystemId "segment")))}}
-                                    <button type="button" class="inline-control combatant-control icon fa-solid fa-hourglass-start" 
-                                        data-action="delayCombatant" 
-                                        data-tooltip="COMBAT.DelayCombatant"
-                                        aria-label="{{localize 'COMBAT.DelayCombatant'}}"
-                                        data-control="delayCombatant">
-                                    </button>
-                                {{/if}}
-
-                                <div class="token-effects">
-                                    {{#each this.effects}}
-                                    <a class="combatant-control" data-tooltip="{{this.name}}" data-control="effect" data-effect-id="{{this.id}}">
-                                        <img class="token-effect" src="{{this.img}}" />
-                                    </a>
-                                    {{/each}}
-                                </div>
-                            </div>
-                        {{/if}}
+                    {{!-- TODO: Target Control --}}
+                    <div class="token-effects" data-tooltip-html="{{ effects.tooltip }}">
+                        {{#each effects.icons}}
+                        <img class="token-effect" src="{{ img }}" alt="{{ name }}">
+                        {{/each}}
                     </div>
-                    {{#if this.holding}}
-                        <img class="token-image" src="{{this.img}}" alt="{{this.name}}" loading="lazy"/>
-                    {{/if}}
+                </div>
+            </div>
 
-                    {{#if this.hasResource}}
-                        <div class="token-resource">
-                            <span class="resource">{{this.resource}}</span>
-                        </div>
-                    {{/if}}
+            {{!-- Resource --}}
+            {{#if resource includeZero=true}}
+            <div class="token-resource">
+                <span class="resource">{{ resource }}</span>
+            </div>
+            {{/if}}
 
-                    <div class="token-initiative">
-                        {{#if this.hasRolled}}
-                            <span class="initiative" data-tooltip="{{{this.initiativeTooltip}}}" >{{this.initiative}} {{this.initiativeCharacteristic}}</span>
-                        {{/if}}
-                    </div>
-                </li>
-                {{/each}}
-            </ol>
+            {{!-- Initiative --}}
+            <div class="token-initiative">
+                {{#if initiative includeZero=true}}
+
+                {{!-- Decimal Initiative --}}
+                {{#if @root.hasDecimals}}
+                <span>{{ initiative }}</span>
+
+                {{!-- Simple Initiative --}}
+                {{else}}
+                <input type="text" inputmode="numeric" pattern="^[+=\-]?\d*" value="{{ initiative }}"
+                    aria-label="{{ localize "COMBAT.InitiativeScore" }}" {{#unless @root.user.isGM}}readonly{{/unless}}>
+
+                {{/if}}
+
+                {{!-- Roll Initiative --}}
+                {{else if isOwner}}
+                <button type="button" class="combatant-control roll" data-action="rollInitiative" data-tooltip
+                        aria-label="{{ localize "COMBAT.InitiativeRoll" }}"
+                        style="--initiative-icon: url('{{ @root.initiativeIcon.icon }}'); --initiative-icon-hover: url('{{ @root.initiativeIcon.hover }}');"></button>
+                {{/if}}
+            </div>
         </li>
+        {{/if}}
     {{/each}}
 </ol>

@@ -8,16 +8,228 @@ import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs
 
 export class HeroSystem6eCombat extends Combat {
     constructor(data, context) {
-        data ??= {};
-        data.flags ??= {};
-        data.flags[game.system.id] ??= {};
-        data.flags[game.system.id].segment ??= 12;
+        data.flags = { [game.system.id]: { turnData: { turnNumber: 0, segmentNumber: 12 } } };
+
         super(data, context);
 
-        this.previous = this.previous || {
-            combatantId: null,
-        };
+        // this.turnNumber = 0;
+        // this.segmentNumber = 12;
     }
+
+    holdAction_SingleCombatant(combatantId) {
+        this.rebuildInitiative_SingleCombatant();
+    }
+
+    abortAction_SingleCombatant(actorId, abortState) {
+        this.rebuildInitiative_SingleCombatant();
+    }
+
+    async rollInitiative_SingleCombatant(ids, { formula = null, updateTurn = true, messageOptions = {} } = {}) {
+        ids = typeof ids === "string" ? [ids] : ids;
+
+        let updList = [];
+        for (let cId = 0; cId < ids.length; cId++) {
+            const c = this.combatants.get(ids[cId]);
+            this.computeInitiative_SingleCombatant(c, updList);
+        }
+
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
+        }
+
+        return this;
+    }
+
+    computeInitiative_SingleCombatant(c, updList) {
+        let turnData = this.getFlag(game.system.id, "turnData");
+        const id = c._id || c.id;
+        const hasSegment = c.hasPhase(turnData.segmentNumber);
+        const isOnHold = c.getHoldAction();
+        const isOnAbort = c.getAbortAction();
+        let name = c.name;
+        if (hasSegment || isOnHold || isOnAbort) {
+            let baseInit = c.actor ? c.actor.getBaseInit(turnData.segmentNumber) : 0;
+            if (isOnHold) {
+                if (hasSegment) {
+                    // On hold + current segment -> auto-disable on hold
+                    c.disableHoldAction();
+                } else {
+                    name = c.name + " (H)";
+                }
+            }
+            if (isOnAbort) {
+                name = c.name + " (A)";
+                if (c.incAbortActionCount()) {
+                    c.disableAbortAction();
+                }
+            }
+            updList.push({ _id: id, name: name, initiative: baseInit, holdAction: c.holdAction });
+        } else {
+            updList.push({ _id: id, name: name, initiative: 0, holdAction: c.holdAction });
+        }
+    }
+
+    async rebuildInitiative_SingleCombatant() {
+        let updList = [];
+        for (let c of this.combatants) {
+            this.computeInitiative_SingleCombatant(c, updList);
+        }
+        if (updList.length > 0) {
+            await this.updateEmbeddedDocuments("Combatant", updList);
+            //console.log("Rebuild INIT", updList)
+            for (let c of updList) {
+                if (c.initiative != 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    async _onCreateDescendantDocuments_SingleCombatant(parent, collection, documents, data, options, userId) {
+        //console.log("Added...")
+        if (game.user.isGM) {
+            await super._onCreateDescendantDocuments(
+                parent,
+                collection,
+                documents,
+                data,
+                { ...options, render: false },
+                userId,
+            );
+            await this.rebuildInitiative_SingleCombatant();
+        }
+    }
+
+    nextTurn_SingleCombatant() {
+        let nbC = this.combatants.filter((c) => c.initiative > 0).length;
+        //console.log("Next turn called....", this.turn, nbC)
+        if (this.turn < nbC - 1) {
+            super.nextTurn();
+        } else {
+            this.nextRound_SingleCombatant();
+        }
+    }
+
+    async previousRound_SingleCombatant() {
+        let hasCombatants = false;
+        let nextRound = this.round;
+        let advanceTime = 0;
+        let turn = this.turn === null ? null : 0; // Preserve the fact that it's no-one's turn currently.
+        let turnData = this.getFlag(game.system.id, "turnData");
+
+        //console.log("Next round called....", nextRound, turnData)
+        while (!hasCombatants) {
+            if (this.settings.skipDefeated && turn !== null) {
+                turn = this.turns.findIndex((t) => !t.isDefeated);
+                if (turn === -1) {
+                    ui.notifications.warn("COMBAT.NoneRemaining", { localize: true });
+                    turn = 0;
+                }
+            }
+            advanceTime = -1 * (Math.max(this.turns.length - this.turn, 0) * CONFIG.time.turnTime);
+            advanceTime -= CONFIG.time.roundTime;
+            nextRound = nextRound - 1;
+            //console.log("Next round called....2", nextRound, turnData)
+            turnData = this.getFlag(game.system.id, "turnData");
+            if (!turnData) {
+                turnData = { turnNumber: 0, segmentNumber: 12 };
+                this.setFlag(game.systme.id, "turnData", turnData);
+            }
+            turnData = foundry.utils.duplicate(turnData);
+            turnData.segmentNumber -= 1;
+            if (turnData.segmentNumber <= 0) {
+                turnData.segmentNumber = 12;
+                turnData.turnNumber--;
+            }
+            await this.setFlag(game.system.id, "turnData", turnData);
+            // this.turnNumber = turnData.turnNumber;
+            // this.segmentNumber = turnData.segmentNumber;
+            //console.log("Next round called....3", nextRound, turnData)
+
+            // Re-compute init of actors
+            hasCombatants = await this.rebuildInitiative_SingleCombatant();
+            //console.log("Going round....", nextRound, hasCombatants)
+        }
+
+        // Update the document, passing data through a hook first
+        const updateData = { round: nextRound, turn };
+        const updateOptions = { advanceTime, direction: -1 };
+        Hooks.callAll("combatRound", this, updateData, updateOptions);
+        console.log(this);
+        return this.update(updateData, updateOptions);
+    }
+
+    async nextRound_SingleCombatant() {
+        let hasCombatants = false;
+        let nextRound = this.round;
+        let advanceTime = 0;
+        let turn = this.turn === null ? null : 0; // Preserve the fact that it's no-one's turn currently.
+        let turnData = this.getFlag(game.system.id, "turnData");
+
+        //console.log("Next round called....", nextRound, turnData)
+        while (!hasCombatants) {
+            if (this.settings.skipDefeated && turn !== null) {
+                turn = this.turns.findIndex((t) => !t.isDefeated);
+                if (turn === -1) {
+                    ui.notifications.warn("COMBAT.NoneRemaining", { localize: true });
+                    turn = 0;
+                }
+            }
+            advanceTime = Math.max(this.turns.length - this.turn, 0) * CONFIG.time.turnTime;
+            advanceTime += CONFIG.time.roundTime;
+            nextRound = nextRound + 1;
+            //console.log("Next round called....2", nextRound, turnData)
+            turnData = this.getFlag(game.system.id, "turnData");
+            if (!turnData) {
+                turnData = { turnNumber: 0, segmentNumber: 12 };
+                this.setFlag(game.system.id, "turnData", turnData);
+            }
+            turnData = foundry.utils.duplicate(turnData);
+            turnData.segmentNumber += 1;
+            if (turnData.segmentNumber > 12) {
+                turnData.segmentNumber = 1;
+                turnData.turnNumber++;
+                ChatMessage.create({
+                    content: "Complete Post-Segment 12 Recoveries.",
+                });
+            }
+            await this.setFlag(game.system.id, "turnData", turnData);
+            // this.turnNumber = turnData.turnNumber;
+            // this.segmentNumber = turnData.segmentNumber;
+            //console.log("Next round called....3", nextRound, turnData)
+
+            // Re-compute init of actors
+            hasCombatants = await this.rebuildInitiative_SingleCombatant();
+            //console.log("Going round....", nextRound, hasCombatants)
+        }
+
+        // Update the document, passing data through a hook first
+        const updateData = { round: nextRound, turn };
+        const updateOptions = { advanceTime, direction: 1 };
+        Hooks.callAll("combatRound", this, updateData, updateOptions);
+        return this.update(updateData, updateOptions);
+    }
+
+    static async checkTurnPosition_SingleCombatant() {
+        debugger;
+        while (game.combat.turn > 0) {
+            await game.combat.previousTurn();
+        }
+    }
+
+    // export class HeroSystem6eCombat extends Combat {
+    //     constructor(data, context) {
+    //         data ??= {};
+    //         data.flags ??= {};
+    //         data.flags[game.system.id] ??= {};
+    //         data.flags[game.system.id].segment ??= 12;
+    //         super(data, context);
+
+    //         this.previous = this.previous || {
+    //             combatantId: null,
+    //         };
+    //     }
 
     async rollInitiative(ids) {
         if (CONFIG.debug.combat) {
@@ -61,6 +273,13 @@ export class HeroSystem6eCombat extends Combat {
         }
 
         return this;
+    }
+
+    setupTurns() {
+        if (CONFIG.debug.combat) {
+            console.debug(`Hero | setupTurns`);
+        }
+        return super.setupTurns();
     }
 
     /**
@@ -202,6 +421,17 @@ export class HeroSystem6eCombat extends Combat {
             console.debug(`Hero | _onCreateDescendantDocuments`);
         }
 
+        if (HeroSystem6eCombat.singleCombatantTracker) {
+            return this._onCreateDescendantDocuments_SingleCombatant(
+                parent,
+                collection,
+                documents,
+                data,
+                options,
+                userId,
+            );
+        }
+
         // Automatically roll initiative for all combatants created in the combat tracker.
         // We could use rollAll() here, but rollInitiative is probably more efficient.
         await this.rollInitiative(documents.map((o) => o.id));
@@ -228,19 +458,21 @@ export class HeroSystem6eCombat extends Combat {
             userId,
         );
 
-        if (!HeroSystem6eCombat.singleCombatantTracker) {
-            // Add or remove extra combatants based on SPD or Lightning Reflexes
-            await this.extraCombatants();
+        // Add or remove extra combatants based on SPD or Lightning Reflexes
+        await this.extraCombatants();
 
-            for (const tokenId of [...new Set(documents.map((o) => o.tokenId))]) {
-                await this.assignSegments(tokenId);
-            }
+        for (const tokenId of [...new Set(documents.map((o) => o.tokenId))]) {
+            await this.assignSegments(tokenId);
         }
     }
 
     async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
         if (CONFIG.debug.combat) {
             console.debug(`Hero | _onDeleteDescendantDocuments`);
+        }
+
+        if (HeroSystem6eCombat.singleCombatantTracker) {
+            return await super._onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId);
         }
 
         // Get current combatant
@@ -258,11 +490,6 @@ export class HeroSystem6eCombat extends Combat {
             { ...options, combatTurn: combatTurn },
             userId,
         );
-
-        // if (!HeroSystem6eCombat.singleCombatantTracker) {
-        //     // Add or remove extra combatants based on SPD or Lightning Reflexes (shouldn't be needed as we have overrides for combatant deletes via UI)
-        //     //await this.extraCombatants();
-        // }
     }
 
     async assignSegments(tokenId) {
@@ -1018,6 +1245,11 @@ export class HeroSystem6eCombat extends Combat {
         if (CONFIG.debug.combat) {
             console.debug(`%c Hero | nextTurn ${game.time.worldTime}`, "background: #229; color: #bada55");
         }
+
+        if (HeroSystem6eCombat.singleCombatantTracker) {
+            return this.nextTurn_SingleCombatant();
+        }
+
         const originalRunningSegment = this.round * 12 + this.current.segment;
 
         let turn = this.turn ?? -1;
@@ -1091,10 +1323,10 @@ export class HeroSystem6eCombat extends Combat {
         await this.update(updateData, updateOptions);
     }
 
-    async _onUpdate(...args) {
-        //console.log(`%c combat._onUpdate`, "background: #229; color: #bada55", args);
-        super._onUpdate(...args);
-    }
+    // async _onUpdate(...args) {
+    //     //console.log(`%c combat._onUpdate`, "background: #229; color: #bada55", args);
+    //     super._onUpdate(...args);
+    // }
 
     /**
      * Rewind the combat to the previous turn
@@ -1104,6 +1336,11 @@ export class HeroSystem6eCombat extends Combat {
         if (CONFIG.debug.combat) {
             console.debug(`Hero | previousTurn`, "background: #222; color: #bada55");
         }
+
+        if (HeroSystem6eCombat.singleCombatantTracker) {
+            this.previousRound_SingleCombatant();
+        }
+
         if (this.turn === 0 && this.round === 0) {
             return this;
         } else if (this.turn <= 0 && this.turn !== null) {
@@ -1171,6 +1408,11 @@ export class HeroSystem6eCombat extends Combat {
         if (CONFIG.debug.combat) {
             console.debug(`Hero | nextRound`);
         }
+
+        if (HeroSystem6eCombat.singleCombatantTracker) {
+            this.nextRound_SingleCombatant();
+        }
+
         const originalRunningSegment =
             this.round * 12 + (this.combatant?.flags[game.system.id]?.segment || this.flags?.[game.system.id]?.segment);
         const _nextRound = await super.nextRound();
@@ -1208,6 +1450,11 @@ export class HeroSystem6eCombat extends Combat {
         if (CONFIG.debug.combat) {
             console.debug(`Hero | previousRound`);
         }
+
+        if (HeroSystem6eCombat.singleCombatantTracker) {
+            this.previousRound_SingleCombatant();
+        }
+
         const originalRunningSegment = this.round * 12 + this.combatant?.[game.system.id]?.segment;
         const _previousRound = await super.previousRound();
         const newRunningSegment = this.round * 12 + this.combatant?.flags[game.system.id]?.segment;

@@ -28,7 +28,7 @@ export class HeroSystem6eCombatant extends Combatant {
             }
         }
 
-        let _hasPhase = phases.includes(segmentNumber);
+        const _hasPhase = phases.includes(segmentNumber);
         return _hasPhase;
     }
 
@@ -59,5 +59,12 @@ export class HeroSystem6eCombatant extends Combatant {
             }
         }
         return await super.deleteDocuments(ids, operation);
+    }
+
+    getHoldAction() {
+        return false;
+    }
+    getAbortAction() {
+        return false;
     }
 }

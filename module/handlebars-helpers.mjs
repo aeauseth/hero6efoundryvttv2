@@ -119,6 +119,11 @@ function objectNumKeys(obj) {
  */
 function getScopedFlagValue(obj, scope, ...args) {
     try {
+        if (!scope) {
+            console.warn(`Missing scope, using default`);
+            scope ??= game.system.id;
+        }
+
         if (!obj || !scope) {
             throw Error(`Invalid arguments ${obj} ${scope}`);
         }
@@ -157,7 +162,7 @@ function activeSegment(index, combat) {
     // if (index === parseInt(combat.flags?.[game.system.id]?.segment)) {
     //     return true;
     // }
-    if (index === combat.current?.segment) {
+    if (index === (combat.current?.segment || combat.flags[game.system.id]?.turnData?.segmentNumber)) {
         return true;
     }
     return false;
