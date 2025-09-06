@@ -30,6 +30,19 @@ import { HeroSystemActiveEffectConfig } from "./actor/active-effect-config.mjs";
 
 import { HeroSystem6eItem, initializeItemHandlebarsHelpers } from "./item/item.mjs";
 import { HeroSystem6eItemTypeDataModelMisc } from "./item/HeroSystem6eItemTypeDataModelMisc.mjs";
+import {
+    HeroActorModel,
+    HeroSystem6eItemPower,
+    HeroSystem6eItemEquipment,
+    HeroSystem6eItemSkill,
+    HeroSystem6eItemManeuver,
+    HeroSystem6eItemTalent,
+    HeroSystem6eItemPerk,
+    HeroSystem6eItemMartialArt,
+    HeroSystem6eItemDisadvantage,
+    HeroSystem6eItemComplication,
+    HeroItemCharacteristic,
+} from "./item/HeroSystem6eTypeDataModels.mjs";
 import { HeroSystem6eItemSheet } from "./item/item-sheet.mjs";
 
 //import { HeroSystem6eCardHelpers } from "./card/card-helpers.mjs";
@@ -181,9 +194,26 @@ Hooks.once("init", async function () {
         base: HeroSystem6eActorActiveEffectsSystemData,
     });
 
+    Object.assign(CONFIG.Actor.dataModels, {
+        automaton: HeroActorModel,
+        computer: HeroActorModel,
+        pc: HeroActorModel,
+        npc: HeroActorModel,
+    });
+
     Object.assign(CONFIG.Item.dataModels, {
         // The keys are the types defined in our template.json
+        power: HeroSystem6eItemPower,
+        equipment: HeroSystem6eItemEquipment,
+        skill: HeroSystem6eItemSkill,
+        maneuver: HeroSystem6eItemManeuver,
+        talent: HeroSystem6eItemTalent,
+        perk: HeroSystem6eItemPerk,
+        martialart: HeroSystem6eItemMartialArt,
+        disadvantage: HeroSystem6eItemDisadvantage,
+        complication: HeroSystem6eItemComplication,
         misc: HeroSystem6eItemTypeDataModelMisc,
+        characteristic: HeroItemCharacteristic,
     });
 
     HeroRuler.initialize();
@@ -644,7 +674,8 @@ Hooks.on("renderActorSheet", (dialog, html, data) => {
 
     // Change Type
     if (game.user.isGM) {
-        let element = document.createElement("a");
+        const element = document.createElement("a");
+        element.classList = "header-button control";
         element.setAttribute(`data-id`, data.actor.id);
         element.title = data.actor.type.toUpperCase().replace("2", "");
         element.addEventListener("click", (event) => {
@@ -652,7 +683,7 @@ Hooks.on("renderActorSheet", (dialog, html, data) => {
             actor.changeType();
         });
 
-        element.innerHTML = `<i class="fal fa-user-robot"></i>Type`;
+        element.innerHTML = `<i class="fal fa-user-robot"></i>${data.actor?.system?.CHARACTER?.TEMPLATE?.replace("builtIn.", "").replace(".hdt", "") || "Type"} `;
 
         html.find("header h4").after(element);
     }

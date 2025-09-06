@@ -715,6 +715,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: true,
             ignoreFor: ["base2", "computer", "ai"],
             baseEffectDicePartsBundle: characteristicBaseEffectDiceParts,
+            notes: function (char) {
+                const strDetails = char.actor.strDetails();
+                return `lift ${strDetails.strLiftText}, running throw ${
+                    strDetails.strThrow
+                }${getSystemDisplayUnits(char.actor.is5e)}`;
+            },
             xml: `<STR XMLID="STR" ID="1712377060992" BASECOST="0.0" LEVELS="0" ALIAS="STR" POSITION="1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {},
@@ -844,6 +850,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["base2"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e calculated DEX/3";
+                }
+                return null;
+            },
             xml: `<OCV XMLID="OCV" ID="1712377400048" BASECOST="0.0" LEVELS="0" ALIAS="OCV" POSITION="2" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -865,6 +877,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["base2"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e calculated DEX/3";
+                }
+                return null;
+            },
             xml: `<DCV XMLID="DCV" ID="1712377402602" BASECOST="0.0" LEVELS="0" ALIAS="DCV" POSITION="3" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -886,6 +904,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["automaton", "vehicle", "base2"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e calculated EGO/3";
+                }
+                return null;
+            },
             xml: `<OMCV XMLID="OMCV" ID="1712377404591" BASECOST="0.0" LEVELS="0" ALIAS="OMCV" POSITION="4" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -907,6 +931,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["automaton", "vehicle", "base2"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e calculated EGO/3";
+                }
+                return null;
+            },
             xml: `<DMCV XMLID="DMCV" ID="1712377406823" BASECOST="0.0" LEVELS="0" ALIAS="DMCV" POSITION="5" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -928,6 +958,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["base2"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e figured 1 + DEX/10";
+                }
+                return null;
+            },
             xml: `<SPD XMLID="SPD" ID="1712377280539" BASECOST="0.0" LEVELS="0" ALIAS="SPD" POSITION="12" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -960,6 +996,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 return null;
             },
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return `5e figured STR/5${char.actor.hasCharacteristic("STUN") ? " and /3 again" : ""}`;
+                }
+                return null;
+            },
             xml: `<PD XMLID="PD" ID="1712377277205" BASECOST="0.0" LEVELS="0" ALIAS="PD" POSITION="10" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -992,6 +1034,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 return null;
             },
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return `5e figured CON/5${char.actor.hasCharacteristic("STUN") ? " and /3 again" : ""}`;
+                }
+                return null;
+            },
             xml: `<ED XMLID="ED" ID="1712377278856" BASECOST="0.0" LEVELS="0" ALIAS="ED" POSITION="11" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -1012,6 +1060,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["vehicle", "base2", "computer", "ai"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e figured STR/5 + CON/5";
+                }
+                return null;
+            },
             xml: `<REC XMLID="REC" ID="1712377282168" BASECOST="0.0" LEVELS="0" ALIAS="REC" POSITION="13" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -1033,6 +1087,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             ignoreFor: ["vehicle", "base2", "computer", "ai"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e figured 2 x CON";
+                }
+                return null;
+            },
             xml: `<END XMLID="END" ID="1712377283848" BASECOST="0.0" LEVELS="0" ALIAS="END" POSITION="14" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -1074,8 +1134,14 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             target: "self only",
             range: HERO.RANGE_TYPES.SELF,
             costEnd: false,
-            ignoreFor: ["vehicle", "base2", "computer", "ai"],
+            ignoreFor: ["vehicle", "base2", "computer", "ai", "automaton"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                if (char.actor.is5e) {
+                    return "5e figured BODY+STR/2+CON/2";
+                }
+                return null;
+            },
             xml: `<STUN XMLID="STUN" ID="1712377285547" BASECOST="0.0" LEVELS="0" ALIAS="STUN" POSITION="15" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -1098,6 +1164,10 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             onlyFor: ["base2"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                const sizeDetails = char.actor.sizeDetails();
+                return sizeDetails.description;
+            },
         },
         {},
     );
@@ -1131,6 +1201,10 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             onlyFor: ["vehicle"],
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
+            notes: function (char) {
+                const sizeDetails = char.actor.sizeDetails();
+                return sizeDetails.description;
+            },
         },
         {},
     );
@@ -2286,6 +2360,13 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             range: HERO.RANGE_TYPES.SELF,
             costEnd: true,
             ignoreFor: ["base2", "computer", "ai"],
+            notes: function (char) {
+                return `${Math.max(0, char.value)}${getSystemDisplayUnits(
+                    char.actor.system.is5e,
+                )} forward, ${Math.max(0, Math.round(char.value / 2))}${getSystemDisplayUnits(
+                    char.actor.system.is5e,
+                )} upward`;
+            },
             xml: `<LEAPING XMLID="LEAPING" ID="1709333946167" BASECOST="0.0" LEVELS="0" ALIAS="Leaping" POSITION="55" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -3865,7 +3946,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                     console.warn(`${adder.XMLID} cost was ${adderCost} but expected it to be 2`);
                 }
                 // First adder is full cost
-                if (adder.parent.adders[0].ID === adder.ID) {
+                if (adder.item.adders[0].ID === adder.ID) {
                     return adderCost;
                 }
                 // Additional adders cost 1
@@ -5462,9 +5543,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
             descriptionFactory: function (item) {
                 const noStrIncrease = item.modifiers.find((mod) => mod.XMLID === "NOSTRINCREASE");
-                return `${item.system.ALIAS} (${Math.pow(2, item.system.value) * 100} kg mass, +${
-                    noStrIncrease ? 0 : item.system.value * 5
-                } STR, +${item.system.value} PD/ED, -${hexDistanceToSystemDisplayString(item.system.value, item.actor)} KB)`;
+                return `${item.system.ALIAS} (${Math.pow(2, item.system.LEVELS) * 100} kg mass, +${
+                    noStrIncrease ? 0 : item.system.LEVELS * 5
+                } STR, +${item.system.LEVELS} PD/ED, -${hexDistanceToSystemDisplayString(item.system.LEVELS, item.actor)} KB)`;
             },
             xml: `<POWER XMLID="DENSITYINCREASE" ID="1709333874268" BASECOST="0.0" LEVELS="1" ALIAS="Density Increase" POSITION="31" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes"></POWER>`,
         },
@@ -9073,7 +9154,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             key: "ALWAYSOCCURS",
             behaviors: ["modifier"],
             cost: function (heroModifier /*, item*/) {
-                const sideEffectCost = parseFloat(heroModifier.parent?._original.BASECOST || 0);
+                const sideEffectCost = parseFloat(
+                    heroModifier.parent.XMLID === "SIDEEFFECTS" ? heroModifier.parent.BASECOST : 0,
+                );
 
                 // Always occurs doubles the cost (so this costs the same as the parent).
                 return sideEffectCost;
