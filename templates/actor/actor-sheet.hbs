@@ -1,4 +1,4 @@
-{{!-- {{log 'actor-sheet' this}} --}}
+{{log 'actor-sheet' this}}
 <form class="{{cssClass}}" autocomplete="off">
     {{#if (getScopedFlagValue actor @root/gameSystemId "uploading")}}
         <aside>
@@ -67,11 +67,11 @@
                             <div class="attribute-value multiple characteristic">
                                 <input name="endReserve.{{endReserve.id}}.value" type="text"
                                     value="{{endReserve.system.value}}" data-dtype="Number"
-                                    class="{{#if (gt endReserve.system.value endReserve.system.max)}}over-max{{/if}}
-                                    {{#if (lt endReserve.system.value endReserve.system.max)}} under-max{{/if}}">
+                                    class="{{#if (gt endReserve.system.value endReserve.system.LEVELS)}}over-max{{/if}}
+                                    {{#if (lt endReserve.system.value endReserve.system.LEVELS)}} under-max{{/if}}">
                                 <span class="sep"> / </span>
                                 <span>
-                                    ({{endReserve.system.max}})
+                                    ({{endReserve.system.LEVELS}})
                                 </span>
                             </div>
                         </li>
@@ -157,17 +157,17 @@
             <h1 class="charname flex4" title='"{{getScopedFlagValue actor @root/gameSystemId "file" "name"}}" was uploaded by {{getScopedFlagValue actor @root/gameSystemId "file" "uploadedBy"}}']"><input name="name" type="text" value="{{actor.name}}" placeholder="Name" /></h1>
 
 
-            {{#if actor.system.is5e}}
+            {{#if actor.is5e}}
                 <div class="fifth-ed flex0" title="5th edition {{actor._templateType}} {{actor.type}}">5{{actor._templateTypeAbreviation}}</div>
             {{else}}
                 <div class="sixth-ed flex0" title="6th edition {{actor._templateType}} {{actor.type}}">6{{actor._templateTypeAbreviation}}</div>
             {{/if}}
 
-            {{#if actor.system.points}}
+            {{#if actor.characterPointCost}}
                 <div class="points flex0" title="{{pointsTitle}}">{{actor._characterPointsForDisplay}}CP</div>
             {{/if}}
 
-            {{#if actor.system.activePoints}}
+            {{#if actor.activePoints}}
                 <div class="points flex0" title="{{activePointsTitle}}">{{actor._activePointsForDisplay}}AP</div>
             {{/if}}
 

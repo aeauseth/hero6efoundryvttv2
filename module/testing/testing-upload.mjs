@@ -59,7 +59,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, "35");
+                        assert.equal(item.activePoints, "35");
                     });
                 });
 
@@ -127,11 +127,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, "26");
+                        assert.equal(item.activePoints, "26");
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 3);
+                        assert.equal(item.end, 3);
                     });
                 });
             });
@@ -174,15 +174,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 6);
+                    assert.equal(item.activePoints, 6);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.max, 2);
+                    assert.equal(item.system.LEVELS, 2);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
             });
 
@@ -222,15 +222,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 3);
+                    assert.equal(item.activePoints, 3);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
 
                 it("roll", function () {
@@ -275,15 +275,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 5);
+                            assert.equal(item.activePoints, 5);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
 
                         it("doesn't use strength", function () {
@@ -329,15 +329,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 9);
+                            assert.equal(item.activePoints, 9);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -385,15 +385,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 6);
+                            assert.equal(item.activePoints, 6);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -435,15 +435,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 9);
+                            assert.equal(item.activePoints, 9);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -494,15 +494,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 9);
+                            assert.equal(item.activePoints, 9);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -547,15 +547,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 6);
+                            assert.equal(item.activePoints, 6);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -606,15 +606,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 14);
+                            assert.equal(item.activePoints, 14);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -659,15 +659,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 11);
+                            assert.equal(item.activePoints, 11);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
                 });
@@ -723,15 +723,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 165);
+                            assert.equal(item.activePoints, 165);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 22);
+                            assert.equal(item.system.LEVELS, 22);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 16);
+                            assert.equal(item.end, 16);
                         });
                     });
 
@@ -788,15 +788,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 192);
+                            assert.equal(item.activePoints, 192);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 22);
+                            assert.equal(item.system.LEVELS, 22);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 19);
+                            assert.equal(item.end, 19);
                         });
                     });
 
@@ -844,15 +844,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 17);
+                            assert.equal(item.activePoints, 17);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 2);
+                            assert.equal(item.end, 2);
                         });
                     });
 
@@ -900,15 +900,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 11);
+                            assert.equal(item.activePoints, 11);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -962,15 +962,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 14);
+                            assert.equal(item.activePoints, 14);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
                     });
 
@@ -1018,15 +1018,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 34);
+                            assert.equal(item.activePoints, 34);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 3);
+                            assert.equal(item.system.LEVELS, 3);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 3);
+                            assert.equal(item.end, 3);
                         });
                     });
                 });
@@ -1072,15 +1072,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 17);
+                        assert.equal(item.activePoints, 17);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
                 });
 
@@ -1122,15 +1122,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
                 });
 
@@ -1175,15 +1175,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 9);
+                        assert.equal(item.activePoints, 9);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
                 });
             });
@@ -1224,15 +1224,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 3);
+                    assert.equal(item.activePoints, 3);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 3);
+                    assert.equal(item.system.LEVELS, 3);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
             });
 
@@ -1292,11 +1292,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 93);
+                    assert.equal(item.activePoints, 93);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 62);
+                    assert.equal(item.system.LEVELS, 62);
                 });
 
                 it("damage", function () {
@@ -1304,7 +1304,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 9);
+                    assert.equal(item.end, 9);
                 });
             });
 
@@ -1355,15 +1355,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 40);
+                    assert.equal(item.activePoints, 40);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
 
                 it("charges", function () {
-                    assert.equal(item.system.charges.max, 8);
+                    assert.equal(item.system.charges.value, 8);
                 });
 
                 it("chargesRecoverable", function () {
@@ -1413,15 +1413,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 25);
+                    assert.equal(item.activePoints, 25);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 2);
+                    assert.equal(item.end, 2);
                 });
 
                 it("charges", function () {
-                    assert.equal(item.system.charges, undefined);
+                    assert.equal(item.system.charges?.value, undefined);
                 });
 
                 it("doesn't use strength", function () {
@@ -1465,11 +1465,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 75);
+                    assert.equal(item.activePoints, 75);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "7");
+                    assert.equal(item.end, "7");
                 });
             });
 
@@ -1531,11 +1531,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 206);
+                    assert.equal(item.activePoints, 206);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "9");
+                    assert.equal(item.end, "9");
                 });
             });
 
@@ -1579,7 +1579,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 6);
+                            assert.equal(item.activePoints, 6);
                         });
 
                         it("costPerLevel", function () {
@@ -1587,7 +1587,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1626,7 +1626,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 12);
+                            assert.equal(item.activePoints, 12);
                         });
 
                         it("costPerLevel", function () {
@@ -1634,7 +1634,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1673,7 +1673,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 18);
+                            assert.equal(item.activePoints, 18);
                         });
 
                         it("costPerLevel", function () {
@@ -1681,7 +1681,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1720,7 +1720,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 18);
+                            assert.equal(item.activePoints, 18);
                         });
 
                         it("costPerLevel", function () {
@@ -1728,7 +1728,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1767,7 +1767,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 18);
+                            assert.equal(item.activePoints, 18);
                         });
 
                         it("costPerLevel", function () {
@@ -1775,7 +1775,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1817,7 +1817,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 24);
+                            assert.equal(item.activePoints, 24);
                         });
 
                         it("costPerLevel", function () {
@@ -1825,7 +1825,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1867,7 +1867,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 24);
+                            assert.equal(item.activePoints, 24);
                         });
 
                         it("costPerLevel", function () {
@@ -1875,7 +1875,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1917,7 +1917,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 24);
+                            assert.equal(item.activePoints, 24);
                         });
 
                         it("costPerLevel", function () {
@@ -1925,7 +1925,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -1964,7 +1964,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 30);
+                            assert.equal(item.activePoints, 30);
                         });
 
                         it("costPerLevel", function () {
@@ -1972,7 +1972,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -2011,7 +2011,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 30);
+                            assert.equal(item.activePoints, 30);
                         });
 
                         it("costPerLevel", function () {
@@ -2019,7 +2019,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -2061,7 +2061,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 24);
+                            assert.equal(item.activePoints, 24);
                         });
 
                         it("costPerLevel", function () {
@@ -2069,7 +2069,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -2111,7 +2111,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 24);
+                            assert.equal(item.activePoints, 24);
                         });
 
                         it("costPerLevel", function () {
@@ -2119,7 +2119,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -2158,7 +2158,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 36);
+                            assert.equal(item.activePoints, 36);
                         });
 
                         it("costPerLevel", function () {
@@ -2166,7 +2166,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -2205,7 +2205,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 36);
+                            assert.equal(item.activePoints, 36);
                         });
 
                         it("costPerLevel", function () {
@@ -2213,7 +2213,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
 
@@ -2255,7 +2255,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 36);
+                            assert.equal(item.activePoints, 36);
                         });
 
                         it("costPerLevel", function () {
@@ -2263,7 +2263,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, "0");
+                            assert.equal(item.end, "0");
                         });
                     });
                 });
@@ -2303,11 +2303,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 2);
+                        assert.equal(item.activePoints, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, "0");
+                        assert.equal(item.end, "0");
                     });
                 });
             });
@@ -2348,11 +2348,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, "1");
+                        assert.equal(item.end, "1");
                     });
                 });
 
@@ -2394,11 +2394,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, "1");
+                        assert.equal(item.end, "1");
                     });
                 });
 
@@ -2453,11 +2453,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 33);
+                        assert.equal(item.activePoints, 33);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, "3");
+                        assert.equal(item.end, "3");
                     });
                 });
             });
@@ -2504,11 +2504,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 4);
+                    assert.equal(item.activePoints, 4);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "0");
+                    assert.equal(item.end, "0");
                 });
             });
 
@@ -2561,11 +2561,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 45);
+                    assert.equal(item.activePoints, 45);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "4");
+                    assert.equal(item.end, "4");
                 });
 
                 it("killing", function () {
@@ -2628,11 +2628,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 90);
+                    assert.equal(item.activePoints, 90);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "4");
+                    assert.equal(item.end, "4");
                 });
 
                 it("killing", function () {
@@ -2667,6 +2667,7 @@ export function registerUploadTests(quench) {
                             parent: actor,
                         });
                         await item._postUpload();
+                        await item.resetToOriginal();
                         actor.items.set(item.system.XMLID, item);
                     });
 
@@ -2679,11 +2680,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 9);
+                        assert.equal(item.activePoints, 9);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, "0");
+                        assert.equal(item.end, "0");
                     });
                 });
 
@@ -2714,6 +2715,7 @@ export function registerUploadTests(quench) {
                             parent: actor,
                         });
                         await item._postUpload();
+                        await item.resetToOriginal();
                         actor.items.set(item.system.XMLID, item);
                     });
 
@@ -2726,11 +2728,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 7);
+                        assert.equal(item.activePoints, 7);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, "0");
+                        assert.equal(item.end, "0");
                     });
                 });
             });
@@ -2774,11 +2776,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 4);
+                    assert.equal(item.activePoints, 4);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "0");
+                    assert.equal(item.end, "0");
                 });
             });
 
@@ -2817,15 +2819,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 20);
+                    assert.equal(item.activePoints, 20);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, "0");
+                    assert.equal(item.end, "0");
                 });
 
                 it("LEVELS", function () {
-                    assert.equal(item.system.value, 10);
+                    assert.equal(item.system.LEVELS, 10);
                 });
             });
 
@@ -2868,11 +2870,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 34.5);
+                        assert.equal(item.activePoints, 34.5);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 3);
+                        assert.equal(item.end, 3);
                     });
 
                     it("killing", function () {
@@ -2918,11 +2920,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 58);
+                        assert.equal(item.activePoints, 58);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 6);
+                        assert.equal(item.end, 6);
                     });
 
                     it("killing", function () {
@@ -2986,11 +2988,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 49);
+                        assert.equal(item.activePoints, 49);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 5);
+                        assert.equal(item.end, 5);
                     });
 
                     it("killing", function () {
@@ -3036,11 +3038,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 17);
+                        assert.equal(item.activePoints, 17);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
 
                     it("killing", function () {
@@ -3091,15 +3093,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 14);
+                        assert.equal(item.activePoints, 14);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 11);
+                        assert.equal(item.system.LEVELS, 11);
                     });
                 }),
                     describe("1 level", async function () {
@@ -3143,15 +3145,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("activePoints", function () {
-                            assert.equal(item.system.activePoints, 1);
+                            assert.equal(item.activePoints, 1);
                         });
 
                         it("end", function () {
-                            assert.equal(item.system.end, 0);
+                            assert.equal(item.end, 0);
                         });
 
                         it("levels", function () {
-                            assert.equal(item.system.value, 1);
+                            assert.equal(item.system.LEVELS, 1);
                         });
                     });
             }),
@@ -3208,15 +3210,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 49);
+                        assert.equal(item.activePoints, 49);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 39);
+                        assert.equal(item.system.LEVELS, 39);
                     });
                 }),
                 describe("MINDSCAN", async function () {
@@ -3278,15 +3280,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 60);
+                        assert.equal(item.activePoints, 60);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 6);
+                        assert.equal(item.end, 6);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
                 });
 
@@ -3330,7 +3332,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 0);
+                        assert.equal(item.system.LEVELS, 0);
                     });
 
                     it("realCost", function () {
@@ -3338,11 +3340,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 2);
+                        assert.equal(item.activePoints, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -3391,7 +3393,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("realCost", function () {
@@ -3399,11 +3401,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 4);
+                        assert.equal(item.activePoints, 4);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -3450,7 +3452,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 0);
+                        assert.equal(item.system.LEVELS, 0);
                     });
 
                     it("realCost", function () {
@@ -3458,11 +3460,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 3);
+                        assert.equal(item.activePoints, 3);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -3510,7 +3512,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 3);
+                        assert.equal(item.system.LEVELS, 3);
                     });
 
                     it("realCost", function () {
@@ -3518,11 +3520,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 6);
+                        assert.equal(item.activePoints, 6);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -3566,7 +3568,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 0);
+                        assert.equal(item.system.LEVELS, 0);
                     });
 
                     it("realCost", function () {
@@ -3574,11 +3576,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 1);
+                        assert.equal(item.activePoints, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -3622,7 +3624,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 0);
+                        assert.equal(item.system.LEVELS, 0);
                     });
 
                     it("realCost", function () {
@@ -3630,11 +3632,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 0);
+                        assert.equal(item.activePoints, 0);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
             });
@@ -3678,15 +3680,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", async function () {
-                        assert.equal(item.system.activePoints, 13);
+                        assert.equal(item.activePoints, 13);
                     });
 
                     it("end", async function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
                 });
 
@@ -3725,15 +3727,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", async function () {
-                        assert.equal(item.system.activePoints, 9);
+                        assert.equal(item.activePoints, 9);
                     });
 
                     it("end", async function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 9);
+                        assert.equal(item.system.LEVELS, 9);
                     });
                 });
             });
@@ -3777,15 +3779,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 11);
+                        assert.equal(item.activePoints, 11);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 9);
+                        assert.equal(item.system.LEVELS, 9);
                     });
                 });
 
@@ -3827,15 +3829,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 56);
+                        assert.equal(item.activePoints, 56);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 9);
+                        assert.equal(item.system.LEVELS, 9);
                     });
                 });
             });
@@ -3889,18 +3891,18 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 56);
+                        assert.equal(item.activePoints, 56);
                     });
 
                     it("end", function () {
                         assert.equal(
-                            item.system.end,
+                            item.end,
                             0 /* FIXME: in the system it shows as 0 but it's up to 2 and would typically be displayed based on the max cost */,
                         );
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 15);
+                        assert.equal(item.system.LEVELS, 15);
                     });
                 });
 
@@ -3937,18 +3939,18 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 37);
+                        assert.equal(item.activePoints, 37);
                     });
 
                     it("end", function () {
                         assert.equal(
-                            item.system.end,
+                            item.end,
                             0 /* FIXME: in the system it shows as 0 but it's up to 1 and would typically be displayed based on the max cost */,
                         );
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 15);
+                        assert.equal(item.system.LEVELS, 15);
                     });
                 });
             });
@@ -3989,15 +3991,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 21);
+                        assert.equal(item.activePoints, 21);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 21);
+                        assert.equal(item.system.LEVELS, 21);
                     });
                 });
 
@@ -4042,15 +4044,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 33);
+                        assert.equal(item.activePoints, 33);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 3);
+                        assert.equal(item.end, 3);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 21);
+                        assert.equal(item.system.LEVELS, 21);
                     });
                 });
             });
@@ -4102,15 +4104,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 165);
+                    assert.equal(item.activePoints, 165);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 475);
+                    assert.equal(item.system.LEVELS, 475);
                 });
             });
 
@@ -4169,15 +4171,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("power activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("power end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("power levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("multipower description", function () {
@@ -4192,7 +4194,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("multipower activePoints", function () {
-                        assert.equal(mpItem.system.activePoints, 12);
+                        assert.equal(mpItem.activePoints, 12);
                     });
                 });
 
@@ -4253,15 +4255,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("power activePoints", function () {
-                        assert.equal(item.system.activePoints, 20);
+                        assert.equal(item.activePoints, 20);
                     });
 
                     it("power end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
 
                     it("power levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("multipower description", function () {
@@ -4273,7 +4275,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("multipower activePoints", function () {
-                        assert.equal(mpItem.system.activePoints, 20);
+                        assert.equal(mpItem.activePoints, 20);
                     });
                 });
 
@@ -4340,15 +4342,15 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power activePoints", function () {
-                            assert.equal(item.system.activePoints, 40);
+                            assert.equal(item.activePoints, 40);
                         });
 
                         it("power end", function () {
-                            assert.equal(item.system.end, 4);
+                            assert.equal(item.end, 4);
                         });
 
                         it("power levels", function () {
-                            assert.equal(item.system.value, 2);
+                            assert.equal(item.system.LEVELS, 2);
                         });
 
                         it("elemental control description", function () {
@@ -4363,7 +4365,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("elemental control activePoints", function () {
-                            assert.equal(ecItem.system.activePoints, 10);
+                            assert.equal(ecItem.activePoints, 10);
                         });
 
                         it("elemental control realCost", function () {
@@ -4425,7 +4427,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power active points", function () {
-                            assert.equal(item.system.activePoints, 48);
+                            assert.equal(item.activePoints, 48);
                         });
 
                         it("power realCost", function () {
@@ -4437,11 +4439,11 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power end", function () {
-                            assert.equal(item.system.end, 5);
+                            assert.equal(item.end, 5);
                         });
 
                         it("power levels", function () {
-                            assert.equal(item.system.value, 32);
+                            assert.equal(item.system.LEVELS, 32);
                         });
 
                         it("elemental control description", function () {
@@ -4453,7 +4455,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("elemental control activePoints", function () {
-                            assert.equal(ecItem.system.activePoints, 24);
+                            assert.equal(ecItem.activePoints, 24);
                         });
                     });
 
@@ -4520,7 +4522,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power active points", function () {
-                            assert.equal(item.system.activePoints, 50);
+                            assert.equal(item.activePoints, 50);
                         });
 
                         it("power realCost", function () {
@@ -4532,7 +4534,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power end", function () {
-                            assert.equal(item.system.end, 5);
+                            assert.equal(item.end, 5);
                         });
 
                         it("elemental control description", function () {
@@ -4544,7 +4546,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("elemental control activePoints", function () {
-                            assert.equal(ecItem.system.activePoints, 24);
+                            assert.equal(ecItem.activePoints, 24);
                         });
                     });
 
@@ -4596,7 +4598,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power active points", function () {
-                            assert.equal(item.system.activePoints, 10);
+                            assert.equal(item.activePoints, 10);
                         });
 
                         it("power realCost", function () {
@@ -4608,7 +4610,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power end", function () {
-                            assert.equal(item.system.end, 1);
+                            assert.equal(item.end, 1);
                         });
 
                         it("elemental control description", function () {
@@ -4623,7 +4625,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("elemental control activePoints", function () {
-                            assert.equal(ecItem.system.activePoints, 10);
+                            assert.equal(ecItem.activePoints, 10);
                         });
                     });
 
@@ -4675,7 +4677,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power active points", function () {
-                            assert.equal(item.system.activePoints, 27);
+                            assert.equal(item.activePoints, 27);
                         });
 
                         it("power realCost", function () {
@@ -4687,7 +4689,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("power end", function () {
-                            assert.equal(item.system.end, 3);
+                            assert.equal(item.end, 3);
                         });
 
                         it("elemental control description", function () {
@@ -4702,7 +4704,7 @@ export function registerUploadTests(quench) {
                         });
 
                         it("elemental control activePoints", function () {
-                            assert.equal(ecItem.system.activePoints, 10);
+                            assert.equal(ecItem.activePoints, 10);
                         });
                     });
                 });
@@ -4755,15 +4757,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 42);
+                    assert.equal(item.activePoints, 42);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 4);
+                    assert.equal(item.end, 4);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 5);
+                    assert.equal(item.system.LEVELS, 5);
                 });
             });
 
@@ -4817,15 +4819,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 74);
+                    assert.equal(item.activePoints, 74);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 3);
+                    assert.equal(item.system.LEVELS, 3);
                 });
             });
 
@@ -4867,15 +4869,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 28);
+                    assert.equal(item.activePoints, 28);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 3);
+                    assert.equal(item.end, 3);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 5);
+                    assert.equal(item.system.LEVELS, 5);
                 });
             });
 
@@ -4938,15 +4940,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 40);
+                    assert.equal(item.activePoints, 40);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0); // TODO: movement powers use 0 end but shouldn't
+                    assert.equal(item.end, 0); // TODO: movement powers use 0 end but shouldn't
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
             });
 
@@ -4995,11 +4997,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 1);
+                    assert.equal(item.activePoints, 1);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
             });
 
@@ -5057,11 +5059,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 2);
+                    assert.equal(item.activePoints, 2);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
             });
 
@@ -5107,11 +5109,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 2);
+                    assert.equal(item.activePoints, 2);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
             });
 
@@ -5150,11 +5152,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 16);
+                    assert.equal(item.activePoints, 16);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 18);
+                    assert.equal(item.system.LEVELS, 18);
                 });
             });
 
@@ -5195,11 +5197,11 @@ export function registerUploadTests(quench) {
                     // });
 
                     // it("activePoints", function () {
-                    //     assert.equal(item.system.activePoints, 5);
+                    //     assert.equal(item.activePoints, 5);
                     // });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
                 });
 
@@ -5242,11 +5244,11 @@ export function registerUploadTests(quench) {
                     // });
 
                     // it("activePoints", function () {
-                    //     assert.equal(item.system.activePoints, 85);
+                    //     assert.equal(item.activePoints, 85);
                     // });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 8);
+                        assert.equal(item.system.LEVELS, 8);
                     });
                 });
 
@@ -5302,11 +5304,11 @@ export function registerUploadTests(quench) {
                     // });
 
                     // it("activePoints", function () {
-                    //     assert.equal(item.system.activePoints, 118);
+                    //     assert.equal(item.activePoints, 118);
                     // });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 10);
+                        assert.equal(item.system.LEVELS, 10);
                     });
                 });
             });
@@ -5347,11 +5349,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 1);
+                        assert.equal(item.activePoints, 1);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
                 });
 
@@ -5390,11 +5392,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 2);
+                        assert.equal(item.activePoints, 2);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
                 });
             });
@@ -5447,11 +5449,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("skill enhancer activePoints", function () {
-                    assert.equal(skillEnhancerItem.system.activePoints, 3);
+                    assert.equal(skillEnhancerItem.activePoints, 3);
                 });
 
                 it("skill enhancer levels", function () {
-                    assert.equal(skillEnhancerItem.system.value, 0);
+                    assert.equal(skillEnhancerItem.system.LEVELS, 0);
                 });
 
                 it("skill description", function () {
@@ -5463,11 +5465,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("skill activePoints", function () {
-                    assert.equal(skillItem.system.activePoints, 3);
+                    assert.equal(skillItem.activePoints, 3);
                 });
 
                 it("skill levels", function () {
-                    assert.equal(skillItem.system.value, 0);
+                    assert.equal(skillItem.system.LEVELS, 0);
                 });
             });
 
@@ -5516,15 +5518,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 140);
+                        assert.equal(item.activePoints, 140);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 16);
+                        assert.equal(item.system.LEVELS, 16);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 5);
+                        assert.equal(item.end, 5);
                     });
                 });
 
@@ -5572,15 +5574,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 180);
+                        assert.equal(item.activePoints, 180);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 16);
+                        assert.equal(item.system.LEVELS, 16);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
             });
@@ -5626,15 +5628,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 193);
+                    assert.equal(item.activePoints, 193);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
             });
 
@@ -5674,15 +5676,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 8);
+                        assert.equal(item.activePoints, 8);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 4);
+                        assert.equal(item.system.LEVELS, 4);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0); // TODO: endurance is 0 for movement
+                        assert.equal(item.end, 0); // TODO: endurance is 0 for movement
                     });
 
                     it("range", function () {
@@ -5728,15 +5730,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 2);
+                        assert.equal(item.activePoints, 2);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0); // TODO: endurance is 0 for movement
+                        assert.equal(item.end, 0); // TODO: endurance is 0 for movement
                     });
 
                     it("range", function () {
@@ -5788,15 +5790,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 3);
+                        assert.equal(item.activePoints, 3);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0); // TODO: endurance is 0 for movement
+                        assert.equal(item.end, 0); // TODO: endurance is 0 for movement
                     });
 
                     it("range", function () {
@@ -5851,15 +5853,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 4);
+                        assert.equal(item.activePoints, 4);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0); // TODO: endurance is 0 for movement
+                        assert.equal(item.end, 0); // TODO: endurance is 0 for movement
                     });
 
                     it("range", function () {
@@ -5902,15 +5904,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("range", function () {
@@ -5956,15 +5958,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 90);
+                        assert.equal(item.activePoints, 90);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 6);
+                        assert.equal(item.system.LEVELS, 6);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 9);
+                        assert.equal(item.end, 9);
                     });
 
                     it("range", function () {
@@ -6016,15 +6018,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 20);
+                        assert.equal(item.activePoints, 20);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
 
                     it("range", function () {
@@ -6070,15 +6072,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 75);
+                        assert.equal(item.activePoints, 75);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 10);
+                        assert.equal(item.system.LEVELS, 10);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 7);
+                        assert.equal(item.end, 7);
                     });
 
                     it("range", function () {
@@ -6127,15 +6129,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 55);
+                        assert.equal(item.activePoints, 55);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 11);
+                        assert.equal(item.system.LEVELS, 11);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 5);
+                        assert.equal(item.end, 5);
                     });
 
                     it("range", function () {
@@ -6184,15 +6186,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 5);
+                        assert.equal(item.activePoints, 5);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("range", function () {
@@ -6235,15 +6237,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("range", function () {
@@ -6289,15 +6291,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("range", function () {
@@ -6343,15 +6345,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("range", function () {
@@ -6400,15 +6402,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 10);
+                        assert.equal(item.activePoints, 10);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 1);
+                        assert.equal(item.end, 1);
                     });
 
                     it("range", function () {
@@ -6457,15 +6459,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 20);
+                        assert.equal(item.activePoints, 20);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 1);
+                        assert.equal(item.system.LEVELS, 1);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
 
                     it("range", function () {
@@ -6518,15 +6520,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 5);
+                    assert.equal(item.activePoints, 5);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
             });
 
@@ -6625,15 +6627,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 116);
+                    assert.equal(item.activePoints, 116);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 0);
+                    assert.equal(item.system.LEVELS, 0);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 12);
+                    assert.equal(item.end, 12);
                 });
             });
 
@@ -6686,11 +6688,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 5);
+                        assert.equal(item.activePoints, 5);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("damage", function () {
@@ -6745,15 +6747,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 4);
+                        assert.equal(item.activePoints, 4);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 0);
+                        assert.equal(item.system.LEVELS, 0);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("damage", function () {
@@ -6808,15 +6810,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 4);
+                        assert.equal(item.activePoints, 4);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 0);
+                        assert.equal(item.system.LEVELS, 0);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
 
                     it("damage", function () {
@@ -6872,7 +6874,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 4);
+                        assert.equal(item.activePoints, 4);
                     });
 
                     it("damage", function () {
@@ -6880,7 +6882,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -6932,7 +6934,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 3);
+                        assert.equal(item.activePoints, 3);
                     });
 
                     it("damage", function () {
@@ -6940,7 +6942,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
             });
@@ -6980,15 +6982,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 25);
+                    assert.equal(item.activePoints, 25);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 1);
+                    assert.equal(item.system.LEVELS, 1);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
 
                 it("roll", function () {
@@ -7061,15 +7063,15 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 35);
+                    assert.equal(item.activePoints, 35);
                 });
 
                 it("levels", function () {
-                    assert.equal(item.system.value, 8);
+                    assert.equal(item.system.LEVELS, 8);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 0);
+                    assert.equal(item.end, 0);
                 });
 
                 it("roll", function () {
@@ -7116,15 +7118,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 30);
+                        assert.equal(item.activePoints, 30);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 3);
+                        assert.equal(item.end, 3);
                     });
                 });
 
@@ -7181,15 +7183,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 75);
+                        assert.equal(item.activePoints, 75);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 7);
+                        assert.equal(item.end, 7);
                     });
                 });
 
@@ -7234,15 +7236,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 30);
+                        assert.equal(item.activePoints, 30);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 3);
+                        assert.equal(item.end, 3);
                     });
                 });
 
@@ -7287,15 +7289,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 25);
+                        assert.equal(item.activePoints, 25);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 2);
+                        assert.equal(item.end, 2);
                     });
                 });
 
@@ -7352,15 +7354,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 62);
+                        assert.equal(item.activePoints, 62);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 2);
+                        assert.equal(item.system.LEVELS, 2);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 6);
+                        assert.equal(item.end, 6);
                     });
                 });
             });
@@ -7410,15 +7412,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 51);
+                        assert.equal(item.activePoints, 51);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 12);
+                        assert.equal(item.system.LEVELS, 12);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 20);
+                        assert.equal(item.end, 20);
                     });
                 });
 
@@ -7493,15 +7495,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 38);
+                        assert.equal(item.activePoints, 38);
                     });
 
                     it("levels", function () {
-                        assert.equal(item.system.value, 12);
+                        assert.equal(item.system.LEVELS, 12);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 12);
+                        assert.equal(item.end, 12);
                     });
 
                     it("charges", function () {
@@ -7573,15 +7575,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("PD activePoints", function () {
-                        assert.equal(pdItem.system.activePoints, 9);
+                        assert.equal(pdItem.activePoints, 9);
                     });
 
                     it("PD levels", function () {
-                        assert.equal(pdItem.system.value, 3);
+                        assert.equal(pdItem.system.LEVELS, 3);
                     });
 
                     it("PD end", function () {
-                        assert.equal(pdItem.system.end, 0);
+                        assert.equal(pdItem.end, 0);
                     });
 
                     it("ED description", function () {
@@ -7593,15 +7595,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("ED activePoints", function () {
-                        assert.equal(edItem.system.activePoints, 15);
+                        assert.equal(edItem.activePoints, 15);
                     });
 
                     it("ED levels", function () {
-                        assert.equal(edItem.system.value, 5);
+                        assert.equal(edItem.system.LEVELS, 5);
                     });
 
                     it("ED end", function () {
-                        assert.equal(edItem.system.end, 0);
+                        assert.equal(edItem.end, 0);
                     });
                 });
                 describe("AUTOMATON that does take STUN has PD/ED that costs 1x", async function () {
@@ -7666,15 +7668,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("PD activePoints", function () {
-                        assert.equal(pdItem.system.activePoints, 3);
+                        assert.equal(pdItem.activePoints, 3);
                     });
 
                     it("PD levels", function () {
-                        assert.equal(pdItem.system.value, 3);
+                        assert.equal(pdItem.system.LEVELS, 3);
                     });
 
                     it("PD end", function () {
-                        assert.equal(pdItem.system.end, 0);
+                        assert.equal(pdItem.end, 0);
                     });
 
                     it("ED description", function () {
@@ -7686,15 +7688,15 @@ export function registerUploadTests(quench) {
                     });
 
                     it("ED activePoints", function () {
-                        assert.equal(edItem.system.activePoints, 5);
+                        assert.equal(edItem.activePoints, 5);
                     });
 
                     it("ED levels", function () {
-                        assert.equal(edItem.system.value, 5);
+                        assert.equal(edItem.system.LEVELS, 5);
                     });
 
                     it("ED end", function () {
-                        assert.equal(edItem.system.end, 0);
+                        assert.equal(edItem.end, 0);
                     });
                 });
             });
@@ -7738,7 +7740,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("levels", async function () {
-                    assert.equal(item.system.value, 3);
+                    assert.equal(item.system.LEVELS, 3);
                 });
 
                 it("realCost", function () {
@@ -7746,11 +7748,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 49);
+                    assert.equal(item.activePoints, 49);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 5);
+                    assert.equal(item.end, 5);
                 });
             });
 
@@ -7786,7 +7788,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 5);
+                        assert.equal(item.system.LEVELS, 5);
                     });
 
                     it("realCost", function () {
@@ -7794,11 +7796,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
 
@@ -7833,7 +7835,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("levels", async function () {
-                        assert.equal(item.system.value, 3);
+                        assert.equal(item.system.LEVELS, 3);
                     });
 
                     it("realCost", function () {
@@ -7841,11 +7843,11 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 6);
+                        assert.equal(item.activePoints, 6);
                     });
 
                     it("end", function () {
-                        assert.equal(item.system.end, 0);
+                        assert.equal(item.end, 0);
                     });
                 });
             });
@@ -7886,7 +7888,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("levels", async function () {
-                    assert.equal(item.system.value, 4);
+                    assert.equal(item.system.LEVELS, 4);
                 });
 
                 it("realCost", function () {
@@ -7894,11 +7896,11 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 35);
+                    assert.equal(item.activePoints, 35);
                 });
 
                 it("end", function () {
-                    assert.equal(item.system.end, 3);
+                    assert.equal(item.end, 3);
                 });
             });
 
@@ -7951,7 +7953,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("STR Minimum", function () {
@@ -8011,7 +8013,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("STR Minimum", function () {
@@ -8071,7 +8073,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("STR Minimum", function () {
@@ -8131,7 +8133,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("STR Minimum", function () {
@@ -8191,7 +8193,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 15);
+                        assert.equal(item.activePoints, 15);
                     });
 
                     it("STR Minimum", function () {
@@ -8248,7 +8250,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 0);
+                    assert.equal(item.activePoints, 0);
                 });
 
                 it("damage", function () {
@@ -8300,7 +8302,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 75);
+                    assert.equal(item.activePoints, 75);
                 });
 
                 it("damage", function () {
@@ -8342,7 +8344,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 2);
+                    assert.equal(item.activePoints, 2);
                 });
             });
 
@@ -8394,7 +8396,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 15);
+                    assert.equal(item.activePoints, 15);
                 });
             });
 
@@ -8446,7 +8448,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 15);
+                    assert.equal(item.activePoints, 15);
                 });
             });
 
@@ -8497,7 +8499,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 15);
+                    assert.equal(item.activePoints, 15);
                 });
             });
 
@@ -8545,7 +8547,7 @@ export function registerUploadTests(quench) {
                 });
 
                 it("activePoints", function () {
-                    assert.equal(item.system.activePoints, 26);
+                    assert.equal(item.activePoints, 26);
                 });
             });
 
@@ -8591,7 +8593,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 25);
+                        assert.equal(item.activePoints, 25);
                     });
                 });
 
@@ -8633,7 +8635,7 @@ export function registerUploadTests(quench) {
                     });
 
                     it("activePoints", function () {
-                        assert.equal(item.system.activePoints, 28);
+                        assert.equal(item.activePoints, 28);
                     });
                 });
             });
