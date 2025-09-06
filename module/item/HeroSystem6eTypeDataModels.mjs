@@ -560,7 +560,7 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         const _details = {
             tags: [],
         };
-        const cslSummary = {};
+        //const cslSummary = {};
 
         if (!propUpper || this[propUpper] === "--") {
             return {};
