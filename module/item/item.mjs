@@ -12,7 +12,6 @@ import {
     deactivateManeuver,
     enforceManeuverLimits,
     maneuverHasBlockTrait,
-    maneuverHasFlashTrait,
 } from "./maneuver.mjs";
 import {
     adjustmentSourcesPermissive,
