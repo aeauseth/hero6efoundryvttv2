@@ -2271,10 +2271,6 @@ export class HeroSystem6eActor extends Actor {
             // Sanity check for item.type and
             // invalidate the item caches for anything we're going to update
             for (const item of itemsToUpdate) {
-                HeroSystem6eItem._addersCache.invalidateCachedValue(item.id);
-                HeroSystem6eItem._modifiersCache.invalidateCachedValue(item.id);
-                HeroSystem6eItem._powersCache.invalidateCachedValue(item.id);
-
                 if (this.items.find((o) => o.id === item._id).type !== item.type) {
                     await ui.notifications.warn(`${item.name} changed to type=${item.type}`);
                 }
@@ -2352,7 +2348,7 @@ export class HeroSystem6eActor extends Actor {
                         });
                     }
 
-                    item.updateItemDescription();
+                    //item.updateItemDescription();
                     await item.update({ "system.description": item.system.description });
                 } else {
                     await ui.notifications.warn(

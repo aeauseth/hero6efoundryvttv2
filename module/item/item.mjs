@@ -1050,13 +1050,15 @@ export class HeroSystem6eItem extends Item {
     }
 
     setAttack() {
+        console.error("depreciated setAttack");
+        return;
         // ATTACK
-        if (this.causesDamageEffect()) {
-            this.makeAttack();
+        // if (this.causesDamageEffect()) {
+        //     this.makeAttack();
 
-            // text description of damage
-            this.system.damage = getFullyQualifiedEffectFormulaFromItem(this, {});
-        }
+        //     // text description of damage
+        //     this.system.damage = getFullyQualifiedEffectFormulaFromItem(this, {});
+        // }
     }
 
     setToHit() {
@@ -2188,103 +2190,103 @@ export class HeroSystem6eItem extends Item {
      * @param {Modifier} aoeModifier - Must be AOE or EXPLOSION modifier.
      * @returns
      */
-    // buildAoeAttackParameters(aoeModifier) {
-    //     const is5e = !!this.actor?.system?.is5e;
+    buildAoeAttackParameters(aoeModifier) {
+        const is5e = !!this.actor?.system?.is5e;
 
-    //     let changed = false;
+        let changed = false;
 
-    //     const widthDouble = parseInt(
-    //         (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEWIDTH")?.LEVELS || 0,
-    //     );
-    //     const heightDouble = parseInt(
-    //         (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEHEIGHT")?.LEVELS || 0,
-    //     );
-    //     // In 6e, widthDouble and heightDouble are the actual size and not instructions to double like 5e
-    //     const width = is5e ? Math.pow(2, widthDouble) : widthDouble || 2;
-    //     const height = is5e ? Math.pow(2, heightDouble) : heightDouble || 2;
-    //     let levels = 1;
-    //     let dcFalloff = 0;
+        const widthDouble = parseInt(
+            (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEWIDTH")?.LEVELS || 0,
+        );
+        const heightDouble = parseInt(
+            (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEHEIGHT")?.LEVELS || 0,
+        );
+        // In 6e, widthDouble and heightDouble are the actual size and not instructions to double like 5e
+        const width = is5e ? Math.pow(2, widthDouble) : widthDouble || 2;
+        const height = is5e ? Math.pow(2, heightDouble) : heightDouble || 2;
+        let levels = 1;
+        let dcFalloff = 0;
 
-    //     // 5e has a calculated size
-    //     if (is5e) {
-    //         const activePointsWithoutAoeAdvantage = this._activePointsWithoutAoe;
-    //         if (aoeModifier.XMLID === "AOE") {
-    //             switch (aoeModifier.OPTIONID) {
-    //                 case "CONE":
-    //                     levels = RoundFavorPlayerUp(1 + activePointsWithoutAoeAdvantage / 5);
-    //                     break;
+        // 5e has a calculated size
+        if (is5e) {
+            const activePointsWithoutAoeAdvantage = this._activePointsWithoutAoe;
+            if (aoeModifier.XMLID === "AOE") {
+                switch (aoeModifier.OPTIONID) {
+                    case "CONE":
+                        levels = RoundFavorPlayerUp(1 + activePointsWithoutAoeAdvantage / 5);
+                        break;
 
-    //                 case "HEX":
-    //                     levels = 1;
-    //                     break;
+                    case "HEX":
+                        levels = 1;
+                        break;
 
-    //                 case "LINE":
-    //                     levels = RoundFavorPlayerUp((2 * activePointsWithoutAoeAdvantage) / 5);
-    //                     break;
+                    case "LINE":
+                        levels = RoundFavorPlayerUp((2 * activePointsWithoutAoeAdvantage) / 5);
+                        break;
 
-    //                 case "ANY":
-    //                 case "RADIUS":
-    //                     levels = Math.max(1, RoundFavorPlayerUp(activePointsWithoutAoeAdvantage / 10));
-    //                     break;
+                    case "ANY":
+                    case "RADIUS":
+                        levels = Math.max(1, RoundFavorPlayerUp(activePointsWithoutAoeAdvantage / 10));
+                        break;
 
-    //                 default:
-    //                     console.error(`Unhandled 5e AOE OPTIONID ${aoeModifier.OPTIONID} for ${this.detailedName()}`);
-    //                     break;
-    //             }
+                    default:
+                        console.error(`Unhandled 5e AOE OPTIONID ${aoeModifier.OPTIONID} for ${this.detailedName()}`);
+                        break;
+                }
 
-    //             // Modify major dimension (radius, length, etc). Line is different from all others.
-    //             const majorDimensionDoubles = (aoeModifier?.ADDER || []).find(
-    //                 (adder) => adder.XMLID === "DOUBLEAREA" || adder.XMLID === "DOUBLELENGTH",
-    //             );
-    //             if (majorDimensionDoubles) {
-    //                 levels *= Math.pow(2, parseInt(majorDimensionDoubles.LEVELS));
-    //             }
-    //         } else {
-    //             // Explosion DC falloff has different defaults based on shape. When
-    //             // LEVELS are provided they are the absolute value and not additive to the default.
-    //             if (aoeModifier.OPTIONID === "CONE") {
-    //                 dcFalloff = 2;
-    //             } else if (aoeModifier.OPTIONID === "LINE") {
-    //                 dcFalloff = 3;
-    //             } else {
-    //                 dcFalloff = 1;
-    //             }
-    //             dcFalloff = aoeModifier.LEVELS ? parseInt(aoeModifier.LEVELS) : dcFalloff;
+                // Modify major dimension (radius, length, etc). Line is different from all others.
+                const majorDimensionDoubles = (aoeModifier?.ADDER || []).find(
+                    (adder) => adder.XMLID === "DOUBLEAREA" || adder.XMLID === "DOUBLELENGTH",
+                );
+                if (majorDimensionDoubles) {
+                    levels *= Math.pow(2, parseInt(majorDimensionDoubles.LEVELS));
+                }
+            } else {
+                // Explosion DC falloff has different defaults based on shape. When
+                // LEVELS are provided they are the absolute value and not additive to the default.
+                if (aoeModifier.OPTIONID === "CONE") {
+                    dcFalloff = 2;
+                } else if (aoeModifier.OPTIONID === "LINE") {
+                    dcFalloff = 3;
+                } else {
+                    dcFalloff = 1;
+                }
+                dcFalloff = aoeModifier.LEVELS ? parseInt(aoeModifier.LEVELS) : dcFalloff;
 
-    //             // The description in FRed is poorly written as it talks about AP of the power but it doesn't exclude
-    //             // the contribution of the explosion advantage itself although its example does. We will remove the explosion contribution to
-    //             // the power's DC.
-    //             const effectiveDc = Math.floor(activePointsWithoutAoeAdvantage / 5);
-    //             levels = effectiveDc * dcFalloff;
-    //         }
-    //     } else {
-    //         levels = parseInt(aoeModifier.LEVELS || 0);
-    //     }
+                // The description in FRed is poorly written as it talks about AP of the power but it doesn't exclude
+                // the contribution of the explosion advantage itself although its example does. We will remove the explosion contribution to
+                // the power's DC.
+                const effectiveDc = Math.floor(activePointsWithoutAoeAdvantage / 5);
+                levels = effectiveDc * dcFalloff;
+            }
+        } else {
+            levels = parseInt(aoeModifier.LEVELS || 0);
+        }
 
-    //     // 5e has HEX and RADIUS but they're the same template. 5e explosion radius template is called NORMAL for some reason.
-    //     const type =
-    //         aoeModifier.OPTIONID === "HEX" || aoeModifier.OPTIONID === "NORMAL" ? "RADIUS" : aoeModifier.OPTIONID;
-    //     const newAoe = {
-    //         type: type.toLowerCase(),
-    //         value: levels,
-    //         width: width,
-    //         height: height,
+        // 5e has HEX and RADIUS but they're the same template. 5e explosion radius template is called NORMAL for some reason.
+        const type =
+            aoeModifier.OPTIONID === "HEX" || aoeModifier.OPTIONID === "NORMAL" ? "RADIUS" : aoeModifier.OPTIONID;
+        const newAoe = {
+            type: type.toLowerCase(),
+            value: levels,
+            width: width,
+            height: height,
 
-    //         isExplosion: this.hasExplosionAdvantage(),
-    //         dcFalloff: dcFalloff,
-    //     };
+            isExplosion: this.hasExplosionAdvantage(),
+            dcFalloff: dcFalloff,
+        };
 
-    //     if (!foundry.utils.objectsEqual(this.system.areaOfEffect, newAoe)) {
-    //         this.system.areaOfEffect = {
-    //             ...this.system.areaOfEffect,
-    //             ...newAoe,
-    //         };
+        if (!foundry.utils.objectsEqual(this.system.areaOfEffect, newAoe)) {
+            this.system.areaOfEffect = {
+                ...this.system.areaOfEffect,
+                ...newAoe,
+            };
 
-    //         changed = true;
-    //     }
+            changed = true;
+        }
 
-    //     return changed;
-    // }
+        return changed;
+    }
 
     // buildRangeParameters() {
     //     const originalRange = this.system.range;
@@ -4543,126 +4545,128 @@ export class HeroSystem6eItem extends Item {
      * Add the bits that are responsible for hitting
      */
     makeToHit() {
-        const xmlid = this.system.XMLID;
+        console.error("depricated makeToHit");
+        return;
+        // const xmlid = this.system.XMLID;
 
-        // Name
-        const description = this.system.ALIAS;
-        const name = this.system.NAME || description || this.system.name || this.name;
-        this.name = name;
-        if (xmlid === "TELEKINESIS") {
-            this.name = name + " (TK strike)";
-        }
+        // // Name
+        // const description = this.system.ALIAS;
+        // const name = this.system.NAME || description || this.system.name || this.name;
+        // this.name = name;
+        // if (xmlid === "TELEKINESIS") {
+        //     this.name = name + " (TK strike)";
+        // }
 
-        const input = this.system.INPUT;
-        this.system.class = input === "ED" ? "energy" : "physical";
+        // const input = this.system.INPUT;
+        // this.system.class = input === "ED" ? "energy" : "physical";
 
-        this.system.targets = "dcv";
-        this.system.uses = "ocv";
+        // this.system.targets = "dcv";
+        // this.system.uses = "ocv";
 
-        const ocv = parseInt(this.system.OCV) || 0;
-        const dcv = parseInt(this.system.DCV) || 0;
-        this.system.ocv = ocv;
-        this.system.dcv = dcv;
+        // const ocv = parseInt(this.system.OCV) || 0;
+        // const dcv = parseInt(this.system.DCV) || 0;
+        // this.system.ocv = ocv;
+        // this.system.dcv = dcv;
 
-        this.system.noHitLocations = false;
+        // this.system.noHitLocations = false;
 
-        if (["maneuver", "martialart"].includes(this.type)) {
-            // Flash doesn't have a hit location
-            if (maneuverHasFlashTrait(this)) {
-                this.system.noHitLocations = true;
-            }
+        // if (["maneuver", "martialart"].includes(this.type)) {
+        //     // Flash doesn't have a hit location
+        //     if (maneuverHasFlashTrait(this)) {
+        //         this.system.noHitLocations = true;
+        //     }
 
-            // Block doesn't use a hit location
-            if (maneuverHasBlockTrait(this)) {
-                this.system.noHitLocations = true;
-            }
+        //     // Block doesn't use a hit location
+        //     if (maneuverHasBlockTrait(this)) {
+        //         this.system.noHitLocations = true;
+        //     }
 
-            // Many maneuvers don't use hit locations.
-            else if (
-                this.system.XMLID === "CHOKE" ||
-                this.system.XMLID === "DISARM" ||
-                this.system.XMLID === "DIVEFORCOVER" ||
-                this.system.XMLID === "GRAB" ||
-                this.system.XMLID === "GRABBY" ||
-                this.system.XMLID === "SHOVE" ||
-                this.system.XMLID === "THROW" ||
-                this.system.XMLID === "TRIP"
-            ) {
-                this.system.noHitLocations = true;
-            }
-        }
+        //     // Many maneuvers don't use hit locations.
+        //     else if (
+        //         this.system.XMLID === "CHOKE" ||
+        //         this.system.XMLID === "DISARM" ||
+        //         this.system.XMLID === "DIVEFORCOVER" ||
+        //         this.system.XMLID === "GRAB" ||
+        //         this.system.XMLID === "GRABBY" ||
+        //         this.system.XMLID === "SHOVE" ||
+        //         this.system.XMLID === "THROW" ||
+        //         this.system.XMLID === "TRIP"
+        //     ) {
+        //         this.system.noHitLocations = true;
+        //     }
+        // }
 
-        this.system.areaOfEffect = { type: "none", value: 0 };
+        // this.system.areaOfEffect = { type: "none", value: 0 };
 
-        // Specific power overrides.
-        // FIXME: We should consider getting rid of this.system.class. Not sure that it adds anything interesting.
-        if (xmlid === "ENTANGLE") {
-            this.system.class = "entangle";
-            this.system.noHitLocations = true;
-        } else if (xmlid === "DARKNESS") {
-            this.system.class = "darkness";
-            this.system.noHitLocations = true;
-        } else if (xmlid === "IMAGES") {
-            this.system.class = "images";
-            this.system.noHitLocations = true;
-        } else if (
-            xmlid === "ABSORPTION" ||
-            xmlid === "AID" ||
-            xmlid === "SUCCOR" ||
-            xmlid === "DISPEL" ||
-            xmlid === "DRAIN" ||
-            xmlid === "HEALING" ||
-            xmlid === "SUPPRESS" ||
-            xmlid === "TRANSFER"
-        ) {
-            this.system.class = "adjustment";
-            this.system.noHitLocations = true;
-        } else if (
-            xmlid === "EGOATTACK" ||
-            xmlid === "MINDCONTROL" ||
-            xmlid === "MENTALILLUSIONS" ||
-            xmlid === "MINDSCAN" ||
-            xmlid === "TELEPATHY"
-        ) {
-            this.system.class = "mental";
-            this.system.targets = "dmcv";
-            this.system.uses = "omcv";
-            this.system.noHitLocations = true;
-        } else if (xmlid === "CHANGEENVIRONMENT") {
-            this.system.class = "change enviro";
-            this.system.noHitLocations = true;
-        } else if (xmlid === "FLASH") {
-            this.system.class = "flash";
-            this.system.noHitLocations = true;
-        } else if (xmlid === "TRANSFORM") {
-            this.system.class = "transform";
-            this.system.noHitLocations = true;
-        } else if (xmlid === "SUSCEPTIBILITY") {
-            this.system.class = this.is5e ? "disadvantage" : "complication";
-        } else if (xmlid === "LUCK" || xmlid === "UNLUCK") {
-            this.system.class = "luck";
-        } else if (xmlid === "FORCEWALL") {
-            this.system.class = this.is5e ? "forcewall" : "barrier";
-        }
+        // // Specific power overrides.
+        // // FIXME: We should consider getting rid of this.system.class. Not sure that it adds anything interesting.
+        // if (xmlid === "ENTANGLE") {
+        //     this.system.class = "entangle";
+        //     this.system.noHitLocations = true;
+        // } else if (xmlid === "DARKNESS") {
+        //     this.system.class = "darkness";
+        //     this.system.noHitLocations = true;
+        // } else if (xmlid === "IMAGES") {
+        //     this.system.class = "images";
+        //     this.system.noHitLocations = true;
+        // } else if (
+        //     xmlid === "ABSORPTION" ||
+        //     xmlid === "AID" ||
+        //     xmlid === "SUCCOR" ||
+        //     xmlid === "DISPEL" ||
+        //     xmlid === "DRAIN" ||
+        //     xmlid === "HEALING" ||
+        //     xmlid === "SUPPRESS" ||
+        //     xmlid === "TRANSFER"
+        // ) {
+        //     this.system.class = "adjustment";
+        //     this.system.noHitLocations = true;
+        // } else if (
+        //     xmlid === "EGOATTACK" ||
+        //     xmlid === "MINDCONTROL" ||
+        //     xmlid === "MENTALILLUSIONS" ||
+        //     xmlid === "MINDSCAN" ||
+        //     xmlid === "TELEPATHY"
+        // ) {
+        //     this.system.class = "mental";
+        //     this.system.targets = "dmcv";
+        //     this.system.uses = "omcv";
+        //     this.system.noHitLocations = true;
+        // } else if (xmlid === "CHANGEENVIRONMENT") {
+        //     this.system.class = "change enviro";
+        //     this.system.noHitLocations = true;
+        // } else if (xmlid === "FLASH") {
+        //     this.system.class = "flash";
+        //     this.system.noHitLocations = true;
+        // } else if (xmlid === "TRANSFORM") {
+        //     this.system.class = "transform";
+        //     this.system.noHitLocations = true;
+        // } else if (xmlid === "SUSCEPTIBILITY") {
+        //     this.system.class = this.is5e ? "disadvantage" : "complication";
+        // } else if (xmlid === "LUCK" || xmlid === "UNLUCK") {
+        //     this.system.class = "luck";
+        // } else if (xmlid === "FORCEWALL") {
+        //     this.system.class = this.is5e ? "forcewall" : "barrier";
+        // }
 
-        // AVAD
-        const avad = this.findModsByXmlid("AVAD");
-        if (avad) {
-            this.system.class = "avad";
-        }
+        // // AVAD
+        // const avad = this.findModsByXmlid("AVAD");
+        // if (avad) {
+        //     this.system.class = "avad";
+        // }
 
-        // Alternate Combat Value (uses OMCV against DCV)
-        const acv = this.findModsByXmlid("ACV");
-        if (acv) {
-            this.system.uses = (acv.OPTION_ALIAS.match(/uses (\w+)/)?.[1] || this.system.uses).toLowerCase();
-            this.system.targets = (acv.OPTION_ALIAS.match(/against (\w+)/)?.[1] || this.system.targets).toLowerCase();
-        }
+        // // Alternate Combat Value (uses OMCV against DCV)
+        // const acv = this.findModsByXmlid("ACV");
+        // if (acv) {
+        //     this.system.uses = (acv.OPTION_ALIAS.match(/uses (\w+)/)?.[1] || this.system.uses).toLowerCase();
+        //     this.system.targets = (acv.OPTION_ALIAS.match(/against (\w+)/)?.[1] || this.system.targets).toLowerCase();
+        // }
 
-        const boecv = this.findModsByXmlid("BOECV");
-        if (boecv) {
-            this.system.targets = "dmcv";
-            this.system.uses = "omcv";
-        }
+        // const boecv = this.findModsByXmlid("BOECV");
+        // if (boecv) {
+        //     this.system.targets = "dmcv";
+        //     this.system.uses = "omcv";
+        // }
     }
 
     getMakeAttack() {

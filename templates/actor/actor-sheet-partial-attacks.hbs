@@ -37,18 +37,17 @@
                     <td>
                     {{item.system.uses}} vs {{item.system.targets}}
                     </td>
-                        <td title="{{{getScopedFlagValue item @root/gameSystemId "tags" "dc"}}}">
+                        <td>
                         {{item.system.damage}}
                     </td>
                     <td>
-                        {{item.system.class}}
+                        {{item.attackDefenseVs}}
                     </td>
                     <td>
                         {{item.system.endEstimate}}
                     </td>
                     <td>
-                        {{#if (eq item.system.areaOfEffect.type "none")}}
-                            -
+                        {{ item.system.areaOfEffect}}
                         {{else}}
                             {{#if (ne item.system.areaOfEffect.type "none")}}
                                 {{item.system.areaOfEffect.type}}
