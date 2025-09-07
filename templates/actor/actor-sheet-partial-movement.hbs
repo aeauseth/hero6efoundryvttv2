@@ -13,7 +13,7 @@
             </th>
         </tr>
         {{#each items as |item id|}}
-            {{#if (or (eq item.type "movement")(eq item.system.subType "movement")) }}
+            {{#if (includes item.baseInfo.type "movement") }}
                 <tr class="item {{#if (not this.isFromBaseActor)}}delta-item{{/if}} {{#if (gt item.system.value item.system.max)}} over-max{{/if}}{{#if (lt item.system.value item.system.max)}} under-max{{/if}}"
                     data-item-id="{{item._id}}">
                     <td style="min-width: 24px">

@@ -56,7 +56,7 @@
                   {{/if}}
                 {{/each}}
                 {{#each @root/actor.items as |item|}}
-                  {{#if (or (eq item.type "attack") (and (ne item.type "maneuver") (eq item.system.subType "attack")))}}
+                  {{#if (or (includes item.baseInfo.type "attack") (and (ne item.type "maneuver")))}}
                     <option value={{item.id}}{{#if (eq item.id multiAttack.itemKey)}} selected{{/if}}>{{item.name}}</option>
                   {{/if}}
                 {{/each}}

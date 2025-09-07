@@ -469,63 +469,6 @@ async function handleMacroCreation(bar, data, slot, item) {
     game.user.assignHotbarMacro(macro, slot);
 }
 
-async function CreateCustomAttack(actor) {
-    if (!actor) return ui.notifications.error("You must select token or actor");
-    await Dialog.prompt({
-        content: `<h1>${actor.name}</h1><label>Enter Item Data</label><textarea rows="20" cols="200">
-{
-    "name": "Custom Attack",
-    "system": {
-    "modifiers": [],
-    "end": 1,
-    "adders": [],
-    "XMLID": "ENERGYBLAST",
-    "ALIAS": "Blast",
-    "LEVELS": {
-        "value": "1",
-        "max": "1"
-    },
-    "MULTIPLIER": "1.0",
-    "basePointsPlusAdders": 5,
-    "activePoints": 5,
-    "realCost": 2,
-    "subType": "attack",
-    "class": "energy",
-    "killing": false,
-    "knockbackMultiplier": 1,
-    "targets": "dcv",
-    "uses": "ocv",
-    "usesStrength": true,
-    "areaOfEffect": {
-        "type": "none",
-        "value": 0
-    },
-    "piercing": 0,
-    "penetrating": 0,
-    "ocv": "+0",
-    "dcv": "+0",
-    "stunBodyDamage": "Stun and Body"
-    }
-}
-
-</textarea>`,
-        callback: async function (html) {
-            let value = html.find("textarea").val();
-            try {
-                let json = JSON.parse(value);
-                console.log(json);
-                json.type = "attack";
-
-                let item = await Item.create(json, { parent: actor });
-                item.updateItemDescription();
-                return ui.notifications.info(`Added ${item.name} to ${actor.name}`);
-            } catch (e) {
-                return ui.notifications.error(e);
-            }
-        },
-    });
-}
-
 /**
  * Create a Macro from an Item drop.
  * Get an existing item macro if one exists, otherwise create a new one.
@@ -537,11 +480,7 @@ function rollItemMacro(itemName, itemType) {
     let actor;
     if (speaker.token) actor = game.actors.tokens[speaker.token];
     if (!actor) actor = game.actors.get(speaker.actor);
-    let item = actor
-        ? actor.items.find(
-              (i) => i.name === itemName && (!itemType || i.type == itemType || i.system.subType === itemType),
-          )
-        : null;
+    let item = actor ? actor.items.find((i) => i.name === itemName && (!itemType || i.type == itemType)) : null;
 
     // The selected actor does not have an item with this name.
     if (!item) {
@@ -549,9 +488,7 @@ function rollItemMacro(itemName, itemType) {
         // Search all owned tokens for this item
         for (let token of canvas.tokens.ownedTokens) {
             actor = token.actor;
-            item = actor.items.find(
-                (i) => i.name === itemName && (!itemType || i.type == itemType || i.system.subType === itemType),
-            );
+            item = actor.items.find((i) => i.name === itemName && (!itemType || i.type == itemType));
             if (item) {
                 break;
             }
