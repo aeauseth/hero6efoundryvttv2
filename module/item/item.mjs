@@ -729,7 +729,7 @@ export class HeroSystem6eItem extends Item {
     //     window.prepareData.startDate = (window.prepareData.startDate || 0) + (Date.now() - startDate);
     // }
 
-    setCombatSkillLevels() {
+    async setCombatSkillLevels() {
         if (this.system.XMLID == "COMBAT_LEVELS") {
             // Make sure CSLs are defined; but don't override them if they are already present
             this.system.csl ??= {};
