@@ -28,14 +28,14 @@
                         {{/if}}
                         {{{itemName item}}}
                     </td>
-                    <td title="{{{getScopedFlagValue item @root/gameSystemId "tags" "ocv"}}}">
-                        {{signedString 0}}
+                    <td data-tooltip="{{{item.system.ocvDetails.tooltip}}}">
+                        {{item.system.ocvDetails.value}}
                     </td>
-                    <td title="{{{getScopedFlagValue item @root/gameSystemId "tags" "dcv"}}}">
-                        {{signedString item.system.dcvEstimated}}
+                    <td data-tooltip="{{{item.system.dcvDetails.tooltip}}}">
+                        {{item.system.dcvDetails.value}}
                     </td>
                     <td>
-                        {{item.system.uses}} vs {{item.system.targets}}
+                    {{item.system.uses}} vs {{item.system.targets}}
                     </td>
                         <td title="{{{getScopedFlagValue item @root/gameSystemId "tags" "dc"}}}">
                         {{item.system.damage}}

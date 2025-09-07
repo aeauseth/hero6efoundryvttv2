@@ -296,6 +296,61 @@ function isManeuverThatIsUsingAnEmptyHand(item, options) {
     );
 }
 
+export function getManueverEffectWithPlaceholdersReplaced(item) {
+    const maneuverEffect = getManeuverEffect(item);
+    if (maneuverEffect) {
+        let effectString = maneuverEffect;
+        // let rangeString = "";
+        // let dcsString = "";
+
+        if (item.causesDamageEffect()) {
+            const { diceParts } = calculateDicePartsForItem(item, { ignoreDeadlyBlow: true });
+            const doesDiceOfDamage =
+                diceParts.d6Count + diceParts.d6Less1DieCount + diceParts.halfDieCount + diceParts.constant;
+            if (maneuverEffect.search(/\[STRDC\]/) > -1) {
+                // PH: FIXME: Offensive Ranged Disarm and Ranged Disarm are shown as [WEAPONDC] but are not offensive and should be caught in this.
+                //            How to determine these martial maneuvers behave like this generically?
+                // Cheat a bit. d6Count for strength is ~DC.
+                const effectiveStrength = diceParts.d6Count * 5;
+                effectString = maneuverEffect.replace("[STRDC]", `${effectiveStrength} STR`);
+            } else if (doesDiceOfDamage) {
+                // This does some damage.
+                const damageFormula = dicePartsToEffectFormula(diceParts);
+                if (damageFormula) {
+                    const nnd = maneuverEffect.indexOf("NNDDC") > -1 || maneuverEffect.indexOf("WEAPONNNDDC") > -1;
+                    const killing =
+                        maneuverEffect.indexOf("KILLINGDC") > -1 || maneuverEffect.indexOf("WEAPONKILLINGDC") > -1;
+
+                    const diceFormula = `${damageFormula}${nnd ? " NND" : ""}${killing ? (isManeuverHthCategory(item) ? " HKA" : " RKA") : ""}`;
+
+                    effectString = maneuverEffect
+                        .replace("[NORMALDC]", diceFormula)
+                        .replace("[KILLINGDC]", diceFormula)
+                        .replace("[FLASHDC]", diceFormula)
+                        .replace("[NNDDC]", diceFormula)
+                        .replace("[WEAPONDC]", diceFormula)
+                        .replace("[WEAPONKILLINGDC]", diceFormula)
+                        .replace("[WEAPONFLASHDC]", diceFormula)
+                        .replace("[WEAPONNNDDC]", diceFormula);
+                }
+            }
+
+            //const maneuverDcs = parseInt(item.DC || 0) + getExtraMartialDcsOrZero(this);
+            // dcsString =
+            //     isManeuverThatDoesReplaceableDamageType(this) && maneuverDcs
+            //         ? `, ${maneuverDcs.signedStringHero()} DC`
+            //         : "";
+
+            // if (isRangedMartialManeuver(this)) {
+            //     const range = parseInt(item.system.RANGE || 0);
+            //     rangeString = `, Range ${range.signedStringHero()}`;
+            // }
+        }
+
+        return effectString;
+    }
+}
+
 export function getManeuverEffect(item) {
     return item.system.USEWEAPON || item.system.USEWEAPON === "Yes" ? item.system.WEAPONEFFECT : item.system.EFFECT;
 }

@@ -112,8 +112,8 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
             data.alphaTesting = game.settings.get(game.system.id, "alphaTesting");
 
             // Equipment & MartialArts are uncommon.  If there isn't any, then don't show the navigation tab.
-            data.hasEquipment = false;
-            data.hasMartialArts = false;
+            data.hasEquipment = !!data.actor.items.find((o) => o.type === "equipment");
+            data.hasMartialArts = !!data.actor.items.find((o) => o.type === "martialart");
 
             // NPC or PC dropdown
             data.isGM = game.user.isGM;
@@ -1535,17 +1535,18 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
 
         // This typically happens during upload.  Don't save anything in static.
         if (is5e === undefined) {
-            const defenseCalculationActor = new HeroSystem6eActor({
-                name: "Defense Calculation Actor",
-                type: "pc",
-                system: { is5e },
-            });
-            const attack = (HeroSystemActorSheet.sampleAttacks[attackKey] = new HeroSystem6eItem(
-                HeroSystem6eItem.itemDataFromXml(xml, defenseCalculationActor),
-                { parent: defenseCalculationActor },
-            ));
-            await attack._postUpload();
-            console.debug(`${attackKey}: Undefined is5e`);
+            return;
+            // const defenseCalculationActor = new HeroSystem6eActor({
+            //     name: "Defense Calculation Actor",
+            //     type: "pc",
+            //     system: { is5e },
+            // });
+            // const attack = (HeroSystemActorSheet.sampleAttacks[attackKey] = new HeroSystem6eItem(
+            //     HeroSystem6eItem.itemDataFromXml(xml, defenseCalculationActor),
+            //     { parent: defenseCalculationActor },
+            // ));
+            // await attack._postUpload();
+            // console.debug(`${attackKey}: Undefined is5e`);
         }
 
         HeroSystemActorSheet.sampleAttacks[defenseCalculationActorKey] ??= new HeroSystem6eActor(
@@ -1563,7 +1564,7 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
                 HeroSystem6eItem.itemDataFromXml(xml, defenseCalculationActor),
                 { parent: defenseCalculationActor },
             );
-            await HeroSystemActorSheet.sampleAttacks[attackKey]._postUpload();
+            //await HeroSystemActorSheet.sampleAttacks[attackKey]._postUpload();
             //console.debug(`${attackKey}: Created`);
         } else {
             //console.debug(`${attackKey}: used cache`);

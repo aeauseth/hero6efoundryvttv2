@@ -46,7 +46,7 @@
 
             <section class="flexrow">
                 <ul class="attributes flexcol">
-                    {{#if hasEND}}
+                    {{#if (hasCharacteristic actor "END")}}
                         <li class="attribute health" data-ability="end">
                             <h4 class="attribute-name box-title">Endurance</h4>
                             <div class="attribute-value multiple characteristic">
@@ -90,7 +90,7 @@
                         </div>
                     </li>
 
-                    {{#if hasSTUN}}
+                    {{#if (hasCharacteristic actor "STUN")}}
                         <li class="attribute health" data-ability="stun">
                             <h4 class="attribute-name box-title">Stun</h4>
                             <div class="attribute-value multiple characteristic">

@@ -40,6 +40,7 @@ import {
     getExtraMartialDcsOrZero,
     getFullyQualifiedEffectFormulaFromItem,
     getManeuverEffect,
+    getManueverEffectWithPlaceholdersReplaced,
     isManeuverHthCategory,
     isManeuverThatDoesReplaceableDamageType,
     isRangedMartialManeuver,
@@ -733,7 +734,7 @@ export class HeroSystem6eItem extends Item {
     //     window.prepareData.startDate = (window.prepareData.startDate || 0) + (Date.now() - startDate);
     // }
 
-    setCombatSkillLevels() {
+    async setCombatSkillLevels() {
         if (this.system.XMLID == "COMBAT_LEVELS") {
             // Make sure CSLs are defined; but don't override them if they are already present
             this.system.csl ??= {};
@@ -2623,7 +2624,7 @@ export class HeroSystem6eItem extends Item {
         //item.system.endEstimate = parseInt(item.end) || 0;
 
         // Effect
-        this.configureAttackParameters();
+        //this.configureAttackParameters();
 
         // Defense
         // if (item.type === "defense") {
@@ -3157,22 +3158,8 @@ export class HeroSystem6eItem extends Item {
         // return this.baseActor?.items.find((o) => o.id === this.id && o.toXML() === this.toXML()) ? true : false;
     }
 
-    static _modifiersCache = HeroSystemGenericSharedCache.create("modifiers");
     get modifiers() {
-        // Caching for performance
-        // if (this.id) {
-        //     const cachedValue = HeroSystem6eItem._modifiersCache.getCachedValue(this.id);
-        //     if (cachedValue) {
-        //         return cachedValue;
-        //     }
-        // }
-
-        // Need to be careful we don't jumble up parent & child modifiers, so make a working copy.
-        // Any changes will require special handling.
         let _modifiers = [...(this.system.MODIFIER || [])];
-        // for (const _mod of this.system.MODIFIER || []) {
-        //     _modifiers.push(new HeroSystem6eModifier(_mod, { item: this, _itemUuid: this.uuid }));
-        // }
 
         if (this.parentItem) {
             // Include common modifiers from parent that are not private.
@@ -3207,12 +3194,6 @@ export class HeroSystem6eItem extends Item {
                 }
             }
         }
-
-        // // Cache modifiers if this is a non temporary item
-        // if (this.id) {
-        //     HeroSystem6eItem._modifiersCache.setCachedValue(this.id, _modifiers);
-        // }
-
         return _modifiers;
     }
 
@@ -3224,82 +3205,12 @@ export class HeroSystem6eItem extends Item {
         return this.modifiers.filter((o) => o.cost < 0);
     }
 
-    static _addersCache = HeroSystemGenericSharedCache.create("adders");
     get adders() {
-        if (!this.system?.ADDER) {
-            return [];
-        }
-        return this.system.ADDER;
-        // // Caching for performance
-        // if (this.id) {
-        //     const cachedValue = HeroSystem6eItem._addersCache.getCachedValue(this.id);
-        //     if (cachedValue) {
-        //         return cachedValue;
-        //     }
-        // }
-
-        // const _adders = [];
-        // for (const _adderJson of this.system.ADDER || []) {
-        //     _adders.push(new HeroSystem6eAdder(_adderJson, { item: this, parent: this }));
-        // }
-
-        // // Cache adders if this is a non temporary item
-        // if (this.id) {
-        //     HeroSystem6eItem._addersCache.setCachedValue(this.id, _adders);
-        // }
-
-        // return _adders;
+        return this.system?.ADDER || [];
     }
 
-    static _powersCache = HeroSystemGenericSharedCache.create("powers");
     get powers() {
-        if (!this.system?.POWER) {
-            return [];
-        }
-        return this.system.POWER;
-        // Caching for performance
-        if (this.id) {
-            const cachedValue = HeroSystem6eItem._powersCache.getCachedValue(this.id);
-            if (cachedValue) {
-                return cachedValue;
-            }
-        }
-
-        // ENDURANCERESERVE uses a POWER "modifier"
-        // This can get confusing with COMPOUNDPOWERS that have POWERs.
-        // uploadFromXml has been improved to remove these duplciate POWER entries as of 1/18/1025.
-        // A quick sanity check warns of this issue
-        // There was an issue where findModsByXmlid(, "STRMINIMUM") would return the COMPOUNDPOWER instead of the RKA (Oceana Silverheart.HDC)
-        // Looks like HeroDesigner will sometimes reuse ID when you copy/paste a power.  Consider remapping dup ID's during upload.
-        let powersList = this.system.POWER || [];
-        try {
-            for (let power2 of powersList) {
-                const childDuplicateItem = this.childItems.find((c) => c.system.ID === power2.ID);
-                if (childDuplicateItem) {
-                    console.warn(
-                        `${this.actor.name}/${power2.XMLID}/${power2.ALIAS} has ID (${power2.ID}) ` +
-                            `which may conflict with ${childDuplicateItem.system.XMLID}/${childDuplicateItem.name}`,
-                    );
-                    this.system.POWER = powersList.filter((p) => !this.childItems.find((c) => c.system.ID === p.ID));
-                }
-            }
-            powersList = powersList.filter((p) => !this.childItems.find((c) => c.system.ID === p.ID));
-
-        //     const _powers = [];
-        //     for (const _powerJson of powersList) {
-        //         _powers.push(new HeroSystem6eConnectingPower(_powerJson, { item: this, parent: this }));
-        //     }
-
-        // Cache powers if this is a non temporary item
-        if (this.id) {
-            HeroSystem6eItem._powersCache.setCachedValue(this.id, _powers);
-        }
-
-        //     return _powers;
-        // } catch (e) {
-        //     console.error(e);
-        //     return [];
-        // }
+        return this.system.POWER || [];
     }
 
     /**
@@ -3712,65 +3623,18 @@ export class HeroSystem6eItem extends Item {
                     // description += `, ${dcv.signedStringHero()} DCV`;
                     description += `, ${system.OCV} OCV, ${system.DCV} DCV`;
 
-                    const maneuverEffect = getManeuverEffect(this);
-                    if (maneuverEffect) {
-                        let effectString = maneuverEffect;
-                        let rangeString = "";
-                        let dcsString = "";
+                    const effectString = getManueverEffectWithPlaceholdersReplaced(this);
+                    description += `, ${effectString}`;
 
-                        if (this.causesDamageEffect()) {
-                            const { diceParts } = calculateDicePartsForItem(this, { ignoreDeadlyBlow: true });
-                            const doesDiceOfDamage =
-                                diceParts.d6Count +
-                                diceParts.d6Less1DieCount +
-                                diceParts.halfDieCount +
-                                diceParts.constant;
-                            if (maneuverEffect.search(/\[STRDC\]/) > -1) {
-                                // PH: FIXME: Offensive Ranged Disarm and Ranged Disarm are shown as [WEAPONDC] but are not offensive and should be caught in this.
-                                //            How to determine these martial maneuvers behave like this generically?
-                                // Cheat a bit. d6Count for strength is ~DC.
-                                const effectiveStrength = diceParts.d6Count * 5;
-                                effectString = maneuverEffect.replace("[STRDC]", `${effectiveStrength} STR`);
-                            } else if (doesDiceOfDamage) {
-                                // This does some damage.
-                                const damageFormula = dicePartsToEffectFormula(diceParts);
-                                if (damageFormula) {
-                                    const nnd =
-                                        maneuverEffect.indexOf("NNDDC") > -1 ||
-                                        maneuverEffect.indexOf("WEAPONNNDDC") > -1;
-                                    const killing =
-                                        maneuverEffect.indexOf("KILLINGDC") > -1 ||
-                                        maneuverEffect.indexOf("WEAPONKILLINGDC") > -1;
+                    const maneuverDcs = parseInt(system.DC || 0) + getExtraMartialDcsOrZero(this);
+                    description +=
+                        isManeuverThatDoesReplaceableDamageType(this) && maneuverDcs
+                            ? `, ${maneuverDcs.signedStringHero()} DC`
+                            : "";
 
-                                    const diceFormula = `${damageFormula}${nnd ? " NND" : ""}${killing ? (isManeuverHthCategory(this) ? " HKA" : " RKA") : ""}`;
-
-                                    effectString = maneuverEffect
-                                        .replace("[NORMALDC]", diceFormula)
-                                        .replace("[KILLINGDC]", diceFormula)
-                                        .replace("[FLASHDC]", diceFormula)
-                                        .replace("[NNDDC]", diceFormula)
-                                        .replace("[WEAPONDC]", diceFormula)
-                                        .replace("[WEAPONKILLINGDC]", diceFormula)
-                                        .replace("[WEAPONFLASHDC]", diceFormula)
-                                        .replace("[WEAPONNNDDC]", diceFormula);
-                                }
-                            }
-
-                            const maneuverDcs = parseInt(system.DC || 0) + getExtraMartialDcsOrZero(this);
-                            dcsString =
-                                isManeuverThatDoesReplaceableDamageType(this) && maneuverDcs
-                                    ? `, ${maneuverDcs.signedStringHero()} DC`
-                                    : "";
-
-                            if (isRangedMartialManeuver(this)) {
-                                const range = parseInt(system.RANGE || 0);
-                                rangeString = `, Range ${range.signedStringHero()}`;
-                            }
-                        }
-
-                        system._effect = effectString;
-
-                        description += `, ${effectString}${rangeString}${dcsString}`;
+                    if (isRangedMartialManeuver(this)) {
+                        const range = parseInt(system.RANGE || 0);
+                        description += `, Range ${range.signedStringHero()}`;
                     }
                 }
                 break;
@@ -4306,7 +4170,7 @@ export class HeroSystem6eItem extends Item {
         if (_adderArray.length > 0) {
             switch (powerXmlId) {
                 case "ANIMAL_HANDLER":
-                    system.description += ` (${_adderArray.sort().join(", ")})`;
+                    description += ` (${_adderArray.sort().join(", ")})`;
                     break;
 
                 case "TRANSPORT_FAMILIARITY":

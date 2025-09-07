@@ -3,6 +3,8 @@ import { HeroSystem6eActor } from "../actor/actor.mjs";
 import { getPowerInfo } from "../utility/util.mjs";
 //import { getSystemDisplayUnits } from "../utility/units.mjs";
 import { HeroSystem6eItem } from "./item.mjs";
+import { calculateVelocityInSystemUnits } from "../heroRuler.mjs";
+import { getManueverEffectWithPlaceholdersReplaced } from "../utility/damage.mjs";
 
 const { NumberField, StringField, ObjectField, BooleanField, ArrayField, EmbeddedDataField } = foundry.data.fields;
 
@@ -300,7 +302,12 @@ class HeroPowerModel extends HeroItemModCommonModel {
 
 export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeDataModel {
     get description() {
-        return this.parent.getItemDescription();
+        try {
+            return this.parent.getItemDescription();
+        } catch (e) {
+            console.error(e, this);
+        }
+        return null;
     }
 
     get hdcHTMLCollection() {
@@ -323,6 +330,11 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
                 // This should never happen, missing something from CONFIG.mjs?  Perhaps with super old actors?
                 console.error(`Missing range`, this);
                 this.system.range = CONFIG.HERO.RANGE_TYPES.SELF;
+            }
+
+            // Short circuit if there are no modifiers
+            if (this.MODIFIER === undefined) {
+                return _range;
             }
 
             // Range Modifiers "self", "no range", "standard", or "los" based on base power.
@@ -467,6 +479,10 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         return this.parent;
     }
 
+    get actor() {
+        return this.item.actor;
+    }
+
     get activePoints() {
         return this.parent.calcItemPoints().activePoints;
     }
@@ -515,15 +531,72 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         // STR (or any other characteristic only cost end when the native STR is used)
         if (this.item.baseInfo?.type.includes("characteristic")) return null;
 
-        return this.item.end || null;
+        return this.item.end;
     }
 
     get ocvEstimated() {
-        return parseInt(this.OCV) || 0;
+        console.error("depricated ocvEstimated");
+        return 0;
     }
 
     get dcvEstimated() {
-        return parseInt(this.DCV) || 0;
+        console.error("depricated dcvEstimated");
+        return 0;
+    }
+
+    #genericDetails = function (prop) {
+        const propUpper = prop.toUpperCase();
+        const propLower = prop.toLowerCase();
+        const _details = {
+            tags: [],
+        };
+        const cslSummary = {};
+
+        if (!propUpper || this[propUpper] === "--") {
+            return {};
+        }
+
+        const cv = parseInt(this.actor?.system.characteristics[propLower]?.value || 0);
+        if (cv !== 0) {
+            _details.tags.push({ name: propUpper, value: cv });
+        }
+
+        if ((parseInt(this[propUpper]) || 0) !== 0) {
+            _details.tags.push({ name: this.item.name, value: parseInt(this[propUpper]) });
+        }
+
+        if (this[propUpper] === "-v/10") {
+            // Educated guess for token
+            const token =
+                this.actor.getActiveTokens().find((t) => canvas.tokens.controlled.find((c) => c.id === t.id)) ||
+                this.actor.getActiveTokens()[0];
+            const velocity = calculateVelocityInSystemUnits(this.actor, token);
+            if (velocity !== 0) {
+                _details.tags.push({ name: "Velocity", value: -parseInt(velocity / 10) });
+            }
+        }
+
+        _details.value = _details.tags.reduce((accum, currItem) => accum + currItem.value, 0);
+        _details.tooltip = _details.tags.map((m) => `${m.value.signedStringHero()} ${m.name}`).join("<br>");
+
+        return _details;
+    };
+
+    get ocvDetails() {
+        return this.#genericDetails(this.uses);
+    }
+
+    get dcvDetails() {
+        return this.#genericDetails(this.targets);
+    }
+
+    get effect() {
+        let _effect = this.USEWEAPON ? this.WEAPONEFFECT : this.EFFECT;
+        if (!_effect) return null;
+
+        const maneuverEffect = getManueverEffectWithPlaceholdersReplaced(this.item);
+
+        return maneuverEffect;
     }
 
     get uses() {
@@ -1223,6 +1296,7 @@ export class HeroActorModel extends foundry.abstract.DataModel {
             characteristics: new EmbeddedDataField(HeroCharacteristicsModel),
             versionHeroSystem6eUpload: new StringField(),
             is5e: new BooleanField(),
+            heroicIdentity: new BooleanField(),
             _hdcXml: new StringField(),
         };
     }
