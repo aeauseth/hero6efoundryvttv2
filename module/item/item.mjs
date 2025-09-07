@@ -47,19 +47,6 @@ import { HeroSystem6eActorActiveEffects } from "../actor/actor-active-effects.mj
 import { Attack } from "../utility/attack.mjs";
 import { getItemDefenseVsAttack } from "../utility/defense.mjs";
 import { overrideCanAct } from "../settings/settings-helpers.mjs";
-// import { HeroSystem6eAdder } from "./adder.mjs";
-// import { HeroSystem6eModifier } from "./modifier.mjs";
-// import { HeroSystem6eConnectingPower } from "./connectingPower.mjs";
-import {
-    HeroSystem6eItemPower,
-    HeroSystem6eItemEquipment,
-    HeroSystem6eItemPerk,
-    HeroSystem6eItemSkill,
-    HeroSystem6eItemManeuver,
-    HeroSystem6eItemTalent,
-    HeroSystem6eItemMartialArt,
-    HeroSystem6eItemDisadvantage,
-} from "./HeroSystem6eTypeDataModels.mjs";
 import { HeroAdderModel } from "./HeroSystem6eTypeDataModels.mjs";
 
 export function initializeItemHandlebarsHelpers() {
