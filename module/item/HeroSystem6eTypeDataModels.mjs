@@ -537,12 +537,12 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         return this.item.end;
     }
 
-    get areaOfEffectShortDescription() {
-        if (!this.item.system.areaOfEffect || this.item.system.areaOfEffect.type === "none") {
-            return "-";
-        }
-        return `${this.item.system.areaOfEffect.type}`;
-    }
+    // get aoeShortDescription() {
+    //     if (!this.item.system.areaOfEffect || this.item.system.areaOfEffect.type === "none") {
+    //         return "-";
+    //     }
+    //     return `${this.item.system.areaOfEffect.type}`;
+    // }
 
     get ocvEstimated() {
         console.error("depricated ocvEstimated");

@@ -383,7 +383,7 @@ export class ItemAttackFormApplication extends FormApplication {
      * If they can't place a shot the only options should be "none"
      */
     #setAoeAndHitLocationDataForEffectiveItem() {
-        const aoe = this.data.effectiveItem.aoeAttackParameters();
+        const aoe = this.data.effectiveItem.aoeAttackParameters;
         this.data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations");
         this.data.hitLocationSideEnabled =
             this.data.hitLocationsEnabled && game.settings.get(HEROSYS.module, "hitLocTracking") === "all";
@@ -818,7 +818,7 @@ export class ItemAttackFormApplication extends FormApplication {
     async _spawnAreaOfEffect() {
         const item = this.data.effectiveItem;
 
-        const areaOfEffect = item.aoeAttackParameters();
+        const areaOfEffect = item.aoeAttackParameters;
         if (!areaOfEffect) return;
 
         const aoeType = areaOfEffect.type;

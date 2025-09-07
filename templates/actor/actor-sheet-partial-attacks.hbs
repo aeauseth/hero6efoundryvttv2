@@ -47,7 +47,11 @@
                         {{item.system.endEstimate}}
                     </td>
                     <td>
-                        {{ item.system.areaOfEffect}}
+                        {{#if item.aoeAttackParameters}}
+                            {{item.aoeAttackParameters.shortDesc}}
+                        {{else}}
+                            -
+                        {{/if}}
                         {{!-- {{else}}
                             {{#if (ne item.system.areaOfEffect.type "none")}}
                                 {{item.system.areaOfEffect.type}}
