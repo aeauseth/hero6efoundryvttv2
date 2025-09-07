@@ -2189,103 +2189,103 @@ export class HeroSystem6eItem extends Item {
      * @param {Modifier} aoeModifier - Must be AOE or EXPLOSION modifier.
      * @returns
      */
-    buildAoeAttackParameters(aoeModifier) {
-        const is5e = !!this.actor?.system?.is5e;
+    // buildAoeAttackParameters(aoeModifier) {
+    //     const is5e = !!this.actor?.system?.is5e;
 
-        let changed = false;
+    //     let changed = false;
 
-        const widthDouble = parseInt(
-            (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEWIDTH")?.LEVELS || 0,
-        );
-        const heightDouble = parseInt(
-            (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEHEIGHT")?.LEVELS || 0,
-        );
-        // In 6e, widthDouble and heightDouble are the actual size and not instructions to double like 5e
-        const width = is5e ? Math.pow(2, widthDouble) : widthDouble || 2;
-        const height = is5e ? Math.pow(2, heightDouble) : heightDouble || 2;
-        let levels = 1;
-        let dcFalloff = 0;
+    //     const widthDouble = parseInt(
+    //         (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEWIDTH")?.LEVELS || 0,
+    //     );
+    //     const heightDouble = parseInt(
+    //         (aoeModifier.ADDER || []).find((adder) => adder.XMLID === "DOUBLEHEIGHT")?.LEVELS || 0,
+    //     );
+    //     // In 6e, widthDouble and heightDouble are the actual size and not instructions to double like 5e
+    //     const width = is5e ? Math.pow(2, widthDouble) : widthDouble || 2;
+    //     const height = is5e ? Math.pow(2, heightDouble) : heightDouble || 2;
+    //     let levels = 1;
+    //     let dcFalloff = 0;
 
-        // 5e has a calculated size
-        if (is5e) {
-            const activePointsWithoutAoeAdvantage = this._activePointsWithoutAoe;
-            if (aoeModifier.XMLID === "AOE") {
-                switch (aoeModifier.OPTIONID) {
-                    case "CONE":
-                        levels = RoundFavorPlayerUp(1 + activePointsWithoutAoeAdvantage / 5);
-                        break;
+    //     // 5e has a calculated size
+    //     if (is5e) {
+    //         const activePointsWithoutAoeAdvantage = this._activePointsWithoutAoe;
+    //         if (aoeModifier.XMLID === "AOE") {
+    //             switch (aoeModifier.OPTIONID) {
+    //                 case "CONE":
+    //                     levels = RoundFavorPlayerUp(1 + activePointsWithoutAoeAdvantage / 5);
+    //                     break;
 
-                    case "HEX":
-                        levels = 1;
-                        break;
+    //                 case "HEX":
+    //                     levels = 1;
+    //                     break;
 
-                    case "LINE":
-                        levels = RoundFavorPlayerUp((2 * activePointsWithoutAoeAdvantage) / 5);
-                        break;
+    //                 case "LINE":
+    //                     levels = RoundFavorPlayerUp((2 * activePointsWithoutAoeAdvantage) / 5);
+    //                     break;
 
-                    case "ANY":
-                    case "RADIUS":
-                        levels = Math.max(1, RoundFavorPlayerUp(activePointsWithoutAoeAdvantage / 10));
-                        break;
+    //                 case "ANY":
+    //                 case "RADIUS":
+    //                     levels = Math.max(1, RoundFavorPlayerUp(activePointsWithoutAoeAdvantage / 10));
+    //                     break;
 
-                    default:
-                        console.error(`Unhandled 5e AOE OPTIONID ${aoeModifier.OPTIONID} for ${this.detailedName()}`);
-                        break;
-                }
+    //                 default:
+    //                     console.error(`Unhandled 5e AOE OPTIONID ${aoeModifier.OPTIONID} for ${this.detailedName()}`);
+    //                     break;
+    //             }
 
-                // Modify major dimension (radius, length, etc). Line is different from all others.
-                const majorDimensionDoubles = (aoeModifier?.ADDER || []).find(
-                    (adder) => adder.XMLID === "DOUBLEAREA" || adder.XMLID === "DOUBLELENGTH",
-                );
-                if (majorDimensionDoubles) {
-                    levels *= Math.pow(2, parseInt(majorDimensionDoubles.LEVELS));
-                }
-            } else {
-                // Explosion DC falloff has different defaults based on shape. When
-                // LEVELS are provided they are the absolute value and not additive to the default.
-                if (aoeModifier.OPTIONID === "CONE") {
-                    dcFalloff = 2;
-                } else if (aoeModifier.OPTIONID === "LINE") {
-                    dcFalloff = 3;
-                } else {
-                    dcFalloff = 1;
-                }
-                dcFalloff = aoeModifier.LEVELS ? parseInt(aoeModifier.LEVELS) : dcFalloff;
+    //             // Modify major dimension (radius, length, etc). Line is different from all others.
+    //             const majorDimensionDoubles = (aoeModifier?.ADDER || []).find(
+    //                 (adder) => adder.XMLID === "DOUBLEAREA" || adder.XMLID === "DOUBLELENGTH",
+    //             );
+    //             if (majorDimensionDoubles) {
+    //                 levels *= Math.pow(2, parseInt(majorDimensionDoubles.LEVELS));
+    //             }
+    //         } else {
+    //             // Explosion DC falloff has different defaults based on shape. When
+    //             // LEVELS are provided they are the absolute value and not additive to the default.
+    //             if (aoeModifier.OPTIONID === "CONE") {
+    //                 dcFalloff = 2;
+    //             } else if (aoeModifier.OPTIONID === "LINE") {
+    //                 dcFalloff = 3;
+    //             } else {
+    //                 dcFalloff = 1;
+    //             }
+    //             dcFalloff = aoeModifier.LEVELS ? parseInt(aoeModifier.LEVELS) : dcFalloff;
 
-                // The description in FRed is poorly written as it talks about AP of the power but it doesn't exclude
-                // the contribution of the explosion advantage itself although its example does. We will remove the explosion contribution to
-                // the power's DC.
-                const effectiveDc = Math.floor(activePointsWithoutAoeAdvantage / 5);
-                levels = effectiveDc * dcFalloff;
-            }
-        } else {
-            levels = parseInt(aoeModifier.LEVELS || 0);
-        }
+    //             // The description in FRed is poorly written as it talks about AP of the power but it doesn't exclude
+    //             // the contribution of the explosion advantage itself although its example does. We will remove the explosion contribution to
+    //             // the power's DC.
+    //             const effectiveDc = Math.floor(activePointsWithoutAoeAdvantage / 5);
+    //             levels = effectiveDc * dcFalloff;
+    //         }
+    //     } else {
+    //         levels = parseInt(aoeModifier.LEVELS || 0);
+    //     }
 
-        // 5e has HEX and RADIUS but they're the same template. 5e explosion radius template is called NORMAL for some reason.
-        const type =
-            aoeModifier.OPTIONID === "HEX" || aoeModifier.OPTIONID === "NORMAL" ? "RADIUS" : aoeModifier.OPTIONID;
-        const newAoe = {
-            type: type.toLowerCase(),
-            value: levels,
-            width: width,
-            height: height,
+    //     // 5e has HEX and RADIUS but they're the same template. 5e explosion radius template is called NORMAL for some reason.
+    //     const type =
+    //         aoeModifier.OPTIONID === "HEX" || aoeModifier.OPTIONID === "NORMAL" ? "RADIUS" : aoeModifier.OPTIONID;
+    //     const newAoe = {
+    //         type: type.toLowerCase(),
+    //         value: levels,
+    //         width: width,
+    //         height: height,
 
-            isExplosion: this.hasExplosionAdvantage(),
-            dcFalloff: dcFalloff,
-        };
+    //         isExplosion: this.hasExplosionAdvantage(),
+    //         dcFalloff: dcFalloff,
+    //     };
 
-        if (!foundry.utils.objectsEqual(this.system.areaOfEffect, newAoe)) {
-            this.system.areaOfEffect = {
-                ...this.system.areaOfEffect,
-                ...newAoe,
-            };
+    //     if (!foundry.utils.objectsEqual(this.system.areaOfEffect, newAoe)) {
+    //         this.system.areaOfEffect = {
+    //             ...this.system.areaOfEffect,
+    //             ...newAoe,
+    //         };
 
-            changed = true;
-        }
+    //         changed = true;
+    //     }
 
-        return changed;
-    }
+    //     return changed;
+    // }
 
     // buildRangeParameters() {
     //     const originalRange = this.system.range;
@@ -2356,7 +2356,7 @@ export class HeroSystem6eItem extends Item {
     // }
 
     // FIXME: Take this function out back and kill it. It's too similar to buildAoeAttackParameters
-    aoeAttackParameters() {
+    get aoeAttackParameters() {
         const aoeModifier = this.getAoeModifier();
         if (aoeModifier) {
             const is5e = !!this.actor?.system?.is5e;
@@ -2449,10 +2449,14 @@ export class HeroSystem6eItem extends Item {
                 newAoe.distance = Math.sqrt(levels * levels * 2);
             }
 
-            return {
+            const results = {
                 ...aoeModifier,
                 ...newAoe,
             };
+
+            results.shortDesc = `${results.type} (${results.value}${results.isExplosion ? "e" : ""})`;
+
+            return results;
         }
         return null;
     }
@@ -4355,7 +4359,7 @@ export class HeroSystem6eItem extends Item {
         }
 
         if (modifier.XMLID === "AOE") {
-            const areaOfEffect = item.aoeAttackParameters();
+            const areaOfEffect = item.aoeAttackParameters;
             if (areaOfEffect.value > 0) {
                 result += `${areaOfEffect.value}${
                     modifier.OPTION_ALIAS === "Any Area" && !item.actor?.system?.is5e
@@ -4372,13 +4376,13 @@ export class HeroSystem6eItem extends Item {
         if (modifier.OPTION_ALIAS && !["VISIBLE", "CHARGES", "AVAD", "ABLATIVE"].includes(modifier.XMLID)) {
             switch (modifier.XMLID) {
                 case "AOE":
-                    if (modifier.OPTION_ALIAS === "One Hex" && item.aoeAttackParameters().value > 1) {
+                    if (modifier.OPTION_ALIAS === "One Hex" && item.aoeAttackParameters.value > 1) {
                         result += "Radius; ";
                     } else if (modifier.OPTION_ALIAS === "Any Area" && !item.actor?.system?.is5e) {
                         result += "2m Areas; ";
                     } else if (modifier.OPTION_ALIAS === "Line") {
-                        const width = item.aoeAttackParameters().width;
-                        const height = item.aoeAttackParameters().height;
+                        const width = item.aoeAttackParameters.width;
+                        const height = item.aoeAttackParameters.height;
 
                         result += `Long, ${height}${getSystemDisplayUnits(
                             item.actor.is5e,
@@ -4391,7 +4395,7 @@ export class HeroSystem6eItem extends Item {
                 case "EXPLOSION":
                     {
                         const shape = modifier.OPTION_ALIAS === "Normal (Radius)" ? "Radius" : modifier.OPTION_ALIAS;
-                        result += `${shape}; -1 DC/${item.aoeAttackParameters().dcFalloff}"; `;
+                        result += `${shape}; -1 DC/${item.aoeAttackParameters.dcFalloff}"; `;
                     }
                     break;
                 case "EXTRATIME":
