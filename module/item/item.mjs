@@ -19,7 +19,6 @@ import {
     adjustmentSourcesStrict,
     determineMaxAdjustment,
 } from "../utility/adjustment.mjs";
-import { HeroSystemGenericSharedCache } from "../utility/cache.mjs";
 import { onActiveEffectToggle } from "../utility/effects.mjs";
 import {
     getPowerInfo,
@@ -31,17 +30,14 @@ import { RoundFavorPlayerDown, RoundFavorPlayerUp } from "../utility/round.mjs";
 import {
     buildStrengthItem,
     calculateApPerDieForItem,
-    calculateDicePartsForItem,
     calculateDicePartsFromDcForItem,
     calculateStrengthMinimumForItem,
     combatSkillLevelsForAttack,
-    dicePartsToEffectFormula,
     getEffectFormulaFromItem,
     getExtraMartialDcsOrZero,
     getFullyQualifiedEffectFormulaFromItem,
     getManeuverEffect,
     getManueverEffectWithPlaceholdersReplaced,
-    isManeuverHthCategory,
     isManeuverThatDoesReplaceableDamageType,
     isRangedMartialManeuver,
 } from "../utility/damage.mjs";
@@ -1056,15 +1052,7 @@ export class HeroSystem6eItem extends Item {
     setAttack() {
         // ATTACK
         if (this.causesDamageEffect()) {
-            // TODO: NOTE: This shouldn't just be for attack type. Should probably get rid of the subType approach.
-            const attack = "attack";
-            if (this.system.subType !== attack) {
-                this.system.subType = attack;
-                this.makeAttack();
-            } else {
-                // Newer item edit may change system.LEVELS or adder/modifier
-                this.makeAttack();
-            }
+            this.makeAttack();
 
             // text description of damage
             this.system.damage = getFullyQualifiedEffectFormulaFromItem(this, {});
@@ -1078,49 +1066,29 @@ export class HeroSystem6eItem extends Item {
         }
     }
 
-    setSkills() {
-        // SKILLS
-        if (this.baseInfo?.type.includes("skill")) {
-            const skill = "skill";
-            if (this.system.subType !== skill) {
-                this.system.subType = skill;
-            }
-        }
-    }
-
     setMovement() {
         // MOVEMENT
         if (this.baseInfo?.type.includes("movement")) {
-            const movement = "movement";
-            if (this.system.subType !== movement) {
-                this.system.subType = movement;
-                this.system.showToggle = true;
-
-                // Movement power typically default to active
-                if (
-                    !this.system.charges?.value &&
-                    this.parentItem?.system.XMLID !== "MULTIPOWER" &&
-                    !this.baseInfo?.behaviors.includes("defaultoff")
-                ) {
-                    this.system.active ??= true;
-                }
+            // Movement power typically default to active
+            if (
+                !this.system.charges?.value &&
+                this.parentItem?.system.XMLID !== "MULTIPOWER" &&
+                !this.baseInfo?.behaviors.includes("defaultoff")
+            ) {
+                this.system.active ??= true;
             }
         }
     }
 
     setShowToggleActiveDefault() {
         // ShowToggles & Activatable & default active
-        // TODO: NOTE: This shouldn't just be for defense type. Should probably get rid of the subType approach.
         if (
             this.baseInfo?.type.includes("defense") ||
             this.baseInfo?.behaviors?.includes("defense") ||
             this.baseInfo?.type?.includes("characteristic") ||
             (["power", "equipment"].includes(this.type) && this.baseInfo?.type?.includes("sense"))
         ) {
-            const newDefenseValue = "defense";
-
-            if (this.system.subType !== newDefenseValue && this.baseInfo?.behaviors.includes("activatable")) {
-                this.system.subType = newDefenseValue;
+            if (this.baseInfo?.behaviors.includes("activatable")) {
                 this.system.showToggle = true;
             }
 
@@ -1352,16 +1320,9 @@ export class HeroSystem6eItem extends Item {
 
     // Largely used to determine if we can drag to hotbar
     isRollable() {
-        switch (this.system?.subType || this.type) {
-            case "attack":
-                return true;
-            case "skill":
-                return true;
-            case "defense":
-                return true;
-        }
-
-        return getPowerInfo({ item: this })?.behaviors.includes("success") ? true : false;
+        if (this.baseInfo?.behaviors.includes("to-hit")) return true;
+        if (this.baseInfo?.behaviors.includes("success")) return true;
+        return false;
     }
 
     hasSuccessRoll() {
@@ -6526,14 +6487,14 @@ export async function requiresASkillRollCheck(item, options = {}) {
                     OPTION_ALIAS = OPTION_ALIAS?.split(",")[0].replace(/roll/i, "").trim();
                     let skill = item.actor.items.find(
                         (o) =>
-                            (o.system.subType || o.system.type) === "skill" &&
+                            o.baseInfo?.type.includes("skill") &&
                             (o.system.XMLID === OPTION_ALIAS.toUpperCase() ||
                                 o.name.toUpperCase() === OPTION_ALIAS.toUpperCase()),
                     );
                     if (!skill && rar.COMMENTS) {
                         skill = item.actor.items.find(
                             (o) =>
-                                (o.system.subType || o.system.type) === "skill" &&
+                                o.baseInfo?.type.includes("skill") &&
                                 (o.system.XMLID === rar.COMMENTS.toUpperCase() ||
                                     o.name.toUpperCase() === rar.COMMENTS.toUpperCase() ||
                                     o.system.INPUT?.toUpperCase() === rar.COMMENTS.toUpperCase()),

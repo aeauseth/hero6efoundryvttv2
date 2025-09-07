@@ -19,7 +19,7 @@
             </th>
         </tr>
         {{#each items as |item id|}}
-            {{#if (and (or (eq item.type "skill") (eq item.system.subType "skill")) (filterItem item
+            {{#if (and (includes item.baseInfo.type "skill") (filterItem item
             ../options.itemFilters.skill))}}
                 <tr class="item {{#if (not this.isFromBaseActor)}}delta-item{{/if}} {{#if (actorItemHeroValidation item)}}validation{{/if}}" data-item-id="{{item._id}}"
                 title="{{actorItemHeroValidation item}}">

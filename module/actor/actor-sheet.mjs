@@ -448,7 +448,7 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
             // This provides a nice way to see ALL powers that are effecting
             // the actor regardless of how they are implemented.
             const defensePowers = data.actor.items.filter(
-                (o) => (o.system.subType || o.type) === "defense" && !o.effects.size,
+                (o) => o.baseInfo?.type.includes("defense") && !o.effects.size,
             );
             for (const d of defensePowers) {
                 d.disabled = !d.isActive;
