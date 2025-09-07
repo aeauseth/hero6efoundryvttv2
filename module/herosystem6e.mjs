@@ -145,7 +145,6 @@ Hooks.once("init", async function () {
             HeroSystem6eToken,
         },
         rollItemMacro: rollItemMacro,
-        CreateCustomAttack: CreateCustomAttack,
         config: HERO,
     };
 
