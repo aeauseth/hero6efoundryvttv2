@@ -55,9 +55,9 @@
                 {{/if}} --}}
             </td>
             <td class="left">{{#if (ne this.system.XMLID "LIST")}}{{this.system.description}}{{/if}}</td>
-            <td>{{this.system.phase}}</td>
-            <td>{{this.system.ocvEstimated}}</td>
-            <td>{{this.system.dcvEstimated}}</td>
+            <td>{{this.system.PHASE}}</td>
+            <td>{{this.system.OCV}}</td>
+            <td>{{this.system.DCV}}</td>
             <td>
                 {{> (getModulePath 'item/item-action-icons-partial.hbs') this }}
             </td>
