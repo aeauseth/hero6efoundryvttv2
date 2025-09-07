@@ -2000,7 +2000,7 @@ export class HeroSystem6eActor extends Actor {
             this.system.versionHeroSystem6eUpload = game.system.version;
             changes["system.versionHeroSystem6eUpload"] = game.system.version;
 
-            let itemsToCreate = [];
+            //let itemsToCreate = [];
 
             // CHARACTERISTICS
             if (heroJson.CHARACTER?.CHARACTERISTICS) {
