@@ -4,7 +4,10 @@ import { getPowerInfo } from "../utility/util.mjs";
 //import { getSystemDisplayUnits } from "../utility/units.mjs";
 import { HeroSystem6eItem } from "./item.mjs";
 import { calculateVelocityInSystemUnits } from "../heroRuler.mjs";
-import { getManueverEffectWithPlaceholdersReplaced } from "../utility/damage.mjs";
+import {
+    getManueverEffectWithPlaceholdersReplaced,
+    getFullyQualifiedEffectFormulaFromItem,
+} from "../utility/damage.mjs";
 
 const { NumberField, StringField, ObjectField, BooleanField, ArrayField, EmbeddedDataField } = foundry.data.fields;
 
@@ -534,6 +537,13 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         return this.item.end;
     }
 
+    get areaOfEffectShortDescription() {
+        if (!this.item.system.areaOfEffect || this.item.system.areaOfEffect.type === "none") {
+            return "-";
+        }
+        return `${this.item.system.areaOfEffect.type}`;
+    }
+
     get ocvEstimated() {
         console.error("depricated ocvEstimated");
         return 0;
@@ -588,6 +598,10 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
 
     get dcvDetails() {
         return this.#genericDetails(this.targets);
+    }
+
+    get damage() {
+        return getFullyQualifiedEffectFormulaFromItem(this.item, {});
     }
 
     get effect() {
