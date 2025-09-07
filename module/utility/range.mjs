@@ -30,6 +30,14 @@ export function calculateRangePenaltyFromDistanceInMetres(distanceInMetres, acto
  * @returns {number} distanceInMetres
  */
 export function calculateDistanceBetween(origin, target) {
+    if (!target) {
+        return {
+            distance: 0,
+            cost: 0,
+            gridSpaces: 0,
+        };
+    }
+
     const path = [];
     try {
         path.push({ x: origin.x, y: origin.y });
