@@ -1195,18 +1195,27 @@ export class HeroSystem6eItem extends Item {
         }
 
         // turn off items that use END, Charges, MP, etc
-        if (this.system.end > 0 || (this.system.charges.max > 0 && !this.parentItem?.system.XMLID === "MULTIPOWER")) {
-            if (this.system.active || this.system.active === null) {
-                this.system.active = false;
-                if (this.id) {
-                    await this.update({ [`system.active`]: this.system.active });
-                }
+
+        if (this.type !== "maneuver") {
+            if (this.system.charges === undefined) {
+                console.error("item.system.charges === undefined");
             }
-        } else {
-            if (this.system.active === null) {
-                this.system.active = true;
-                if (this.id) {
-                    await this.update({ [`system.active`]: this.system.active });
+            if (
+                this.system.end > 0 ||
+                (this.system.charges?.max > 0 && !this.parentItem?.system.XMLID === "MULTIPOWER")
+            ) {
+                if (this.system.active || this.system.active === null) {
+                    this.system.active = false;
+                    if (this.id) {
+                        await this.update({ [`system.active`]: this.system.active });
+                    }
+                }
+            } else {
+                if (this.system.active === null) {
+                    this.system.active = true;
+                    if (this.id) {
+                        await this.update({ [`system.active`]: this.system.active });
+                    }
                 }
             }
         }
