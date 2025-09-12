@@ -753,7 +753,7 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
     }
 
     get clips() {
-        return this.ADDER.find((o) => o.XMLID === "CLIPS");
+        return this.ADDER?.find((o) => o.XMLID === "CLIPS");
     }
 }
 
@@ -1096,7 +1096,7 @@ export class HeroItemCharacteristic extends foundry.abstract.DataModel {
 export class HeroActorCharacteristic extends foundry.abstract.DataModel {
     static defineSchema() {
         return {
-            core: new NumberField({ integer: true }),
+            //core: new NumberField({ integer: true }),
             max: new NumberField({ integer: true }),
             //realCost: new NumberField({ integer: true }),
             //roll: new NumberField({ integer: true }),
@@ -1105,29 +1105,37 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
         };
     }
 
-    // get core() {
-    //     const key = this.schema.name?.toUpperCase();
-    //     if (!key) {
-    //         console.error(`key is undefined`);
-    //     }
-    //     if (!this.item?.baseInfo) {
-    //         debugger;
-    //     }
-    //     return parseInt(this.item.LEVELS);
-    // }
+    get levels() {
+        return this.actor.system[this.KEY]?.LEVELS || 0;
+    }
+
+    get core() {
+        //console.error(`core is depricated`);
+        try {
+            // Some 5e characteristics are calcuated
+            if (this.actor.is5e) {
+                if (this.baseInfo?.behaviors.includes("calculated")) {
+                    if (this.#baseInfo.calculated5eCharacteristic) {
+                        return this.#baseInfo.calculated5eCharacteristic(this.actor, "core");
+                    }
+                } else if (this.baseInfo?.behaviors.includes("figured")) {
+                    return this.#baseInfo.figured5eCharacteristic(this.actor, "core");
+                }
+            }
+            return parseInt(this.item?.LEVELS || 0) + this.item?.baseInfo?.base || 0;
+        } catch (e) {
+            console.error(e);
+        }
+        return 0;
+    }
     // set core(value) {
-    //     if (this.schema?.validationError) {
-    //         console.error(this.schema.validationError);
-    //     }
-    //     const key = this.schema.name?.toUpperCase();
-    //     if (!key) {
-    //         console.error(`key is undefined`);
-    //     }
-    //     if (this.parent.parent[key]?.LEVELS === undefined) {
-    //         console.error(`${key}.LEVELS is undefined`);
-    //         //debugger;
-    //     } else {
-    //         this.parent.parent[key].LEVELS = value;
+    //     console.warn(`setter is not awaitable, consider updating LEVELS instead`);
+    //     this.item.LEVELS = value - (this.item?.baseInfo?.base || 0);
+
+    //     // Update Database, prefer to update LEVELS directly
+    //     // the lack of async/await is concerning.
+    //     if (this.item._id) {
+    //         this.item.update({ [`system.LEVELS`]: this.item.LEVELS });
     //     }
     // }
 
@@ -1220,6 +1228,10 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
 
     get key() {
         return this.schema.name;
+    }
+
+    get KEY() {
+        return this.schema.name.toUpperCase();
     }
 
     get item() {

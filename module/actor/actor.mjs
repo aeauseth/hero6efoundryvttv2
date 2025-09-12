@@ -1471,7 +1471,7 @@ export class HeroSystem6eActor extends Actor {
             //     debugger;
             // }
             const core = parseInt(this.system.characteristics[char].core);
-            const max = parseInt(this.system.characteristics[char].max);
+            const max = parseInt(this.system.characteristics[char].max) || core;
             if (max !== core) {
                 characteristicChangesMax[`system.characteristics.${char}.max`] = core;
             }
@@ -1490,6 +1490,13 @@ export class HeroSystem6eActor extends Actor {
             const value = parseInt(this.system.characteristics[char].value);
             if (value !== max) {
                 characteristicChangesValue[`system.characteristics.${char}.value`] = max;
+            }
+        }
+
+        // 5e calculated LEVELS (shouldn't be necessary, just making sure)
+        for (const char of ["OCV", "DCV", "OMCV", "DMCV"]) {
+            if (this.system[char].LEVELS !== 0) {
+                characteristicChangesValue[`system.${char}.LEVELS`] = 0;
             }
         }
 
@@ -1918,19 +1925,21 @@ export class HeroSystem6eActor extends Actor {
             uploadPerformance.removeEffects = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
             this.name = characterName;
-            await this.update({ ["name"]: this.name });
+            if (this._id) {
+                await this.update({ ["name"]: this.name });
 
-            // remove stray flags
-            //await this.update({ [`flags.-=${game.system.id}`]: null });
-            await this.setFlag(game.system.id, "uploading", true);
-            await this.setFlag(game.system.id, "file", {
-                lastModifiedDate: options?.file?.lastModifiedDate,
-                name: options?.file?.name,
-                size: options?.file?.size,
-                type: options?.file?.type,
-                webkitRelativePath: options?.file?.webkitRelativePath,
-                uploadedBy: game.user.name,
-            });
+                // remove stray flags
+                //await this.update({ [`flags.-=${game.system.id}`]: null });
+                await this.setFlag(game.system.id, "uploading", true);
+                await this.setFlag(game.system.id, "file", {
+                    lastModifiedDate: options?.file?.lastModifiedDate,
+                    name: options?.file?.name,
+                    size: options?.file?.size,
+                    type: options?.file?.type,
+                    webkitRelativePath: options?.file?.webkitRelativePath,
+                    uploadedBy: game.user.name,
+                });
+            }
 
             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             /// Reset system properties to defaults
@@ -2550,7 +2559,9 @@ export class HeroSystem6eActor extends Actor {
             }
 
             // Set items to be active
-            for (const item of this.items.filter((item) => item.system.active === undefined)) {
+            for (const item of this.items.filter(
+                (item) => item.system.active === undefined && item.type !== "maneuver",
+            )) {
                 debugger;
                 if (
                     item.system.end > 0 ||

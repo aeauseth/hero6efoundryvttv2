@@ -26,6 +26,8 @@ export function initializeHandlebarsHelpers() {
     Handlebars.registerHelper("actorHeroValidationByItemType", actorHeroValidationByItemType);
     Handlebars.registerHelper("hasCharacteristic", hasCharacteristic);
     Handlebars.registerHelper("signedString", signedString);
+    Handlebars.registerHelper("calculated5eCharacteristic", calculated5eCharacteristic);
+    Handlebars.registerHelper("figured5eCharacteristic", figured5eCharacteristic);
 }
 
 function indexOf(str, searchTerm) {
@@ -191,4 +193,22 @@ function signedString(value) {
         console.error(e);
     }
     return value;
+}
+
+function calculated5eCharacteristic(actor, characteristic) {
+    try {
+        return characteristic.baseInfo.calculated5eCharacteristic(actor, "core");
+    } catch (e) {
+        console.error(e);
+    }
+    return "?";
+}
+
+function figured5eCharacteristic(actor, characteristic) {
+    try {
+        return characteristic.baseInfo.figured5eCharacteristic(actor, "core");
+    } catch (e) {
+        console.error(e);
+    }
+    return "?";
 }
