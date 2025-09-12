@@ -32,30 +32,30 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
             GRAPHIC: new StringField(),
             COLOR: new StringField(),
             SFX: new StringField(),
-            SHOW_ACTIVE_COST: new BooleanField(),
+            SHOW_ACTIVE_COST: new BooleanField({ initial: null, nullable: true }),
             OPTION: new StringField(),
             OPTIONID: new StringField(),
             OPTION_ALIAS: new StringField(),
-            INCLUDE_NOTES_IN_PRINTOUT: new BooleanField(),
+            INCLUDE_NOTES_IN_PRINTOUT: new BooleanField({ initial: null, nullable: true }),
             NAME: new StringField(),
-            SHOWALIAS: new BooleanField(),
-            PRIVATE: new BooleanField(),
-            REQUIRED: new BooleanField(),
-            INCLUDEINBASE: new BooleanField(),
-            DISPLAYINSTRING: new BooleanField(),
-            GROUP: new BooleanField(),
-            SELECTED: new BooleanField(),
+            SHOWALIAS: new BooleanField({ initial: null, nullable: true }),
+            PRIVATE: new BooleanField({ initial: null, nullable: true }),
+            REQUIRED: new BooleanField({ initial: null, nullable: true }),
+            INCLUDEINBASE: new BooleanField({ initial: null, nullable: true }),
+            DISPLAYINSTRING: new BooleanField({ initial: null, nullable: true }),
+            GROUP: new BooleanField({ initial: null, nullable: true }),
+            SELECTED: new BooleanField({ initial: null, nullable: true }),
             _hdcXml: new StringField(),
             xmlTag: new StringField(),
             LVLCOST: new StringField(),
-            FORCEALLOW: new BooleanField(),
+            FORCEALLOW: new BooleanField({ initial: null, nullable: true }),
             COMMENTS: new StringField(),
             LVLVAL: new StringField(),
             QUANTITY: new NumberField({ integer: true }),
             AFFECTS_TOTAL: new StringField(),
             PARENTID: new StringField(),
             INPUT: new StringField(),
-            AFFECTS_PRIMARY: new BooleanField(),
+            AFFECTS_PRIMARY: new BooleanField({ initial: null, nullable: true }),
             LINKED_ID: new StringField(),
             ROLLALIAS: new StringField(),
             TYPE: new StringField(),
@@ -658,7 +658,7 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
 export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeDataModelGetters {
     static defineSchema() {
         return {
-            AFFECTS_TOTAL: new BooleanField(),
+            AFFECTS_TOTAL: new BooleanField({ initial: null, nullable: true }),
             ADD_MODIFIERS_TO_BASE: new StringField(),
             OPTION: new StringField(),
             OPTIONID: new StringField(),
@@ -681,17 +681,17 @@ export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeData
             SFX: new StringField(),
             XMLID: new StringField(),
             xmlid: new StringField(),
-            SHOW_ACTIVE_COST: new BooleanField(),
-            INCLUDE_NOTES_IN_PRINTOUT: new BooleanField(),
+            SHOW_ACTIVE_COST: new BooleanField({ initial: null, nullable: true }),
+            INCLUDE_NOTES_IN_PRINTOUT: new BooleanField({ initial: null, nullable: true }),
             _active: new ObjectField(), // action  (consider renaming)
             _hdcXml: new StringField(),
-            is5e: new BooleanField(),
+            is5e: new BooleanField({ initial: null, nullable: true }),
             xmlTag: new StringField(),
-            USE_END_RESERVE: new BooleanField(),
+            USE_END_RESERVE: new BooleanField({ initial: null, nullable: true }),
             FREE_POINTS: new NumberField({ integer: true }),
             value: new NumberField({ integer: true }), // ENEDURANCERESERVE
             //max: new NumberField({ integer: true }), // ENEDURANCERESERVE (use LEVELS instead)
-            active: new BooleanField(), // is power,skill,equipment active (consider renaming)
+            active: new BooleanField({ initial: null, nullable: true }), // is power,skill,equipment active (consider renaming)
         };
     }
 }
@@ -764,8 +764,8 @@ export class HeroSystem6eItemPower extends HeroSystem6eItemTypeDataModelProps {
         // Note that the return is just a simple object
         return {
             ...super.defineSchema(),
-            AFFECTS_PRIMARY: new BooleanField(),
-            AFFECTS_TOTAL: new BooleanField(),
+            AFFECTS_PRIMARY: new BooleanField({ initial: null, nullable: true }),
+            AFFECTS_TOTAL: new BooleanField({ initial: null, nullable: true }),
             ACTIVE: new StringField(), // XMLID=DETECT
             BODYLEVELS: new StringField(),
             DEFENSE: new StringField(),
@@ -799,18 +799,18 @@ export class HeroSystem6eItemPower extends HeroSystem6eItemTypeDataModelProps {
             STR: new StringField(),
             TARGET: new StringField(),
             USECUSTOMENDCOLUMN: new StringField(),
-            USESTANDARDEFFECT: new BooleanField(),
+            USESTANDARDEFFECT: new BooleanField({ initial: null, nullable: true }),
             ULTRA_SLOT: new StringField(),
             VISIBLE: new StringField(),
             WIDTHLEVELS: new StringField(),
 
             // Skill
             CHARACTERISTIC: new StringField(),
-            EVERYMAN: new BooleanField(),
-            FAMILIARITY: new BooleanField(),
+            EVERYMAN: new BooleanField({ initial: null, nullable: true }),
+            FAMILIARITY: new BooleanField({ initial: null, nullable: true }),
             INTBASED: new StringField(),
-            LEVELSONLY: new BooleanField(),
-            PROFICIENCY: new BooleanField(),
+            LEVELSONLY: new BooleanField({ initial: null, nullable: true }),
+            PROFICIENCY: new BooleanField({ initial: null, nullable: true }),
             ROLL: new StringField(),
             TEXT: new StringField(),
             TYPE: new StringField(),
@@ -819,8 +819,7 @@ export class HeroSystem6eItemPower extends HeroSystem6eItemTypeDataModelProps {
             BASEPOINTS: new StringField(),
             DISADPOINTS: new StringField(),
 
-            //charges: new EmbeddedDataField(HeroSystem6eItemCharges),
-            active: new BooleanField(),
+            charges: new EmbeddedDataField(HeroSystem6eItemCharges),
         };
     }
 }
@@ -849,19 +848,19 @@ export class HeroSystem6eItemSkill extends HeroSystem6eItemTypeDataModelProps {
         return {
             ...super.defineSchema(),
             CHARACTERISTIC: new StringField(),
-            EVERYMAN: new BooleanField(),
-            FAMILIARITY: new BooleanField(),
-            INTBASED: new BooleanField(),
-            LEVELSONLY: new BooleanField(),
+            EVERYMAN: new BooleanField({ initial: null, nullable: true }),
+            FAMILIARITY: new BooleanField({ initial: null, nullable: true }),
+            INTBASED: new BooleanField({ initial: null, nullable: true }),
+            LEVELSONLY: new BooleanField({ initial: null, nullable: true }),
             OPTION: new StringField(),
             OPTIONID: new StringField(),
             OPTION_ALIAS: new StringField(),
-            PROFICIENCY: new BooleanField(),
+            PROFICIENCY: new BooleanField({ initial: null, nullable: true }),
             ROLL: new StringField(),
             TEXT: new StringField(),
             TYPE: new StringField(),
-            NATIVE_TONGUE: new BooleanField(),
-            charges: new EmbeddedDataField(HeroSystem6eItemCharges), // unusual, but possible
+            NATIVE_TONGUE: new BooleanField({ initial: null, nullable: true }),
+            //charges: new EmbeddedDataField(HeroSystem6eItemCharges), // unusual, but possible
         };
     }
 }
@@ -892,18 +891,18 @@ export class HeroSystem6eItemManeuver extends HeroSystem6eItemTypeDataModelGette
         const { StringField } = foundry.data.fields;
         // Note that the return is just a simple object
         return {
-            ADDSTR: new BooleanField(),
+            ADDSTR: new BooleanField({ initial: null, nullable: true }),
             DC: new StringField(),
             DCV: new StringField(),
             DISPLAY: new StringField(),
             EFFECT: new StringField(),
             OCV: new StringField(),
             PHASE: new StringField(),
-            USEWEAPON: new BooleanField(),
+            USEWEAPON: new BooleanField({ initial: null, nullable: true }),
             WEAPONEFFECT: new StringField(),
             XMLID: new StringField(),
             _active: new ObjectField(), // action
-            is5e: new BooleanField(),
+            is5e: new BooleanField({ initial: null, nullable: true }),
         };
     }
 }
@@ -918,7 +917,7 @@ export class HeroSystem6eItemMartialArt extends HeroSystem6eItemTypeDataModelPro
             ...super.defineSchema(),
 
             ACTIVECOST: new StringField(),
-            ADDSTR: new BooleanField(),
+            ADDSTR: new BooleanField({ initial: null, nullable: true }),
             CATEGORY: new StringField(),
             CUSTOM: new StringField(),
             DAMAGETYPE: new StringField(),
@@ -931,7 +930,7 @@ export class HeroSystem6eItemMartialArt extends HeroSystem6eItemTypeDataModelPro
             PHASE: new StringField(),
             RANGE: new StringField(),
             STRMULT: new StringField(),
-            USEWEAPON: new BooleanField(),
+            USEWEAPON: new BooleanField({ initial: null, nullable: true }),
             WEAPONEFFECT: new StringField(),
         };
     }
@@ -984,7 +983,7 @@ export class HeroSystem6eItemTalent extends HeroSystem6eItemTypeDataModelProps {
         return {
             ...super.defineSchema(),
 
-            AFFECTS_PRIMARY: new BooleanField(),
+            AFFECTS_PRIMARY: new BooleanField({ initial: null, nullable: true }),
             CHARACTERISTIC: new StringField(),
             GROUP: new StringField(),
 
@@ -1028,13 +1027,13 @@ export class HeroItemCharacteristic extends foundry.abstract.DataModel {
             GRAPHIC: new StringField(),
             COLOR: new StringField(),
             SFX: new StringField(),
-            SHOW_ACTIVE_COST: new BooleanField(),
-            INCLUDE_NOTES_IN_PRINTOUT: new BooleanField(),
+            SHOW_ACTIVE_COST: new BooleanField({ initial: null, nullable: true }),
+            INCLUDE_NOTES_IN_PRINTOUT: new BooleanField({ initial: null, nullable: true }),
             NAME: new StringField(),
-            AFFECTS_PRIMARY: new BooleanField(),
-            AFFECTS_TOTAL: new BooleanField(),
+            AFFECTS_PRIMARY: new BooleanField({ initial: null, nullable: true }),
+            AFFECTS_TOTAL: new BooleanField({ initial: null, nullable: true }),
             _hdcXml: new StringField(),
-            is5e: new BooleanField(),
+            is5e: new BooleanField({ initial: null, nullable: true }),
             xmlTag: new StringField(),
             // value: new NumberField({ integer: true }),
             // core: new NumberField({ integer: true }),
@@ -1341,8 +1340,8 @@ export class HeroActorModel extends foundry.abstract.DataModel {
 
             characteristics: new EmbeddedDataField(HeroCharacteristicsModel),
             versionHeroSystem6eUpload: new StringField(),
-            is5e: new BooleanField(),
-            heroicIdentity: new BooleanField(),
+            is5e: new BooleanField({ initial: null, nullable: true }),
+            heroicIdentity: new BooleanField({ initial: null, nullable: true }),
             _hdcXml: new StringField(),
         };
     }
