@@ -568,7 +568,7 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         };
         const csls = combatSkillLevelsForAttack(this.item);
         if (csls.length > 0) {
-            debugger;
+            console.error("Aaron's csl");
         }
 
         if (!propUpper || this[propUpper] === "--") {
