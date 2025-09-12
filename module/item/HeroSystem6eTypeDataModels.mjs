@@ -753,6 +753,7 @@ export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeData
             value: new NumberField({ integer: true }), // ENEDURANCERESERVE
             //max: new NumberField({ integer: true }), // ENEDURANCERESERVE (use LEVELS instead)
             active: new BooleanField({ initial: null, nullable: true }), // is power,skill,equipment active (consider renaming)
+            charges: new EmbeddedDataField(HeroSystem6eItemCharges),
         };
     }
 }
