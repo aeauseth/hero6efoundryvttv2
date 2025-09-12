@@ -861,6 +861,7 @@ export class HeroSystem6eItemSkill extends HeroSystem6eItemTypeDataModelProps {
             TYPE: new StringField(),
             NATIVE_TONGUE: new BooleanField({ initial: null, nullable: true }),
             //charges: new EmbeddedDataField(HeroSystem6eItemCharges), // unusual, but possible
+            active: new BooleanField({ initial: null, nullable: true }), // should be part of  HeroSystem6eItemTypeDataModelProps and not needed here
         };
     }
 }
