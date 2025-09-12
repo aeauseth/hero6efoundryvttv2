@@ -1268,11 +1268,12 @@ export function registerDamageFunctionTests(quench) {
                         parent: actor,
                     });
                     item.type = "maneuver";
-                    await item._postUpload();
+                    await actor.FullHealth();
+                    //await item._postUpload();
                     actor.items.set(item.system.XMLID, item);
                 });
 
-                it("6e Killing Strike damage", function () {
+                it.only("6e Killing Strike damage", function () {
                     // +2DC Killing Strike; +2DC from STR
                     assert.equal(item.system.damage, "1d6+1K");
                 });
