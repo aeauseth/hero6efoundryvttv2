@@ -1918,18 +1918,19 @@ export class HeroSystem6eActor extends Actor {
             uploadPerformance.removeEffects = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
             this.name = characterName;
-            changes["name"] = this.name;
-            changes[`flags.${game.system.id}`] = {
-                uploading: true,
-                file: {
-                    lastModifiedDate: options?.file?.lastModifiedDate,
-                    name: options?.file?.name,
-                    size: options?.file?.size,
-                    type: options?.file?.type,
-                    webkitRelativePath: options?.file?.webkitRelativePath,
-                    uploadedBy: game.user.name,
-                },
-            };
+            await this.update({ ["name"]: this.name });
+
+            // remove stray flags
+            //await this.update({ [`flags.-=${game.system.id}`]: null });
+            await this.setFlag(game.system.id, "uploading", true);
+            await this.setFlag(game.system.id, "file", {
+                lastModifiedDate: options?.file?.lastModifiedDate,
+                name: options?.file?.name,
+                size: options?.file?.size,
+                type: options?.file?.type,
+                webkitRelativePath: options?.file?.webkitRelativePath,
+                uploadedBy: game.user.name,
+            });
 
             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             /// Reset system properties to defaults
@@ -1949,30 +1950,30 @@ export class HeroSystem6eActor extends Actor {
             const schemaKeys = Object.keys(_system);
             for (const key of Object.keys(this.system)) {
                 if (!schemaKeys.includes(key)) {
-                    changes[`system.-=${key}`] = null;
+                    await this.update({ [`system.-=${key}`]: null });
                 }
             }
             for (const key of Object.keys(this.system.characteristics)) {
                 if (!Object.keys(_system.characteristics).includes(key)) {
-                    changes[`system.characteristics.-=${key}`] = null;
+                    await this.update({ [`system.characteristics.-=${key}`]: null });
                 }
             }
-            if (this.id) {
-                // TODO: This shouldn't be required as we have migration handling this.
-                for (const prop of Object.keys(this.flags).filter((f) => f !== game.system.id)) {
-                    changes[`flags.-=${prop}`] = null;
-                }
-                for (const prop of Object.keys(this.flags[game.system.id]).filter(
-                    (f) => !["uploading", "file"].includes(f),
-                )) {
-                    changes[`flags.${game.system.id}-=${prop}`] = null;
-                }
+            // if (this.id) {
+            //     // TODO: This shouldn't be required as we have migration handling this.
+            //     for (const prop of Object.keys(this.flags).filter((f) => f !== game.system.id)) {
+            //         changes[`flags.-=${prop}`] = null;
+            //     }
+            //     for (const prop of Object.keys(this.flags[game.system.id]).filter(
+            //         (f) => !["uploading", "file"].includes(f),
+            //     )) {
+            //         changes[`flags.${game.system.id}-=${prop}`] = null;
+            //     }
 
-                promiseArray.push(this.update(changes));
-            }
+            //     promiseArray.push(this.update(changes));
+            // }
 
             // Wait for promiseArray to finish
-            await Promise.all(promiseArray);
+            //await Promise.all(promiseArray);
             uploadPerformance.resetToDefault = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
             promiseArray = [];
@@ -2060,8 +2061,8 @@ export class HeroSystem6eActor extends Actor {
                 // We can't delay this with the changes array because any items based on this actor needs this value.
                 // Specifically compound power is a problem if we don't set is5e properly for a 5e actor.
                 // Caution: Any this.system.* variables are lost if they are not updated here.
+                await this.update(changes);
                 await this.update({
-                    ...changes,
                     "system.is5e": this.system.is5e,
                     "system.CHARACTER.BASIC_CONFIGURATION": this.system.CHARACTER.BASIC_CONFIGURATION,
                     "system.CHARACTER.CHARACTER_INFO": this.system.CHARACTER.CHARACTER_INFO,
@@ -2069,6 +2070,7 @@ export class HeroSystem6eActor extends Actor {
                     "system.CHARACTER.version": this.system.CHARACTER.version,
                 });
                 changes = {};
+                await this._resetCharacteristicsFromHdc();
             }
 
             // Quench test may need CHARACTERISTICS, which are set in postUpload
@@ -2202,7 +2204,8 @@ export class HeroSystem6eActor extends Actor {
                                         }
                                     }
                                     // Remove attribute/property since we just created items for it
-                                    delete itemData.system[key];
+                                    // Now that we do item.update in some cases, we need to specifically keep an emptyr array for POWER[]
+                                    system[key] = [];
                                 }
                             }
                             compoundItems.sort((a, b) => parseInt(a.POSITION) - parseInt(b.POSITION));
@@ -2546,6 +2549,19 @@ export class HeroSystem6eActor extends Actor {
                 }
             }
 
+            // Set items to be active
+            for (const item of this.items.filter((item) => item.system.active === undefined)) {
+                debugger;
+                if (
+                    item.system.end > 0 ||
+                    (item.system.charges.max > 0 && !item.parentItem?.system.XMLID === "MULTIPOWER")
+                ) {
+                    await item.update({ [`system.active`]: false });
+                } else {
+                    await item.update({ [`system.active`]: true });
+                }
+            }
+
             uploadPerformance.actorPostUpload = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
 
@@ -2638,7 +2654,9 @@ export class HeroSystem6eActor extends Actor {
             }
 
             if (this.id) {
-                await this.update({ [`flags.${game.system.id}.-=uploading`]: null });
+                // Something weird is happing here (Nekhbet Vulture Child Goddess)
+                await this.setFlag(game.system.id, "uploading", false);
+                //await this.update({ [`flags.${game.system.id}.-=uploading`]: null });
             }
             uploadPerformance.retainedDamage = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
@@ -3047,13 +3065,13 @@ export class HeroSystem6eActor extends Actor {
     async _resetCharacteristicsFromHdc() {
         const changes = {};
         for (const [key, char] of Object.entries(this.system.characteristics)) {
-            let powerInfo = getPowerInfo({
-                xmlid: key.toUpperCase(),
-                actor: this,
-            });
-            let value = parseInt(char.LEVELS || 0) + parseInt(powerInfo?.base || 0);
-            changes[`system.characteristics.${key.toLowerCase()}.core`] = value;
+            const KEY = key.toUpperCase();
+            if (!this.system[KEY] || !char.baseInfo) {
+                continue;
+            }
 
+            const value = parseInt(this.system[KEY].LEVELS || 0) + parseInt(char.baseInfo.base || 0);
+            changes[`system.characteristics.${key.toLowerCase()}.core`] = value;
             changes[`system.characteristics.${key.toLowerCase()}.max`] = value;
             changes[`system.characteristics.${key.toLowerCase()}.value`] = value;
         }
@@ -3062,9 +3080,8 @@ export class HeroSystem6eActor extends Actor {
 
     async _postUpload() {
         //overrideValues) {
-        const changes = {};
-        let changed = false;
-
+        // const changes = {};
+        // let changed = false;
         // is5e
         // if (typeof this.system.CHARACTER?.TEMPLATE === "string") {
         //     if (
@@ -3088,27 +3105,22 @@ export class HeroSystem6eActor extends Actor {
         //     changes["system.is5e"] = true;
         //     this.system.is5e = true;
         // }
-
         // if (this.system.is5e && this.id) {
         //     await this.update({ [`system.is5e`]: this.system.is5e });
         // }
-
         // ONLY IN ALTERNATE IDENTITY (OIAID)
         // Assume we are in our super/heroic identity
-        if (this.system.heroicIdentity === undefined) {
-            //this.system.heroicIdentity = true;
-            changes[`system.heroicIdentity`] = true;
-        }
-
+        // if (this.system.heroicIdentity === undefined) {
+        //     //this.system.heroicIdentity = true;
+        //     changes[`system.heroicIdentity`] = true;
+        // }
         // Characteristics
         // for (const key of Object.keys(this.system.characteristics)) {
         //     // Only update characteristics if there are no active effects modifying the characteristic
         //     //const charHasEffect = this.appliedEffects.find((e) => e.changes.find((c) => c.key.includes(key)));
         //     let newValue = parseInt(this.system?.[key.toUpperCase()]?.LEVELS || 0); // uppercase?  LEVELS?  This probably hasn't worked in a long time!
         //     newValue += this.getCharacteristicBase(key) || 0; // 5e will have empty base for ocv/dcv and other figured characteristics
-
         //     newValue = Math.floor(newValue); // For 5e SPD
-
         //     if (this.system.characteristics[key].max !== newValue) {
         //         this.system.characteristics[key.toLowerCase()].max = Math.floor(newValue);
         //         if (this.id) {
@@ -3134,7 +3146,6 @@ export class HeroSystem6eActor extends Actor {
         //         this.system.characteristics[key.toLowerCase()].core = newValue;
         //         changed = true;
         //     }
-
         //     // Rollable Characteristics
         //     const rollableChanges = this.updateRollable(key.toLowerCase());
         //     if (rollableChanges) {
@@ -3142,117 +3153,97 @@ export class HeroSystem6eActor extends Actor {
         //         foundry.utils.mergeObject(changes, rollableChanges);
         //     }
         // }
-
         // Save changes
-        if (changed && this.id) {
-            await this.update(changes);
-        }
-
+        // if (changed && this.id) {
+        //     await this.update(changes);
+        // }
         // Initiative Characteristic
-        if (this.system.initiativeCharacteristic === undefined) {
-            // Careful: Not all actors have ego/dex/omcv, such as a base/vehicle.
-            if (
-                this.system.characteristics.ego?.value > this.system.characteristics.dex?.value &&
-                this.system.characteristics.omcv?.value >= this.system.characteristics.ocv?.value
-            ) {
-                if (!game.settings.get(game.system.id, "defaultDexInitiative")) {
-                    if (this.id) {
-                        await this.update({
-                            "system.initiativeCharacteristic": "ego",
-                        });
-                    } else {
-                        this.system.initiativeCharacteristic = "ego";
-                    }
-                }
-            }
-        }
-
+        // if (this.system.initiativeCharacteristic === undefined) {
+        //     // Careful: Not all actors have ego/dex/omcv, such as a base/vehicle.
+        //     if (
+        //         this.system.characteristics.ego?.value > this.system.characteristics.dex?.value &&
+        //         this.system.characteristics.omcv?.value >= this.system.characteristics.ocv?.value
+        //     ) {
+        //         if (!game.settings.get(game.system.id, "defaultDexInitiative")) {
+        //             if (this.id) {
+        //                 await this.update({
+        //                     "system.initiativeCharacteristic": "ego",
+        //                 });
+        //             } else {
+        //                 this.system.initiativeCharacteristic = "ego";
+        //             }
+        //         }
+        //     }
+        // }
         // Combat Skill Levels - Enumerate attacks that use OCV
-        for (let cslItem of this.items.filter((o) =>
-            ["MENTAL_COMBAT_LEVELS", "COMBAT_LEVELS"].includes(o.system.XMLID),
-        )) {
-            let _ocv = "ocv";
-            if (cslItem.system.XMLID === "MENTAL_COMBAT_LEVELS") {
-                _ocv = "omcv";
-            }
-
-            let attacks = {};
-            let checkedCount = 0;
-
-            for (const attack of this._cslItems.filter((o) => o.system.uses === _ocv)) {
-                let checked = false;
-
-                // Attempt to determine if attack should be checked
-                if (cslItem.system.OPTION_ALIAS.toLowerCase().indexOf(attack.name.toLowerCase()) > -1) {
-                    checked = true;
-                }
-
-                if (
-                    cslItem.system.OPTION === "HTH" &&
-                    (attack.system.XMLID === "HTH" ||
-                        attack.system.XMLID === "HANDTOHANDATTACK" ||
-                        attack.system.XMLID === "HKA" ||
-                        attack.system.XMLID === "MANEUVER" ||
-                        (attack.type === "maneuver" && !attack.system.EFFECT?.match(/throw/i)))
-                ) {
-                    checked = true;
-                }
-
-                if (
-                    cslItem.system.OPTION === "RANGED" &&
-                    (attack.system.XMLID === "BLAST" || attack.system.XMLID === "RKA")
-                ) {
-                    checked = true;
-                }
-
-                if (cslItem.system.OPTION === "ALL") {
-                    checked = true;
-                }
-
-                if (cslItem.system.OPTION === "TIGHT") {
-                    // up to three
-                    if (cslItem.system.XMLID === "COMBAT_LEVELS" && attack.type != "maneuver" && checkedCount < 3) {
-                        checked = true;
-                    }
-
-                    // up to three
-                    if (cslItem.system.XMLID === "MENTAL_COMBAT_LEVELS" && checkedCount < 3) {
-                        checked = true;
-                    }
-                }
-
-                if (cslItem.system.OPTION === "BROAD") {
-                    // A large group is more than 3 but less than ALL (whatever that means).
-                    // For now just assume all (non maneuvers).
-                    if (cslItem.system.XMLID === "COMBAT_LEVELS" && attack.type != "maneuver") {
-                        checked = true;
-                    }
-
-                    // For mental BROAD is actually equal to ALL
-                    if (cslItem.system.XMLID === "MENTAL_COMBAT_LEVELS") {
-                        checked = true;
-                    }
-                }
-
-                attacks[attack.id] = checked;
-
-                if (checked) checkedCount++;
-            }
-
-            if (cslItem._id) {
-                await cslItem.update({ "system.attacks": attacks }, { hideChatMessage: true });
-            }
-        }
-
+        // for (let cslItem of this.items.filter((o) =>
+        //     ["MENTAL_COMBAT_LEVELS", "COMBAT_LEVELS"].includes(o.system.XMLID),
+        // )) {
+        //     let _ocv = "ocv";
+        //     if (cslItem.system.XMLID === "MENTAL_COMBAT_LEVELS") {
+        //         _ocv = "omcv";
+        //     }
+        //     let attacks = {};
+        //     let checkedCount = 0;
+        //     for (const attack of this._cslItems.filter((o) => o.system.uses === _ocv)) {
+        //         let checked = false;
+        //         // Attempt to determine if attack should be checked
+        //         if (cslItem.system.OPTION_ALIAS.toLowerCase().indexOf(attack.name.toLowerCase()) > -1) {
+        //             checked = true;
+        //         }
+        //         if (
+        //             cslItem.system.OPTION === "HTH" &&
+        //             (attack.system.XMLID === "HTH" ||
+        //                 attack.system.XMLID === "HANDTOHANDATTACK" ||
+        //                 attack.system.XMLID === "HKA" ||
+        //                 attack.system.XMLID === "MANEUVER" ||
+        //                 (attack.type === "maneuver" && !attack.system.EFFECT?.match(/throw/i)))
+        //         ) {
+        //             checked = true;
+        //         }
+        //         if (
+        //             cslItem.system.OPTION === "RANGED" &&
+        //             (attack.system.XMLID === "BLAST" || attack.system.XMLID === "RKA")
+        //         ) {
+        //             checked = true;
+        //         }
+        //         if (cslItem.system.OPTION === "ALL") {
+        //             checked = true;
+        //         }
+        //         if (cslItem.system.OPTION === "TIGHT") {
+        //             // up to three
+        //             if (cslItem.system.XMLID === "COMBAT_LEVELS" && attack.type != "maneuver" && checkedCount < 3) {
+        //                 checked = true;
+        //             }
+        //             // up to three
+        //             if (cslItem.system.XMLID === "MENTAL_COMBAT_LEVELS" && checkedCount < 3) {
+        //                 checked = true;
+        //             }
+        //         }
+        //         if (cslItem.system.OPTION === "BROAD") {
+        //             // A large group is more than 3 but less than ALL (whatever that means).
+        //             // For now just assume all (non maneuvers).
+        //             if (cslItem.system.XMLID === "COMBAT_LEVELS" && attack.type != "maneuver") {
+        //                 checked = true;
+        //             }
+        //             // For mental BROAD is actually equal to ALL
+        //             if (cslItem.system.XMLID === "MENTAL_COMBAT_LEVELS") {
+        //                 checked = true;
+        //             }
+        //         }
+        //         attacks[attack.id] = checked;
+        //         if (checked) checkedCount++;
+        //     }
+        //     if (cslItem._id) {
+        //         await cslItem.update({ "system.attacks": attacks }, { hideChatMessage: true });
+        //     }
+        // }
         //await this.calcCharacteristicsCost();
         //await this.CalcActorRealAndActivePoints();
-
         //this.render();
-
         // Update actor sidebar (needed when name is changed)
-        ui.actors.render();
-
-        return changed;
+        //ui.actors.render();
+        //return changed;
     }
 
     updateRollable(key) {
@@ -3396,34 +3387,49 @@ export class HeroSystem6eActor extends Actor {
         return valueSum;
     }
 
+    get template() {
+        return (
+            this.system.CHARACTER?.TEMPLATE?.name ||
+            this.system.CHARACTER?.TEMPLATE?.extends ||
+            (typeof this.system.CHARACTER?.TEMPLATE === "string" ? this.system.CHARACTER.TEMPLATE : null)
+        );
+    }
+
     get is5e() {
-        if (!this.system.CHARACTER?.TEMPLATE) {
+        const _template = this.template;
+        let _is5e;
+
+        if (!_template) {
             if (this.id) {
                 console.warn(`${this.name} has no TEMPLATE`);
             }
-            return undefined;
-        }
-        if (this.system.CHARACTER.TEMPLATE.includes("6")) {
-            if (this.system.is5e === true) {
-                console.warn(`${this.name} is5e mismatch with TEMPLATE`);
-            }
-            return false;
         }
 
-        if (this.system.CHARACTER.TEMPLATE.includes("5")) {
-            if (this.system.is5e === false) {
-                console.warn(`${this.errot} is5e mismatch with TEMPLATE`);
+        if (_template?.includes("6")) {
+            _is5e = false;
+        }
+
+        // 5e templates don't have the number 6
+        if (_template?.includes("hdt") && !_template?.includes("6")) {
+            _is5e = true;
+        }
+
+        // 5e has COM characteristic, 6e does not
+        // Not a great check for bases and other 5e actor types that don't have COM
+        if (this.system.COM?.XMLID) {
+            if (_is5e === false) {
+                console.error(`${this.name} is5e mismatch`);
             }
-            return true;
+            _is5e = true;
         }
 
         // For Defense Calculation Actor, Quench and any actor that didn't upload an HDC
-        if (this.system.is5e !== undefined) {
-            return this.system.is5e;
-        }
+        // if (this.system.is5e !== _is5e) {
+        //     console.error(`${this.name} is5e mismatch`);
+        // }
 
-        console.error(`${this.name} has a TEMPLATE=${this.system.CHARACTER.TEMPLATE} without 5e/6e specified`, this);
-        return undefined;
+        if (_is5e !== undefined) return _is5e;
+        return this.system.is5e;
     }
 
     get _characterPoints() {
@@ -3516,9 +3522,12 @@ export class HeroSystem6eActor extends Actor {
             } else if (stringifiedTemplate?.match(/Super/i)) {
                 // 'builtIn.StandardSuper.hdt'
                 templateType = "Superheroic";
+            } else if (this.system.CHARACTER?.TEMPLATE.name) {
+                templateType = this.system.CHARACTER.TEMPLATE.name;
             }
 
-            if (templateType === "" && this.type !== "base2" && this.flags[game.system.id]?.uploading !== true) {
+            if (templateType === "" && this.type !== "base2") {
+                // && this.flags[game.system.id]?.uploading !== true
                 // Custom Templates
                 // Automations
                 // Barrier

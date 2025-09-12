@@ -619,7 +619,7 @@ Hooks.on("renderActorSheet", (dialog, html, data) => {
             actor.changeType();
         });
 
-        element.innerHTML = `<i class="fal fa-user-robot"></i>${data.actor?.system?.CHARACTER?.TEMPLATE?.replace("builtIn.", "").replace(".hdt", "") || "Type"} `;
+        element.innerHTML = `<i class="fal fa-user-robot"></i>${data.actor?.template?.replace("builtIn.", "").replace(".hdt", "") || "Type"} `;
 
         html.find("header h4").after(element);
     }
