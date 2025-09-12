@@ -7,6 +7,7 @@ import { calculateVelocityInSystemUnits } from "../heroRuler.mjs";
 import {
     getManueverEffectWithPlaceholdersReplaced,
     getFullyQualifiedEffectFormulaFromItem,
+    combatSkillLevelsForAttack,
 } from "../utility/damage.mjs";
 
 const { NumberField, StringField, ObjectField, BooleanField, ArrayField, EmbeddedDataField } = foundry.data.fields;
@@ -59,6 +60,7 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
             ROLLALIAS: new StringField(),
             TYPE: new StringField(),
             DISPLAY: new StringField(),
+            SCALE: new StringField(),
         };
     }
     get hdcHTMLCollection() {
@@ -77,7 +79,7 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
                 for (const attribute of this.hdcHTMLCollection.firstChild.attributes) {
                     if (this[attribute.name] === undefined) {
                         console.error(
-                            `${this.xmlTag} HeroItemAdderModCommonModel is missing ${attribute.name} property.`,
+                            `${this.xmlTag} HeroItemModCommonModel is missing ${attribute.name} property.  Fix then reload ${this.actor.name}.`,
                         );
                     }
                 }
@@ -117,6 +119,10 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
             return null;
         }
         return this.parent.item;
+    }
+
+    get actor() {
+        return this.item.actor;
     }
 
     get cost() {
@@ -560,7 +566,10 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         const _details = {
             tags: [],
         };
-        //const cslSummary = {};
+        const csls = combatSkillLevelsForAttack(this.item);
+        if (csls.length > 0) {
+            debugger;
+        }
 
         if (!propUpper || this[propUpper] === "--") {
             return {};
@@ -674,7 +683,7 @@ export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeData
             xmlid: new StringField(),
             SHOW_ACTIVE_COST: new BooleanField(),
             INCLUDE_NOTES_IN_PRINTOUT: new BooleanField(),
-            _active: new ObjectField(), // action
+            _active: new ObjectField(), // action  (consider renaming)
             _hdcXml: new StringField(),
             is5e: new BooleanField(),
             xmlTag: new StringField(),
@@ -682,6 +691,7 @@ export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeData
             FREE_POINTS: new NumberField({ integer: true }),
             value: new NumberField({ integer: true }), // ENEDURANCERESERVE
             //max: new NumberField({ integer: true }), // ENEDURANCERESERVE (use LEVELS instead)
+            active: new BooleanField(), // is power,skill,equipment active (consider renaming)
         };
     }
 }
@@ -706,7 +716,6 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
         // Note that the return is just a simple object
         return {
             value: new NumberField({ integer: true }),
-            clips: new NumberField({ integer: true }),
         };
     }
 
@@ -741,6 +750,10 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
             return parseInt(this.CHARGES?.OPTION_ALIAS);
         }
         return null;
+    }
+
+    get clips() {
+        return this.ADDER.find((o) => o.XMLID === "CLIPS");
     }
 }
 
@@ -806,7 +819,7 @@ export class HeroSystem6eItemPower extends HeroSystem6eItemTypeDataModelProps {
             BASEPOINTS: new StringField(),
             DISADPOINTS: new StringField(),
 
-            charges: new EmbeddedDataField(HeroSystem6eItemCharges),
+            //charges: new EmbeddedDataField(HeroSystem6eItemCharges),
             active: new BooleanField(),
         };
     }
@@ -848,6 +861,7 @@ export class HeroSystem6eItemSkill extends HeroSystem6eItemTypeDataModelProps {
             TEXT: new StringField(),
             TYPE: new StringField(),
             NATIVE_TONGUE: new BooleanField(),
+            charges: new EmbeddedDataField(HeroSystem6eItemCharges), // unusual, but possible
         };
     }
 }
@@ -1315,15 +1329,32 @@ export class HeroActorModel extends foundry.abstract.DataModel {
         };
     }
 
+    get hdcHTMLCollection() {
+        try {
+            return this._hdcXml ? new DOMParser().parseFromString(this._hdcXml, "text/xml") : null;
+        } catch (e) {
+            console.error(e);
+        }
+        return null;
+    }
+
+    get actor() {
+        return this.parent;
+    }
+
     debugModelProps() {
         try {
-            if (this._hdcXml) {
-                for (const attribute of this.hdcHTMLCollection.firstChild.attributes) {
-                    if (this[attribute.name] === undefined) {
-                        console.error(
-                            `${this.xmlTag} HeroItemAdderModCommonModel is missing ${attribute.name} property.`,
-                        );
-                    }
+            // Not sure what to do here as we don't follow the XML -> JSON -> DataModel exacly the same
+            // if (this._hdcXml) {
+            //     for (const attribute of this.hdcHTMLCollection.children[0].attributes) {
+            //         if (this[attribute.name] === undefined) {
+            //             console.error(`${this.xmlTag} HeroActorModel is missing ${attribute.name} property.`);
+            //         }
+            //     }
+            // }
+            for (const item of this.actor.items) {
+                if (item.system.debugModelProps) {
+                    item.system.debugModelProps();
                 }
             }
         } catch (e) {

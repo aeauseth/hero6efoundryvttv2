@@ -583,8 +583,6 @@ export class HeroSystem6eItemSheet extends FoundryVttItemSheet {
                     };
 
                     await this.item.update({ [`system.ADDER`]: [...this.item.system.ADDER, newAdder] });
-                    //this.item.system.ADDER.push(newAdder);
-                    //HeroSystem6eItem._addersCache.invalidateCache(this.item.id);
                 }
 
                 // Delete custom adders that matches attack name
@@ -593,7 +591,6 @@ export class HeroSystem6eItemSheet extends FoundryVttItemSheet {
                     await this.item.update({
                         [`system.ADDER`]: this.item.system.ADDER.filter((o) => o.targetId != attackItem.id),
                     });
-                    //HeroSystem6eItem._addersCache.invalidateCache(this.item.id);
                 }
             }
         }
@@ -604,11 +601,6 @@ export class HeroSystem6eItemSheet extends FoundryVttItemSheet {
             this.item.system.ADDER = (this.item.system.ADDER || []).filter(
                 (o) => o.XMLID != "ADDER" || !parseFloat(o.BASECOST) == 0,
             );
-
-            // Invalidate the adders cache if this is a non temporary item.
-            if (this.item.id) {
-                HeroSystem6eItem._addersCache.invalidateCache(this.item.id);
-            }
         }
 
         // SKILLS (LEVELSONLY, FAMILIARITY, EVERYMAN, PROFICIENCY)

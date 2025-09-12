@@ -21,7 +21,8 @@ const foundryVttRenderTemplate = foundry.applications?.handlebars?.renderTemplat
 export class HeroSystemActorSheet extends FoundryVttActorSheet {
     /** @override */
     static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
+        const _defaultOptions = super.defaultOptions;
+        return foundry.utils.mergeObject(_defaultOptions, {
             classes: ["actor-sheet"],
             template: `systems/${HEROSYS.module}/templates/actor/actor-sheet.hbs`,
             tabs: [
@@ -44,7 +45,21 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
     async getData(options = {}) {
         window.actor = this.actor;
 
-        const data = super.getData(options);
+        let _data = {};
+        try {
+            _data = super.getData(options);
+        } catch (e) {
+            console.error(e);
+        }
+        const data = _data;
+
+        try {
+            if (this.actor.system.debugModelProps) {
+                this.actor.system.debugModelProps();
+            }
+        } catch (e) {
+            console.error(e);
+        }
 
         data.token = options?.token;
         data.isOwner = this.object.isOwner;

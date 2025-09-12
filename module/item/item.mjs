@@ -289,84 +289,20 @@ export class HeroSystem6eItem extends Item {
         return super._onCreate(data, options, userId);
     }
 
-    prepareData() {
-        if (this.system.debugModelProps) {
-            this.system.debugModelProps();
-        } else {
-            if (this.type === "attack") {
-                console.warn(`Invalid item.type = ${this.type} for ${this.actor?.name}`, this);
-                return;
-            }
-            if (this.type === "misc") {
-                return; // don't care about misc
-            }
-            console.error(`Invalid item.type = ${this.type} for ${this.actor?.name}`, this);
-        }
-    }
-    XprepareData() {
-        super.prepareData();
-        window.prepareData ??= {};
-        this.system._active ??= {};
-
-        if (!this.actor) {
-            // Aaron thinks we should still run most of the prepareData.
-            // Things like item description, default values and such are still valid.
-            // The Make Attack is likely the only broken thing here when missing an Actor.
-            if (this.pack) {
-                console.log(
-                    `Partial prepareData on item ${this.detailedName()} from the ${this.pack} compendium`,
-                    this,
-                );
-            } else if (this.uuid?.startsWith("Item.")) {
-                console.log(`Partial prepareData on item ${this.detailedName()} from the Item sidebar`, this);
-            } else {
-                console.error(
-                    `Partial prepareData on item ${this.detailedName()} which has no actor (probably Items collection)`,
-                    this,
-                );
-            }
-            try {
-                //this.setAoeModifier();
-                //this.getUpdateItemDescription();
-            } catch (e) {
-                console.error(e);
-            }
-            return;
-        }
-
-        // Basic Validatiton, we need an XMLID
-        if (!this.baseInfo) {
-            if (this.system.XMLID) {
-                console.warn(
-                    `${this.actor?.name} / ${this.actor?.getActiveTokens()[0]?.name}/${this.detailedName()} doesn't have XMLID defined`,
-                    this,
-                );
-            } else {
-                console.error(
-                    `${this.actor?.name} / ${this.actor?.getActiveTokens()[0]?.name}/${this.detailedName()} doesn't have XMLID defined`,
-                    this,
-                );
-            }
-        }
-
-        this.setInitialItemValueAndMax();
-        this.setInitialRange(this.baseInfo);
-        this.updateRoll();
-        this.determinePointCosts();
-        this.setCharges(this.system.charges);
-        this.setShowToggle();
-        //this.calcEndurance();
-        this.setCarried();
-        this.setShowToggleActiveDefault();
-        this.setMovement();
-        this.setSkills();
-        this.setToHit();
-        this.setAttack();
-        this.buildRangeParameters();
-        this.setAoeModifier();
-        //this.setCombatSkillLevels();
-        this.updateItemDescription();
-    }
+    // prepareData() {
+    //     if (this.system.debugModelProps) {
+    //         this.system.debugModelProps();
+    //     } else {
+    //         if (this.type === "attack") {
+    //             console.warn(`Invalid item.type = ${this.type} for ${this.actor?.name}`, this);
+    //             return;
+    //         }
+    //         if (this.type === "misc") {
+    //             return; // don't care about misc
+    //         }
+    //         console.error(`Invalid item.type = ${this.type} for ${this.actor?.name}`, this);
+    //     }
+    // }
 
     async setActiveEffects() {
         // ACTIVE EFFECTS
@@ -1153,14 +1089,6 @@ export class HeroSystem6eItem extends Item {
         return super.update(...args);
     }
 
-    /**
-     * Augment the basic Item data model with additional dynamic data.
-     */
-
-    // prepareData() {
-    //     super.prepareData();
-    // }
-
     calcItemPoints() {
         //let changed = false;
         //super.prepareDerivedData();
@@ -1243,16 +1171,6 @@ export class HeroSystem6eItem extends Item {
                     token.renderFlags.set({ refreshVisibility: true });
                 }
             }
-        }
-
-        if (changed.system?.ADDER) {
-            HeroSystem6eItem._addersCache.invalidateCachedValue(this.id);
-        }
-        if (changed.system?.MODIFIER) {
-            HeroSystem6eItem._modifiersCache.invalidateCachedValue(this.id);
-        }
-        if (changed.system?.POWER) {
-            HeroSystem6eItem._powersCache.invalidateCachedValue(this.id);
         }
     }
 
@@ -2160,10 +2078,16 @@ export class HeroSystem6eItem extends Item {
 
     get is5e() {
         if (this.system.is5e !== undefined && this.actor && this.actor.is5e !== this.system.is5e) {
-            console.warn(
-                `${this.actor?.name}/${this.name} has is5e=${this.system.is5e} does not match actor=${this.actor.is5e}`,
-                this,
-            );
+            if (!window[game.system.id]?.squelch[this.actor.id]) {
+                console.warn(
+                    `${this.actor?.name}/${this.name} has is5e=${this.system.is5e} does not match actor=${this.actor.is5e}`,
+                    this,
+                );
+                window[game.system.id] ??= {
+                    squelch: [],
+                };
+                window[game.system.id].squelch[this.actor.id] = true;
+            }
         }
         return this.system.is5e;
     }
@@ -5457,7 +5381,7 @@ export class HeroSystem6eItem extends Item {
         }
 
         console.warn(`Unable to determine defense for ${this.name}`);
-        return "PD"; // Default
+        return "-"; // Default
     }
 
     get isContainer() {
@@ -5522,15 +5446,16 @@ export class HeroSystem6eItem extends Item {
         }
 
         // Legacy KILLING support
-        console.warn(
-            `${this.actor.name}: Unable to determine KILLING property for ${this.system.XMLID}/${this.name}, using legacy values.`,
-        );
         if (this.system?.killing === true) {
             return true;
         }
         if (this.system?.killing === false) {
             return false;
         }
+
+        console.warn(
+            `${this.actor.name}: Unable to determine KILLING property for ${this.system.XMLID}/${this.name}, using legacy values.`,
+        );
 
         return false;
     }
@@ -6187,11 +6112,6 @@ export class HeroSystem6eItem extends Item {
             this.system.ADDER.push(new HeroAdderModel(newAdder, { parent: this }));
         }
 
-        // Invalidate the adders cache if this is a non temporary item.
-        if (this.id) {
-            HeroSystem6eItem._addersCache.invalidateCachedValue(this.id);
-        }
-
         // Set/clear a 1/2d6 adder
         const halfDieAdder = this.adders.find((adder) => adder.XMLID === "PLUSONEHALFDIE");
         if (!diceParts.halfDieCount && halfDieAdder) {
@@ -6236,11 +6156,6 @@ export class HeroSystem6eItem extends Item {
             this.system.ADDER.push(new HeroAdderModel(newAdder, { parent: this }));
         }
 
-        // Invalidate the adders cache if this is a non temporary item.
-        if (this.id) {
-            HeroSystem6eItem._addersCache.invalidateCachedValue(this.id);
-        }
-
         // Set/clear a +1 pip adder
         const onePipAdder = this.adders.find((adder) => adder.XMLID === "PLUSONEPIP");
         if (!diceParts.constant && onePipAdder) {
@@ -6283,11 +6198,6 @@ export class HeroSystem6eItem extends Item {
             const newAdder = createModifierOrAdderFromXml(xml);
             this.system.ADDER ??= [];
             this.system.ADDER.push(new HeroAdderModel(newAdder, { parent: this }));
-        }
-
-        // Invalidate the adders cache if this is a non temporary item.
-        if (this.id) {
-            HeroSystem6eItem._addersCache.invalidateCachedValue(this.id);
         }
     }
 
