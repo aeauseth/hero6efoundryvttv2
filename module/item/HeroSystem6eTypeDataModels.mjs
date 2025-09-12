@@ -61,6 +61,7 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
             TYPE: new StringField(),
             DISPLAY: new StringField(),
             SCALE: new StringField(),
+            CLIPS_COST: new NumberField({ integer: false }),
         };
     }
     get hdcHTMLCollection() {
