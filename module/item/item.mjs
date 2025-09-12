@@ -2554,7 +2554,6 @@ export class HeroSystem6eItem extends Item {
 
     configureAttackParameters() {
         console.error("depricated configureAttackParameters");
-        debugger;
 
         const maneuver = ["maneuver", "martialart"].includes(this.type);
 
