@@ -35,9 +35,9 @@
                 {{!-- core --}}
                 <td>
                     {{#unless (eq characteristic.core null)}}
-                    <input name="system.characteristics.{{characteristic.key}}.core" type="number"
-                        value="{{characteristic.core}}" data-dtype="Number" 
-                        {{#if (and (eq @root/system.is5e true) (or (includes characteristic.behaviors "calculated") (includes characteristic.behaviors "figured")))}}disabled{{/if}}>
+                    <input name="system.{{characteristic.KEY}}.LEVELS" type="number"
+                        value="{{characteristic.levels}}" data-dtype="Number" 
+                        {{#if (and (eq @root/system.is5e true) (includes characteristic.baseInfo.behaviors "calculated"))}}disabled{{/if}}>
                     {{/unless}}
                 </td>
 
@@ -48,8 +48,17 @@
                     
                 {{!-- base    --}}
                 <td>
-                    {{#if characteristic.baseInfo.base}}
-                        {{characteristic.baseInfo.base}}
+                    {{#if (and (eq @root/system.is5e true) (includes characteristic.baseInfo.behaviors "calculated"))}}
+                        {{ calculated5eCharacteristic actor characteristic}}
+                        
+                    {{else}}
+                        {{#if (and (eq @root/system.is5e true) (includes characteristic.baseInfo.behaviors "figured"))}}
+                            {{ figured5eCharacteristic actor characteristic}}
+                        {{else}}
+                            {{#if characteristic.baseInfo.base}}
+                                {{characteristic.baseInfo.base}}
+                            {{/if}}
+                        {{/if}}
                     {{/if}}
                 </td>
 

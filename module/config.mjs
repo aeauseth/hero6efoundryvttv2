@@ -875,6 +875,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 }
                 return null;
             },
+            calculated5eCharacteristic: function (actor, subKey) {
+                return RoundFavorPlayerUp(actor.system.characteristics.dex[subKey] / 3);
+            },
             xml: `<OCV XMLID="OCV" ID="1712377400048" BASECOST="0.0" LEVELS="0" ALIAS="OCV" POSITION="2" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -901,6 +904,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                     return "5e calculated DEX/3";
                 }
                 return null;
+            },
+            calculated5eCharacteristic: function (actor, subKey) {
+                return RoundFavorPlayerUp(actor.system.characteristics.dex[subKey] / 3);
             },
             xml: `<DCV XMLID="DCV" ID="1712377402602" BASECOST="0.0" LEVELS="0" ALIAS="DCV" POSITION="3" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -929,6 +935,10 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 }
                 return null;
             },
+            calculated5eCharacteristic: function (actor, subKey) {
+                return RoundFavorPlayerUp(actor.system.characteristics.ego[subKey] / 3);
+            },
+
             xml: `<OMCV XMLID="OMCV" ID="1712377404591" BASECOST="0.0" LEVELS="0" ALIAS="OMCV" POSITION="4" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -956,6 +966,10 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 }
                 return null;
             },
+            calculated5eCharacteristic: function (actor, subKey) {
+                return RoundFavorPlayerUp(actor.system.characteristics.ego[subKey] / 3);
+            },
+
             xml: `<DMCV XMLID="DMCV" ID="1712377406823" BASECOST="0.0" LEVELS="0" ALIAS="DMCV" POSITION="5" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -983,6 +997,10 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 }
                 return null;
             },
+            figured5eCharacteristic: function (actor, subKey) {
+                return RoundFavorPlayerUp(actor.system.SPD.LEVELS + actor.system.characteristics.dex[subKey] / 10);
+            },
+
             xml: `<SPD XMLID="SPD" ID="1712377280539" BASECOST="0.0" LEVELS="0" ALIAS="SPD" POSITION="12" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -1020,6 +1038,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                     return `5e figured STR/5${char.actor.hasCharacteristic("STUN") ? " and /3 again" : ""}`;
                 }
                 return null;
+            },
+            figured5eCharacteristic: function (actor, subKey) {
+                return actor.system.PD.LEVELS + RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 5);
             },
             xml: `<PD XMLID="PD" ID="1712377277205" BASECOST="0.0" LEVELS="0" ALIAS="PD" POSITION="10" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -1059,6 +1080,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 }
                 return null;
             },
+            figured5eCharacteristic: function (actor, subKey) {
+                return actor.system.ED.LEVELS + RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 5);
+            },
             xml: `<ED XMLID="ED" ID="1712377278856" BASECOST="0.0" LEVELS="0" ALIAS="ED" POSITION="11" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
         {
@@ -1084,6 +1108,13 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                     return "5e figured STR/5 + CON/5";
                 }
                 return null;
+            },
+            figured5eCharacteristic: function (actor, subKey) {
+                return (
+                    actor.system.REC.LEVELS +
+                    RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 5) +
+                    RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 5)
+                );
             },
             xml: `<REC XMLID="REC" ID="1712377282168" BASECOST="0.0" LEVELS="0" ALIAS="REC" POSITION="13" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -1111,6 +1142,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                     return "5e figured 2 x CON";
                 }
                 return null;
+            },
+            figured5eCharacteristic: function (actor, subKey) {
+                return actor.system.END.LEVELS + actor.system.characteristics.con[subKey] * 2;
             },
             xml: `<END XMLID="END" ID="1712377283848" BASECOST="0.0" LEVELS="0" ALIAS="END" POSITION="14" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -1157,9 +1191,17 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             baseEffectDicePartsBundle: noDamageBaseEffectDicePartsBundle,
             notes: function (char) {
                 if (char.actor.is5e) {
-                    return "5e figured BODY+STR/2+CON/2";
+                    return "5e figured BODY+(STR/2)+(CON/2)";
                 }
                 return null;
+            },
+            figured5eCharacteristic: function (actor, subKey) {
+                return (
+                    actor.system.STUN.LEVELS +
+                    actor.system.characteristics.body[subKey] +
+                    RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 2) +
+                    RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 2)
+                );
             },
             xml: `<STUN XMLID="STUN" ID="1712377285547" BASECOST="0.0" LEVELS="0" ALIAS="STUN" POSITION="15" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
