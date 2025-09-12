@@ -1498,9 +1498,11 @@ export class HeroSystem6eActor extends Actor {
         }
 
         // 5e calculated LEVELS (shouldn't be necessary, just making sure)
-        for (const char of ["OCV", "DCV", "OMCV", "DMCV"]) {
-            if (this.system[char].LEVELS !== 0) {
-                characteristicChangesValue[`system.${char}.LEVELS`] = 0;
+        if (this.is5e) {
+            for (const char of ["OCV", "DCV", "OMCV", "DMCV"]) {
+                if (this.system[char].LEVELS !== 0) {
+                    characteristicChangesValue[`system.${char}.LEVELS`] = 0;
+                }
             }
         }
 
