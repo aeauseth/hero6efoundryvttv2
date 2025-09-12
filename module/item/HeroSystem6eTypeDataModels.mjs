@@ -309,6 +309,67 @@ class HeroPowerModel extends HeroItemModCommonModel {
     }
 }
 
+export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
+    constructor(data, context) {
+        super(data, context);
+
+        // set initial value
+        const CHARGES = this.parent.MODIFIER.find((m) => m.XMLID === "CHARGES");
+        if (!CHARGES && data.value !== undefined) {
+            this.value = undefined;
+        }
+        if (data.value === undefined) {
+            if (CHARGES) {
+                this.value = parseInt(CHARGES.OPTION_ALIAS);
+            }
+        }
+    }
+
+    static defineSchema() {
+        // Note that the return is just a simple object
+        return {
+            value: new NumberField({ integer: true }),
+        };
+    }
+
+    get CHARGES() {
+        return this.parent.MODIFIER.find((o) => o.XMLID === "CHARGES");
+    }
+
+    get item() {
+        if (this.parent.parent instanceof HeroSystem6eItem) {
+            return this.parent.parent;
+        }
+        return null;
+    }
+
+    get recoverable() {
+        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "RECOVERABLE");
+    }
+
+    get continuing() {
+        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "CONTINUING")?.OPTIONID;
+    }
+
+    get boostable() {
+        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "BOOSTABLE");
+    }
+    get fuel() {
+        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "FUEL");
+    }
+
+    get max() {
+        if (this.CHARGES) {
+            return parseInt(this.CHARGES?.OPTION_ALIAS);
+        }
+        return null;
+    }
+
+    get clips() {
+        return this.ADDER?.find((o) => o.XMLID === "CLIPS");
+    }
+}
+
 export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeDataModel {
     get description() {
         try {
@@ -693,67 +754,6 @@ export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeData
             //max: new NumberField({ integer: true }), // ENEDURANCERESERVE (use LEVELS instead)
             active: new BooleanField({ initial: null, nullable: true }), // is power,skill,equipment active (consider renaming)
         };
-    }
-}
-
-export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
-    constructor(data, context) {
-        super(data, context);
-
-        // set initial value
-        const CHARGES = this.parent.MODIFIER.find((m) => m.XMLID === "CHARGES");
-        if (!CHARGES && data.value !== undefined) {
-            this.value = undefined;
-        }
-        if (data.value === undefined) {
-            if (CHARGES) {
-                this.value = parseInt(CHARGES.OPTION_ALIAS);
-            }
-        }
-    }
-
-    static defineSchema() {
-        // Note that the return is just a simple object
-        return {
-            value: new NumberField({ integer: true }),
-        };
-    }
-
-    get CHARGES() {
-        return this.parent.MODIFIER.find((o) => o.XMLID === "CHARGES");
-    }
-
-    get item() {
-        if (this.parent.parent instanceof HeroSystem6eItem) {
-            return this.parent.parent;
-        }
-        return null;
-    }
-
-    get recoverable() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "RECOVERABLE");
-    }
-
-    get continuing() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "CONTINUING")?.OPTIONID;
-    }
-
-    get boostable() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "BOOSTABLE");
-    }
-    get fuel() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "FUEL");
-    }
-
-    get max() {
-        if (this.CHARGES) {
-            return parseInt(this.CHARGES?.OPTION_ALIAS);
-        }
-        return null;
-    }
-
-    get clips() {
-        return this.ADDER?.find((o) => o.XMLID === "CLIPS");
     }
 }
 
