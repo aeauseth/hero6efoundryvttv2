@@ -115,7 +115,7 @@ export function registerFullTests(quench) {
                 it("str.max", async function () {
                     assert.equal(actor.system.characteristics.str.max, 11);
                 });
-                it.only("str.realCost", async function () {
+                it("str.realCost", async function () {
                     assert.equal(actor.system.characteristics.str.realCost, 1);
                 });
 

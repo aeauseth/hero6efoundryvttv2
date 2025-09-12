@@ -959,6 +959,10 @@ export class HeroSystem6eItemMartialArt extends HeroSystem6eItemTypeDataModelPro
     get stunBodyDamage() {
         return this.parent.getMakeAttack().stunBodyDamage;
     }
+
+    get damage() {
+        return getFullyQualifiedEffectFormulaFromItem(this.item, { ignoreDeadlyBlow: true });
+    }
 }
 
 export class HeroSystem6eItemDisadvantage extends HeroSystem6eItemTypeDataModelProps {
@@ -1120,11 +1124,11 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
                     }
                 } else if (this.baseInfo?.behaviors.includes("figured")) {
                     return (
-                        this.actor.system[this.KEY].LEVELS + this.#baseInfo.figured5eCharacteristic(this.actor, "core")
+                        this.actor.system[this.KEY].LEVELS + this.baseInfo.figured5eCharacteristic(this.actor, "core")
                     );
                 }
             }
-            return parseInt(this.item?.LEVELS || 0) + this.item?.baseInfo?.base || 0;
+            return parseInt(this.item?.LEVELS || 0) + this.baseInfo?.base || 0;
         } catch (e) {
             console.error(e);
         }
@@ -1154,7 +1158,7 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
     // }
 
     get realCost() {
-        const cost = Math.round(this.core * (this.baseInfo?.costPerLevel(this.item) || 0));
+        const cost = Math.round(this.levels * (this.baseInfo?.costPerLevel(this.item) || 0));
         return cost;
     }
 

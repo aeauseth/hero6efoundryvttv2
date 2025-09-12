@@ -6,6 +6,7 @@ import { HeroProgressBar } from "../utility/progress-bar.mjs";
 import { clamp } from "../utility/compatibility.mjs";
 import { overrideCanAct } from "../settings/settings-helpers.mjs";
 import { RoundFavorPlayerDown, RoundFavorPlayerUp } from "../utility/round.mjs";
+import { HeroItemCharacteristic } from "../item/HeroSystem6eTypeDataModels.mjs";
 
 // v13 compatibility
 const foundryVttRenderTemplate = foundry.applications?.handlebars?.renderTemplate || renderTemplate;
@@ -1472,11 +1473,12 @@ export class HeroSystem6eActor extends Actor {
             // }
             const core = parseInt(this.system.characteristics[char].core);
             const max = parseInt(this.system.characteristics[char].max) || core;
-            if (max !== core) {
-                characteristicChangesMax[`system.characteristics.${char}.max`] = core;
+            if (max !== core || this.system.characteristics[char].max === undefined) {
+                this.system.characteristics[char].max = core;
+                characteristicChangesMax[`system.characteristics.${char}.max`] = this.system.characteristics[char].max;
             }
         }
-        if (Object.keys(characteristicChangesMax).length > 0) {
+        if (this._id && Object.keys(characteristicChangesMax).length > 0) {
             await this.update(characteristicChangesMax);
         }
 
@@ -1488,8 +1490,10 @@ export class HeroSystem6eActor extends Actor {
             // }
             const max = parseInt(this.system.characteristics[char].max);
             const value = parseInt(this.system.characteristics[char].value);
-            if (value !== max) {
-                characteristicChangesValue[`system.characteristics.${char}.value`] = max;
+            if (value !== max || this.system.characteristics[char].value === undefined) {
+                this.system.characteristics[char].value = max;
+                characteristicChangesValue[`system.characteristics.${char}.value`] =
+                    this.system.characteristics[char].value;
             }
         }
 
@@ -1500,7 +1504,7 @@ export class HeroSystem6eActor extends Actor {
             }
         }
 
-        if (Object.keys(characteristicChangesValue).length > 0) {
+        if (this._id && Object.keys(characteristicChangesValue).length > 0) {
             await this.update(characteristicChangesValue);
         }
 
@@ -2025,8 +2029,8 @@ export class HeroSystem6eActor extends Actor {
 
                 // Legacy (well current)
                 for (const [key, value] of Object.entries(heroJson.CHARACTER.CHARACTERISTICS)) {
-                    changes[`system.${key}`] = value;
-                    this.system[key] = value;
+                    this.system[key] = new HeroItemCharacteristic(value, { parent: this });
+                    changes[`system.${key}`] = this.system[key];
                 }
                 delete heroJson.CHARACTER.CHARACTERISTICS;
             }
@@ -2562,7 +2566,6 @@ export class HeroSystem6eActor extends Actor {
             for (const item of this.items.filter(
                 (item) => item.system.active === undefined && item.type !== "maneuver",
             )) {
-                debugger;
                 if (
                     item.system.end > 0 ||
                     (item.system.charges.max > 0 && !item.parentItem?.system.XMLID === "MULTIPOWER")
