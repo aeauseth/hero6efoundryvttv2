@@ -345,18 +345,18 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
     }
 
     get recoverable() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "RECOVERABLE");
+        return !!this.CHARGES?.ADDER.find((o) => o.XMLID === "RECOVERABLE");
     }
 
     get continuing() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "CONTINUING")?.OPTIONID;
+        return !!this.CHARGES?.ADDER.find((o) => o.XMLID === "CONTINUING")?.OPTIONID;
     }
 
     get boostable() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "BOOSTABLE");
+        return !!this.CHARGES?.ADDER.find((o) => o.XMLID === "BOOSTABLE");
     }
     get fuel() {
-        return !!this.CHARGES.ADDER.find((o) => o.XMLID === "FUEL");
+        return !!this.CHARGES?.ADDER.find((o) => o.XMLID === "FUEL");
     }
 
     get max() {
