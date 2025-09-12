@@ -998,7 +998,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 return null;
             },
             figured5eCharacteristic: function (actor, subKey) {
-                return RoundFavorPlayerUp(actor.system.SPD.LEVELS + actor.system.characteristics.dex[subKey] / 10);
+                return 1 + Number((actor.system.characteristics.dex[subKey] / 10).toFixed(1));
             },
 
             xml: `<SPD XMLID="SPD" ID="1712377280539" BASECOST="0.0" LEVELS="0" ALIAS="SPD" POSITION="12" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
@@ -1040,7 +1040,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 return null;
             },
             figured5eCharacteristic: function (actor, subKey) {
-                return actor.system.PD.LEVELS + RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 5);
+                return RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 5);
             },
             xml: `<PD XMLID="PD" ID="1712377277205" BASECOST="0.0" LEVELS="0" ALIAS="PD" POSITION="10" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -1081,7 +1081,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 return null;
             },
             figured5eCharacteristic: function (actor, subKey) {
-                return actor.system.ED.LEVELS + RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 5);
+                return RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 5);
             },
             xml: `<ED XMLID="ED" ID="1712377278856" BASECOST="0.0" LEVELS="0" ALIAS="ED" POSITION="11" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -1111,7 +1111,6 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             },
             figured5eCharacteristic: function (actor, subKey) {
                 return (
-                    actor.system.REC.LEVELS +
                     RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 5) +
                     RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 5)
                 );
@@ -1144,7 +1143,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 return null;
             },
             figured5eCharacteristic: function (actor, subKey) {
-                return actor.system.END.LEVELS + actor.system.characteristics.con[subKey] * 2;
+                return actor.system.characteristics.con[subKey] * 2;
             },
             xml: `<END XMLID="END" ID="1712377283848" BASECOST="0.0" LEVELS="0" ALIAS="END" POSITION="14" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" AFFECTS_PRIMARY="Yes" AFFECTS_TOTAL="Yes" ADD_MODIFIERS_TO_BASE="No" />`,
         },
@@ -1197,7 +1196,6 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             },
             figured5eCharacteristic: function (actor, subKey) {
                 return (
-                    actor.system.STUN.LEVELS +
                     actor.system.characteristics.body[subKey] +
                     RoundFavorPlayerUp(actor.system.characteristics.str[subKey] / 2) +
                     RoundFavorPlayerUp(actor.system.characteristics.con[subKey] / 2)

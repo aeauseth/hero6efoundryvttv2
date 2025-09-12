@@ -1119,7 +1119,9 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
                         return this.#baseInfo.calculated5eCharacteristic(this.actor, "core");
                     }
                 } else if (this.baseInfo?.behaviors.includes("figured")) {
-                    return this.#baseInfo.figured5eCharacteristic(this.actor, "core");
+                    return (
+                        this.actor.system[this.KEY].LEVELS + this.#baseInfo.figured5eCharacteristic(this.actor, "core")
+                    );
                 }
             }
             return parseInt(this.item?.LEVELS || 0) + this.item?.baseInfo?.base || 0;
@@ -1274,7 +1276,7 @@ export class HeroCharacteristicsModel extends foundry.abstract.DataModel {
             dcv: new EmbeddedDataField(HeroActorCharacteristic),
             omcv: new EmbeddedDataField(HeroActorCharacteristic),
             dmcv: new EmbeddedDataField(HeroActorCharacteristic),
-            spd: new EmbeddedDataField(HeroActorCharacteristic), // 5e can be float values
+            spd: new EmbeddedDataField(HeroActorCharacteristic),
             pd: new EmbeddedDataField(HeroActorCharacteristic),
             ed: new EmbeddedDataField(HeroActorCharacteristic),
             rec: new EmbeddedDataField(HeroActorCharacteristic),
