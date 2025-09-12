@@ -4,6 +4,7 @@
             <th title="{{localize 'ActorSheet.ValueTitle'}}">{{localize "ActorSheet.Value"}}</th>
             <th title="{{localize 'ActorSheet.MaxTitle'}}">{{localize "ActorSheet.Max"}}</th>
             <th title="{{localize 'ActorSheet.CoreTitle'}}">{{localize "ActorSheet.Core"}}</th>
+            <th title="{{localize 'ActorSheet.LevelsTitle'}}">{{localize "ActorSheet.Levels"}}</th>
             {{!-- {{#if alphaTesting}}<th title="{{localize 'ActorSheet.APTitle'}}">{{localize "ActorSheet.AP"}}</th>{{/if}} --}}
             <th title="{{localize 'ActorSheet.CharTitle'}}">{{localize "ActorSheet.Char"}}</th>
             <th title="{{localize 'ActorSheet.BaseTitle'}}">{{localize "ActorSheet.Base"}}</th>
@@ -33,6 +34,13 @@
                 </td>
 
                 {{!-- core --}}
+                <td>
+                    {{#unless (eq characteristic.core null)}}
+                        {{characteristic.core}}
+                    {{/unless}}
+                </td>
+
+                {{!-- levels --}}
                 <td>
                     {{#unless (eq characteristic.core null)}}
                     <input name="system.{{characteristic.KEY}}.LEVELS" type="number"
