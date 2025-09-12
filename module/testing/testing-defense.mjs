@@ -9,7 +9,7 @@ export function registerDefenseTests(quench) {
             const { describe, it, assert } = context;
 
             describe("Resistant Protection", function () {
-                it("rPD 1", async function () {
+                it.only("rPD 1", async function () {
                     const contents = `
                         <POWER XMLID="FORCEFIELD" ID="1686527339658" BASECOST="0.0" LEVELS="10" ALIAS="Resistant Protection" POSITION="0" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes" PDLEVELS="1" EDLEVELS="2" MDLEVELS="3" POWDLEVELS="4">
                         <NOTES />
@@ -31,13 +31,13 @@ export function registerDefenseTests(quench) {
                     const itemDefense = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
                         parent: actor,
                     });
-                    await itemDefense._postUpload();
+
                     actor.items.set(itemDefense.system.XMLID, itemDefense);
 
                     const itemAttack = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contentsAttack, actor), {
                         parent: actor,
                     });
-                    await itemAttack._postUpload();
+                    await actor.FullHealth();
 
                     const defense = getActorDefensesVsAttack(actor, itemAttack);
                     assert.equal(defense.resistantValue, 1);
@@ -65,7 +65,7 @@ export function registerDefenseTests(quench) {
                     const itemDefense = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
                         parent: actor,
                     });
-                    await itemDefense._postUpload();
+                    await actor.FullHealth();
                     actor.items.set(itemDefense.system.XMLID, itemDefense);
 
                     const itemAttack = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contentsAttack, actor), {
@@ -100,7 +100,7 @@ export function registerDefenseTests(quench) {
                     const itemDefense = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
                         parent: actor,
                     });
-                    await itemDefense._postUpload();
+                    await actor.FullHealth();
                     actor.items.set(itemDefense.system.XMLID, itemDefense);
 
                     const itemAttack = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contentsAttack, actor), {
@@ -135,7 +135,7 @@ export function registerDefenseTests(quench) {
                     const itemDefense = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contents, actor), {
                         parent: actor,
                     });
-                    await itemDefense._postUpload();
+                    await actor.FullHealth();
                     actor.items.set(itemDefense.system.XMLID, itemDefense);
 
                     const itemAttack = new HeroSystem6eItem(HeroSystem6eItem.itemDataFromXml(contentsAttack, actor), {

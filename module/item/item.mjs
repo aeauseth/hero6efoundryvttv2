@@ -1194,6 +1194,23 @@ export class HeroSystem6eItem extends Item {
             //await this._postUpload();
         }
 
+        // turn off items that use END, Charges, MP, etc
+        if (this.system.end > 0 || (this.system.charges.max > 0 && !this.parentItem?.system.XMLID === "MULTIPOWER")) {
+            if (this.system.active || this.system.active === null) {
+                this.system.active = false;
+                if (this.id) {
+                    await this.update({ [`system.active`]: this.system.active });
+                }
+            }
+        } else {
+            if (this.system.active === null) {
+                this.system.active = true;
+                if (this.id) {
+                    await this.update({ [`system.active`]: this.system.active });
+                }
+            }
+        }
+
         // if (this.baseInfo?.resetToOriginalChanges) {
         //     await this.update(this.baseInfo.resetToOriginalChanges(this));
         // }

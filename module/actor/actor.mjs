@@ -2562,19 +2562,18 @@ export class HeroSystem6eActor extends Actor {
                 }
             }
 
-            // Set items to be active
-            for (const item of this.items.filter(
-                (item) => item.system.active === undefined && item.type !== "maneuver",
-            )) {
-                if (
-                    item.system.end > 0 ||
-                    (item.system.charges.max > 0 && !item.parentItem?.system.XMLID === "MULTIPOWER")
-                ) {
-                    await item.update({ [`system.active`]: false });
-                } else {
-                    await item.update({ [`system.active`]: true });
-                }
-            }
+            // // Set newly created items to be non-active when uses END/CHARGES/MP
+            // for (const item of this.items) {
+            //     if (
+            //         item.system.end > 0 ||
+            //         (item.system.charges.max > 0 && !item.parentItem?.system.XMLID === "MULTIPOWER")
+            //     ) {
+            //         item.system.active = false;
+            //         if (this.id) {
+            //             await item.update({ [`system.active`]: item.system.active });
+            //         }
+            //     }
+            // }
 
             uploadPerformance.actorPostUpload = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
