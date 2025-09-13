@@ -1999,6 +1999,11 @@ export class HeroSystem6eActor extends Actor {
             /// WE ARE DONE RESETTING TOKEN PROPS
             /// NOW LOAD THE HDC STUFF
 
+            // Need to get the base64 image before we delete IMAGE, deepClone doesn't work as expected.
+            const filename = heroJson.CHARACTER.IMAGE?.FileName;
+            const extension = filename.split(".").pop();
+            const base64 = "data:image/" + extension + ";base64," + xml.getElementsByTagName("IMAGE")[0].textContent;
+
             // Keep raw XML data without IMAGE
             const xmlNoImage = foundry.utils.deepClone(xml);
             const image = xmlNoImage.getElementsByTagName("IMAGE")[0];
@@ -2447,7 +2452,7 @@ export class HeroSystem6eActor extends Actor {
                     `Skipping image upload, because this token (${this.name}) appears to be using tokenizer.`,
                 );
             } else if (heroJson.CHARACTER.IMAGE) {
-                const filename = heroJson.CHARACTER.IMAGE?.FileName;
+                //const filename = heroJson.CHARACTER.IMAGE?.FileName;
                 const path = "worlds/" + game.world.id + "/tokens";
                 let relativePathName = path + "/" + filename;
 
@@ -2464,9 +2469,9 @@ export class HeroSystem6eActor extends Actor {
                         encodeURI(relativePathName),
                     );
                     if (!imageFileExists) {
-                        const extension = filename.split(".").pop();
-                        const base64 =
-                            "data:image/" + extension + ";base64," + xml.getElementsByTagName("IMAGE")[0].textContent;
+                        //const extension = filename.split(".").pop();
+                        //const base64 =
+                        //"data:image/" + extension + ";base64," + xml.getElementsByTagName("IMAGE")[0].textContent;
 
                         await ImageHelper.uploadBase64(base64, filename, path);
 
