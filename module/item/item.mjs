@@ -1067,7 +1067,7 @@ export class HeroSystem6eItem extends Item {
             this.system.charges = {
                 //max: parseInt(CHARGES.OPTION_ALIAS),
                 value: parseInt(CHARGES.OPTION_ALIAS),
-                clipsMax: Math.pow(2, parseInt((CHARGES.ADDER || []).find((o) => o.XMLID === "CLIPS")?.LEVELS || 0)),
+                //clipsMax: Math.pow(2, parseInt((CHARGES.ADDER || []).find((o) => o.XMLID === "CLIPS")?.LEVELS || 0)),
                 clips: Math.pow(2, parseInt((CHARGES.ADDER || []).find((o) => o.XMLID === "CLIPS")?.LEVELS || 0)),
                 recoverable: !!(CHARGES.ADDER || []).find((o) => o.XMLID === "RECOVERABLE"),
                 continuing: !!(CHARGES.ADDER || []).find((o) => o.XMLID === "CONTINUING")?.OPTIONID,

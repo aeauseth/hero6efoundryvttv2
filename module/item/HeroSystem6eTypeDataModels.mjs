@@ -24,7 +24,7 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
             XMLID: new StringField(),
             xmlid: new StringField(),
             ID: new StringField(),
-            BASECOST: new StringField(),
+            BASECOST: new NumberField({ integer: false }),
             LEVELS: new NumberField({ integer: true }),
             ALIAS: new StringField(),
             POSITION: new NumberField({ integer: true }),
@@ -322,6 +322,7 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
         if (data.value === undefined) {
             if (CHARGES) {
                 this.value = parseInt(CHARGES.OPTION_ALIAS);
+                this.clips = Math.pow(2, parseInt((CHARGES.ADDER || []).find((o) => o.XMLID === "CLIPS")?.LEVELS || 0));
             }
         }
     }
@@ -330,6 +331,7 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
         // Note that the return is just a simple object
         return {
             value: new NumberField({ integer: true }),
+            clips: new NumberField({ integer: true }),
         };
     }
 
@@ -366,8 +368,12 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
         return null;
     }
 
-    get clips() {
-        return this.ADDER?.find((o) => o.XMLID === "CLIPS");
+    get CLIPS() {
+        return this.CHARGES?.ADDER?.find((o) => o.XMLID === "CLIPS");
+    }
+
+    get clipsMax() {
+        return Math.pow(2, this.CLIPS?.LEVELS || 0);
     }
 }
 
