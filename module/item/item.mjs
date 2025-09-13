@@ -1220,6 +1220,16 @@ export class HeroSystem6eItem extends Item {
             }
         }
 
+        // Turn off all maneuvers
+        if (this.type === "maneuver") {
+            if (this.system.active) {
+                this.system.active = false;
+                if (this.id) {
+                    await this.update({ [`system.active`]: this.system.active });
+                }
+            }
+        }
+
         // if (this.baseInfo?.resetToOriginalChanges) {
         //     await this.update(this.baseInfo.resetToOriginalChanges(this));
         // }
