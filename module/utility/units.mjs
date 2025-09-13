@@ -2,7 +2,7 @@ import { RoundFavorPlayerDown } from "./round.mjs";
 
 export function getSystemDisplayUnits(is5e) {
     if (is5e !== false && is5e !== true && is5e !== undefined) {
-        console.error("bad paramater", is5e);
+        console.error(`bad is5e paramater`, is5e);
     }
     return is5e ? '"' : "m";
 }

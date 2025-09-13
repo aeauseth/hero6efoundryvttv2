@@ -2294,7 +2294,7 @@ export class HeroSystem6eActor extends Actor {
                 }
             }
 
-            await this.updateEmbeddedDocuments("Item", itemsToUpdate);
+            await this.updateEmbeddedDocuments("Item", itemsToUpdate, { diff: false });
 
             uploadProgressBar.advance(`${this.name}: Updated Items`, 0);
 
