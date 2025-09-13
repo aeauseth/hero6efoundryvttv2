@@ -6275,16 +6275,16 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         {
             details: function (item) {
                 const result = {
-                    str: parseInt(item.system.value) * 5,
-                    body: parseInt(item.system.value),
-                    stun: parseInt(item.system.value),
-                    reach: Math.pow(2, Math.floor(item.system.value / 3)),
-                    kb: parseInt(item.system.value),
-                    mass: (Math.pow(2, item.system.value) * 100).toLocaleString() + " kg",
-                    dcv: 2 * Math.floor(item.system.value / 3),
-                    perception: 2 * Math.floor(item.system.value / 3),
-                    tall: Math.pow(2, Math.floor(item.system.value / 3)) * 2,
-                    wide: Math.pow(2, Math.floor(item.system.value / 3)),
+                    str: parseInt(item.system.LEVELS) * 5,
+                    body: parseInt(item.system.LEVELS),
+                    stun: parseInt(item.system.LEVELS),
+                    reach: Math.pow(2, Math.floor(item.system.LEVELS / 3)),
+                    kb: parseInt(item.system.LEVELS),
+                    mass: (Math.pow(2, item.system.LEVELS) * 100).toLocaleString() + " kg",
+                    dcv: 2 * Math.floor(item.system.LEVELS / 3),
+                    perception: 2 * Math.floor(item.system.LEVELS / 3),
+                    tall: Math.pow(2, Math.floor(item.system.LEVELS / 3)) * 2,
+                    wide: Math.pow(2, Math.floor(item.system.LEVELS / 3)),
                 };
                 return result;
             },

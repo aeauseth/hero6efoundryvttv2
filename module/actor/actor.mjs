@@ -2597,16 +2597,16 @@ export class HeroSystem6eActor extends Actor {
             // https://github.com/dmdorman/hero6e-foundryvtt/issues/1439
             // All characteristics?
             // https://github.com/dmdorman/hero6e-foundryvtt/issues/1746
-            if (this.id) {
-                for (const char of Object.keys(this.system.characteristics)) {
-                    await this.update({
-                        [`system.characteristics.${char}.max`]: this.system.characteristics[char].core,
-                    });
-                    await this.update({
-                        [`system.characteristics.${char}.value`]: this.system.characteristics[char].max,
-                    });
-                }
-            }
+            // if (this.id) {
+            //     for (const char of Object.keys(this.system.characteristics)) {
+            //         await this.update({
+            //             [`system.characteristics.${char}.max`]: this.system.characteristics[char].core,
+            //         });
+            //         await this.update({
+            //             [`system.characteristics.${char}.value`]: this.system.characteristics[char].max,
+            //         });
+            //     }
+            // }
 
             // duplicate ID can be a problem
             for (const item of this.items) {

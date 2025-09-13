@@ -2800,73 +2800,61 @@ export class HeroSystem6eItem extends Item {
     }
 
     async _postUpload(options) {
-        try {
-            // Compendium?
-            if (this.pack) {
-                console.log(`skipping _postUpload for ${this.pack}.${this.name}`, this);
-                return;
-            }
-
-            if (this.type === "characteristic") {
-                return;
-            }
-
-            // Adding this back in (was only called in prepareData).
-            // Needed for when we add/remove attacks as we need to update CSLs.
-            // TODO: move this into Actor addEmbeddedItems or similar
-            try {
-                await this.setCombatSkillLevels();
-            } catch (e) {
-                console.error(e);
-            }
-
-            // Progress Bar (plan to deprecate)
-            if (options?.uploadProgressBar) {
-                if (this.system.versionHeroSystem6eCreated === undefined) {
-                    this.system.versionHeroSystem6eCreated = game.system.version;
-                    options.uploadProgressBar.advance(`${this.actor.name}: Adding ${this.name}`);
-                }
-            }
-
-            try {
-                await this.setActiveEffects();
-            } catch (e) {
-                console.error(e);
-                await this.setActiveEffects();
-            }
-
-            try {
-                this._postUploadDetails(options);
-            } catch (e) {
-                console.error(e);
-            }
-
-            return true;
-        } catch (error) {
-            try {
-                if (foundry.utils.isNewerVersion(this.actor?.system.versionHeroSystem6eCreated, "3.0.63")) {
-                    ui.notifications.error(
-                        `${this.detailedName()} for ${this.actor?.name} failed to parse properly. Please report.  Error: ${error.message}`,
-                        { console: true, permanent: true },
-                    );
-                    console.error(error);
-                } else {
-                    ui.notifications.error(
-                        `${this.detailedName()} for ${this.actor?.name} failed to parse properly, it is no longer supported. Please upload the HDC file again.`,
-                        { console: true, permanent: false },
-                    );
-                    console.error(error);
-                }
-            } catch (error2) {
-                ui.notifications.error(
-                    `${this.detailedName()} for ${this.actor.name} failed to parse properly. Please report.`,
-                    { console: true, permanent: true },
-                );
-                console.error(error);
-                console.error(error2);
-            }
-        }
         return false;
+        // try {
+        //     // Compendium?
+        //     if (this.pack) {
+        //         console.log(`skipping _postUpload for ${this.pack}.${this.name}`, this);
+        //         return;
+        //     }
+
+        //     if (this.type === "characteristic") {
+        //         return;
+        //     }
+
+        //     // Adding this back in (was only called in prepareData).
+        //     // Needed for when we add/remove attacks as we need to update CSLs.
+        //     // TODO: move this into Actor addEmbeddedItems or similar
+        //     await this.setCombatSkillLevels();
+
+        //     // Progress Bar (plan to deprecate)
+        //     if (options?.uploadProgressBar) {
+        //         if (this.system.versionHeroSystem6eCreated === undefined) {
+        //             this.system.versionHeroSystem6eCreated = game.system.version;
+        //             options.uploadProgressBar.advance(`${this.actor.name}: Adding ${this.name}`);
+        //         }
+        //     }
+
+        //     await this.setActiveEffects();
+
+        //     this._postUploadDetails(options);
+
+        //     return true;
+        // } catch (error) {
+        //     try {
+        //         if (foundry.utils.isNewerVersion(this.actor?.system.versionHeroSystem6eCreated, "3.0.63")) {
+        //             ui.notifications.error(
+        //                 `${this.detailedName()} for ${this.actor?.name} failed to parse properly. Please report.  Error: ${error.message}`,
+        //                 { console: true, permanent: true },
+        //             );
+        //             console.error(error);
+        //         } else {
+        //             ui.notifications.error(
+        //                 `${this.detailedName()} for ${this.actor?.name} failed to parse properly, it is no longer supported. Please upload the HDC file again.`,
+        //                 { console: true, permanent: false },
+        //             );
+        //             console.error(error);
+        //         }
+        //     } catch (error2) {
+        //         ui.notifications.error(
+        //             `${this.detailedName()} for ${this.actor.name} failed to parse properly. Please report.`,
+        //             { console: true, permanent: true },
+        //         );
+        //         console.error(error);
+        //         console.error(error2);
+        //     }
+        // }
+        // return false;
     }
 
     getAttacksWith() {
