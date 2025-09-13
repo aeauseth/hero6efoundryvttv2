@@ -3414,11 +3414,11 @@ export class HeroSystem6eActor extends Actor {
         const _template = this.template;
         let _is5e;
 
-        if (!_template) {
-            if (this.id) {
-                console.warn(`${this.name} has no TEMPLATE`);
-            }
-        }
+        // if (!_template) {
+        //     if (this.id) {
+        //         console.warn(`${this.name} has no TEMPLATE`);
+        //     }
+        // }
 
         if (_template?.includes("6")) {
             _is5e = false;
@@ -3508,6 +3508,8 @@ export class HeroSystem6eActor extends Actor {
         // Stringify the TEMPLATE for our best chance.
         try {
             const template = this.system.CHARACTER?.TEMPLATE || this.system.CHARACTER?.BASIC_CONFIGURATION?.TEMPLATE;
+            if (!template) return templateType;
+
             const stringifiedTemplate = JSON.stringify(template);
 
             if (stringifiedTemplate?.match(/\.Heroic/i)) {
