@@ -540,7 +540,7 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
             console.error(e);
         }
     }
-``
+
     #baseInfo = null;
 
     get baseInfo() {
