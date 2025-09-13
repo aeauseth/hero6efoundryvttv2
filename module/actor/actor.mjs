@@ -3561,12 +3561,16 @@ export class HeroSystem6eActor extends Actor {
                 // Custom Templates
                 // Automations
                 // Barrier
-                if (this.id && this.system.CHARACTER) {
+                if (this.id && this.system.CHARACTER && !window[game.system.id]?.squelch?.templateType) {
                     console.warn(
                         `Unknown template type for ${this.name}.`,
                         this.system.CHARACTER?.TEMPLATE,
                         this.system.BASIC_CONFIGURATION?.TEMPLATE,
                     );
+                    window[game.system.id] ??= {
+                        squelch: [],
+                    };
+                    window[game.system.id].squelch.templateType = true;
                 }
             }
         } catch (e) {
