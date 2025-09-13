@@ -1862,6 +1862,7 @@ export class HeroSystem6eActor extends Actor {
                                 item.system.charges.clipsMax !== item.system.charges.clips),
                     )
                     .map((o) => o.system),
+                was5e: this.is5e,
             };
             // if (
             //     retainValuesOnUpload.body ||
@@ -2068,9 +2069,14 @@ export class HeroSystem6eActor extends Actor {
                     await this.update({ type: targetType, [`==system`]: this.system });
                 }
             }
-            // if (this.system.COM && !this.system.is5e) {
-            //     this.system.is5e = true;
-            // }
+
+            // Delete maneuvers when changing is5e
+            if (this.is5e !== this.was5e) {
+                await this.deleteEmbeddedDocuments(
+                    "Item",
+                    this.items.filter((i) => i.type === "maneuver").map((m) => m.id),
+                );
+            }
 
             if (this.id) {
                 // We can't delay this with the changes array because any items based on this actor needs this value.
@@ -2932,7 +2938,7 @@ export class HeroSystem6eActor extends Actor {
     }
 
     async addHeroSystemManeuvers() {
-        const powerList = this.system.is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
+        const powerList = this.is5e ? CONFIG.HERO.powers5e : CONFIG.HERO.powers6e;
         const maneuverPromises = powerList
             .filter((power) => power.type?.includes("maneuver"))
             .map(async (maneuver) => this.addManeuver(maneuver));
