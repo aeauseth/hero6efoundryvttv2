@@ -2001,8 +2001,8 @@ export class HeroSystem6eActor extends Actor {
 
             // Need to get the base64 image before we delete IMAGE, deepClone doesn't work as expected.
             const filename = heroJson.CHARACTER.IMAGE?.FileName;
-            const extension = filename.split(".").pop();
-            const base64 = "data:image/" + extension + ";base64," + xml.getElementsByTagName("IMAGE")[0].textContent;
+            const extension = filename?.split(".").pop();
+            const base64 = "data:image/" + extension + ";base64," + xml.getElementsByTagName("IMAGE")?.[0]?.textContent;
 
             // Keep raw XML data without IMAGE
             const xmlNoImage = foundry.utils.deepClone(xml);
