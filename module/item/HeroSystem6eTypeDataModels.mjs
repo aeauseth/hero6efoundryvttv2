@@ -104,7 +104,7 @@ class HeroItemModCommonModel extends foundry.abstract.DataModel {
 
     get baseInfo() {
         // cache getPowerInfo
-        this.#baseInfo ??= getPowerInfo({ XMLID: this.XMLID, is5e: this.item?.is5e, xmlTag: this.xmlTag });
+        this.#baseInfo ??= getPowerInfo({ XMLID: this.XMLID, item: this.item, xmlTag: this.xmlTag });
         // if (!this.#baseInfo) {
         //     debugger;
         // }
