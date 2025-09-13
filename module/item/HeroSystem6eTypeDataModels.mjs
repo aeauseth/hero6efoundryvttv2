@@ -912,6 +912,7 @@ export class HeroSystem6eItemManeuver extends HeroSystem6eItemTypeDataModelGette
             XMLID: new StringField(),
             _active: new ObjectField(), // action
             is5e: new BooleanField({ initial: null, nullable: true }),
+            active: new BooleanField({ initial: null, nullable: true }),
         };
     }
 }
