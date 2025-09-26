@@ -5431,23 +5431,27 @@ export class HeroSystem6eItem extends Item {
             return "PD";
         }
 
-        if (this.system.EFFECT.includes("[NNDDC]")) {
+        if (this.system.EFFECT?.includes("[NNDDC]")) {
             return "NND";
         }
 
-        if (this.system.EFFECT.includes("Strike")) {
+        if (this.system.EFFECT?.includes("Strike")) {
             return "PD";
         }
 
-        if (this.system.EFFECT.includes("WEAPONDC")) {
+        if (this.system.EFFECT?.includes("WEAPONDC")) {
             return "PD";
         }
 
-        if (this.system.EFFECT.includes("Block")) {
+        if (this.system.EFFECT?.includes("Block")) {
             return "-";
         }
 
-        if (this.system.EFFECT.includes("Target Falls")) {
+        if (this.system.EFFECT?.includes("Target Falls")) {
+            return "-";
+        }
+
+        if (this.system.XMLID === "CHANGEENVIRONMENT") {
             return "-";
         }
 

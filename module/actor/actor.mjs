@@ -414,7 +414,7 @@ export class HeroSystem6eActor extends Actor {
         if (!this.isOwner) {
             return;
         }
-        //const hasSTUN = getCharacteristicInfoArrayForActor(this).find((o) => o.key === "STUN");
+        const hasSTUN = getCharacteristicInfoArrayForActor(this).find((o) => o.key === "STUN");
 
         // Mark as undefeated in combat tracker (pc/npc)
         if (
@@ -429,6 +429,7 @@ export class HeroSystem6eActor extends Actor {
 
         // If stun was changed and running under triggering users context
         if (
+            hasSTUN &&
             (data.system?.characteristics?.stun !== undefined || data.system?.characteristics?.body !== undefined) &&
             userId === game.user.id
         ) {
@@ -440,25 +441,6 @@ export class HeroSystem6eActor extends Actor {
                     active: true,
                 });
             }
-
-            // Mark as defeated in combat tracker
-            // Once an NPC is Knocked Out below the -10 STUN level,
-            // he should normally remain unconscious until the fight ends.
-            // No longer marking KO < stunThreshold as dead
-            // if (data.system.characteristics.stun.value < stunThreshold) {
-            //     await this.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.deadEffect.id, {
-            //         overlay: true,
-            //         active: true,
-            //     });
-            // }
-
-            // Mark as undefeated in combat tracker
-            // if (data.system.characteristics.stun.value >0) {
-            //     //this.removeActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.deadEffect);
-            //     await this.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.deadEffect.id, {
-            //         active: false,
-            //     });
-            // }
 
             if (newStun > 0) {
                 await this.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.knockedOutEffect.id, {
@@ -1500,7 +1482,7 @@ export class HeroSystem6eActor extends Actor {
         // 5e calculated LEVELS (shouldn't be necessary, just making sure)
         if (this.is5e) {
             for (const char of ["OCV", "DCV", "OMCV", "DMCV"]) {
-                if (this.system[char].LEVELS !== 0) {
+                if (this.system[char] && this.system[char].LEVELS !== 0) {
                     characteristicChangesValue[`system.${char}.LEVELS`] = 0;
                 }
             }
@@ -1998,49 +1980,57 @@ export class HeroSystem6eActor extends Actor {
             }
 
             // is5e
-            this.system.CHARACTER = heroJson.CHARACTER;
-            if (typeof this.system.CHARACTER?.TEMPLATE === "string") {
-                if (
-                    this.system.CHARACTER.TEMPLATE.includes("builtIn.") &&
-                    !this.system.CHARACTER.TEMPLATE.includes("6E.")
-                ) {
+            let _is5e; // keep track indepentantly of item.system.is5e as targetType can reload it
+            if (typeof heroJson.CHARACTER?.TEMPLATE === "string") {
+                if (heroJson.CHARACTER.TEMPLATE.includes("builtIn.") && !heroJson.CHARACTER.TEMPLATE.includes("6E.")) {
                     // 5E
-                    this.system.is5e = true;
+                    _is5e = this.system.is5e = true;
                 } else if (
-                    this.system.CHARACTER.TEMPLATE.includes("builtIn.") &&
-                    this.system.CHARACTER.TEMPLATE.includes("6E.")
+                    heroJson.CHARACTER.TEMPLATE.includes("builtIn.") &&
+                    heroJson.CHARACTER.TEMPLATE.includes("6E.")
                 ) {
                     // 6E
-                    this.system.is5e = false;
+                    _is5e = this.system.is5e = false;
                 } else {
-                    console.error(`Unrecognized template ${this.system.template}`);
-                }
-
-                // Update actor type
-                const targetType = this.system.CHARACTER.TEMPLATE.match(
-                    /\.(ai|automaton|base|computer|heroic|normal|superheroic|vehicle)[56.]/i,
-                )?.[1]
-                    .toLowerCase()
-                    .replace("base", "base2")
-                    .replace("normal", "pc")
-                    .replace("superheroic", "pc")
-                    .replace("heroic", "pc");
-                if (targetType && this.type.replace("npc", "pc") !== targetType) {
-                    await this.update({ type: targetType, [`==system`]: this.system });
+                    console.error(`Unrecognized template ${heroJson.CHARACTER?.TEMPLATE}`);
                 }
             }
 
+            // Update actor type
+            const targetType = heroJson.CHARACTER?.TEMPLATE?.match(
+                /\.(ai|automaton|base|computer|heroic|normal|superheroic|vehicle)[56.]/i,
+            )?.[1]
+                .toLowerCase()
+                .replace("base", "base2")
+                .replace("normal", "pc")
+                .replace("superheroic", "pc")
+                .replace("heroic", "pc");
+
             if (this.id) {
+                // Delete maneuvers (or any other item) when changing is5e
+                const itemsToDeleteIs5e = this.items
+                    .filter((i) => i.type === "maneuver" || i.system.is5e !== this.system.is5e)
+                    .map((m) => m.id);
+                if (itemsToDeleteIs5e.length > 0) {
+                    console.warn(`Deleting ${itemsToDeleteIs5e.length} is5e mismatches`);
+                    await this.deleteEmbeddedDocuments("Item", itemsToDeleteIs5e);
+                }
+
                 // We can't delay this with the changes array because any items based on this actor needs this value.
                 // Specifically compound power is a problem if we don't set is5e properly for a 5e actor.
-                await this.update(changes);
                 await this.update({
-                    "system.is5e": this.system.is5e,
-                    "system.CHARACTER.BASIC_CONFIGURATION": this.system.CHARACTER.BASIC_CONFIGURATION,
-                    "system.CHARACTER.CHARACTER_INFO": this.system.CHARACTER.CHARACTER_INFO,
-                    "system.CHARACTER.TEMPLATE": this.system.CHARACTER.TEMPLATE,
-                    "system.CHARACTER.version": this.system.CHARACTER.version,
+                    ...changes,
+                    "system.is5e": _is5e,
+                    "system.CHARACTER.BASIC_CONFIGURATION": heroJson.CHARACTER.BASIC_CONFIGURATION,
+                    "system.CHARACTER.CHARACTER_INFO": heroJson.CHARACTER.CHARACTER_INFO,
+                    "system.CHARACTER.TEMPLATE": heroJson.CHARACTER.TEMPLATE,
+                    "system.CHARACTER.version": heroJson.CHARACTER.version,
                 });
+
+                if (targetType && this.type.replace("npc", "pc") !== targetType) {
+                    await this.update({ type: targetType, [`==system`]: this.system });
+                }
+
                 changes = {};
                 await this._resetCharacteristicsFromHdc();
             }
@@ -2074,17 +2064,6 @@ export class HeroSystem6eActor extends Actor {
                 1; // Not really sure why we need an extra +1
             const uploadProgressBar = new HeroProgressBar(`${this.name}: Processing HDC file`, xmlItemsToProcess);
             uploadPerformance.itemsToCreateEstimate = xmlItemsToProcess - 6;
-
-            // Delete maneuvers (or any other item) when changing is5e
-            if (this.system.is5e !== retainValuesOnUpload.was5e) {
-                uploadProgressBar.advance(`${this.name}: Deleting items with mismatched is5e`, 0);
-                await this.deleteEmbeddedDocuments(
-                    "Item",
-                    this.items
-                        .filter((i) => i.type === "maneuver" || i.system.is5e !== this.system.is5e)
-                        .map((m) => m.id),
-                );
-            }
 
             // NOTE don't put this into the promiseArray because we create things in here that are absolutely required by later items (e.g. strength placeholder).
             // if (this.type === "pc" || this.type === "npc" || this.type === "automaton") {
@@ -2337,7 +2316,7 @@ export class HeroSystem6eActor extends Actor {
                     //item.updateItemDescription();
                     await item.update({ "system.description": item.system.description });
                 } else {
-                    await ui.notifications.warn(
+                    console.warn(
                         `Unable to locate ${chargeData.NAME}/${chargeData.ALIAS} to consume charges after upload.`,
                     );
                 }
