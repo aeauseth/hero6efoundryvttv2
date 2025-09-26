@@ -2715,12 +2715,14 @@ export class HeroSystem6eActor extends Actor {
                 });
             }
 
-            // Delete any old items that weren't updated or added
+            // Delete any old items that weren't updated, added or part of freeStuff
             if (this.id) {
                 const itemsToDelete = this.items.filter(
                     (item) =>
                         !itemsToUpdate.find((o) => item.id === o._id) &&
-                        !itemsToCreate.find((p) => item.system.ID === p.system.ID),
+                        !itemsToCreate.find((p) => item.system.ID === p.system.ID) &&
+                        item.type !== "maneuver" &&
+                        item.system.XMLID !== "PERCEPTION",
                 );
                 if (itemsToDelete.length > 0) {
                     const unorderedList =

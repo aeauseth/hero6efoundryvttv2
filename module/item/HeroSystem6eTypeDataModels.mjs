@@ -634,10 +634,6 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         const _details = {
             tags: [],
         };
-        const csls = combatSkillLevelsForAttack(this.item);
-        if (csls.length > 0) {
-            console.error("Aaron's csl");
-        }
 
         if (!propUpper || this[propUpper] === "--") {
             return {};
@@ -660,6 +656,13 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
             const velocity = calculateVelocityInSystemUnits(this.actor, token);
             if (velocity !== 0) {
                 _details.tags.push({ name: "Velocity", value: -parseInt(velocity / 10) });
+            }
+        }
+
+        const csls = combatSkillLevelsForAttack(this.item);
+        for (const csl of csls) {
+            if (csl[propLower]) {
+                _details.tags.push({ name: csl.item.name, value: parseInt(csl[propLower]) });
             }
         }
 

@@ -5427,6 +5427,10 @@ export class HeroSystem6eItem extends Item {
             return "PD";
         }
 
+        if (this.usesStrength) {
+            return "PD";
+        }
+
         console.warn(`Unable to determine defense for ${this.name}`);
         return "-"; // Default
     }
