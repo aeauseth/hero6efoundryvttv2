@@ -6125,12 +6125,15 @@ export class HeroSystem6eItem extends Item {
     copyItemAdvantages(itemFrom, advantagesToIgnore) {
         this.system._active.originalActivePoints = this.system._active.originalActivePoints ?? this._activePoints;
 
-        const advantagesToCopy = itemFrom.advantages
-            .map((advantage) => advantage._original)
-            .filter((advantage) => !advantagesToIgnore.includes(advantage.XMLID));
+        // const advantagesToCopy = itemFrom.advantages
+        //     .map((advantage) => advantage._original)
+        //     .filter((advantage) => !advantagesToIgnore.includes(advantage.XMLID));
+
+        const advantagesToCopy = JSON.parse(JSON.stringify(itemFrom.advantages)).filter(
+            (advantage) => !advantagesToIgnore.includes(advantage.XMLID),
+        );
 
         this.system.MODIFIER = (this.system.MODIFIER || []).concat(advantagesToCopy);
-        HeroSystem6eItem._modifiersCache.invalidateCachedValue(this.id);
 
         // Stash a copy of what we've added in after the fact
         this.system._active.MODIFIER = (this.system._active.MODIFIER || []).concat(advantagesToCopy);
@@ -6370,6 +6373,7 @@ export function createModifierOrAdderFromXml(xml) {
                 modifierOrAdderData[attribute.name] = attribute.value.trim();
         }
     }
+    modifierOrAdderData.xmlTag = xmlDoc.children[0].tagName;
 
     // Create a unique ID
     modifierOrAdderData.ID = new Date().getTime().toString();

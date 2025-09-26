@@ -19,13 +19,19 @@ export function getPowerInfo(options) {
 
     const actor = options?.actor || options?.item?.actor;
 
+    // Excellent we have a positive source for xmlTag!
+    if (!options.xmlTag && options?.item?.system?.xmlTag) {
+        options.xmlTag = options.item.system.xmlTag;
+    }
+
+    if (!options.xmlTag && options.item?.type !== "maneuver") {
+        console.warn(`${options.item?.detailedName()} is missing xmlTag`);
+    }
+
     // Legacy init of an item (we now include xmlTag during upload process)
     try {
         if (!options?.xmlTag && !options?.xmlid) {
-            if (options?.item?.system?.xmlTag) {
-                // Excellent we have a positive source for xmlTag!
-                options.xmlTag = options.item.system.xmlTag;
-            } else if (options?.item?.xmlTag) {
+            if (options?.item?.xmlTag) {
                 // Excellent we have a positive source for xmlTag!
                 options.xmlTag = options.item.xmlTag;
             } else if (options?.item?.system?.XMLID === "FOCUS") {

@@ -2783,6 +2783,7 @@ export class HeroSystem6eActor extends Actor {
                 state: "trained",
                 LEVELS: "0",
                 is5e: this.is5e,
+                xmlTag: "SKILL",
             },
         };
         const perceptionItem = this.id
