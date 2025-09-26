@@ -28,7 +28,7 @@
                 <td data-tooltip="{{{characteristic.maxTitle}}}"
                     class="{{#if characteristic.maxTitle}}characteristic-locked{{/if}}">
                     <input name="system.characteristics.{{characteristic.key}}.max" type="number"
-                        class="{{#if (gt characteristic.delta 0)}}over-max{{/if}}{{#if (lt characteristic.delta 0)}}under-max{{/if}}"
+                        class="{{#if (gt characteristic.max characteristic.core)}}over-max{{/if}}{{#if (lt characteristic.max characteristic.core)}}under-max{{/if}}"
                         value="{{characteristic.max}}" data-dtype="Number" {{#if
                         characteristic.maxTitle}}disabled{{/if}}>
                 </td>
