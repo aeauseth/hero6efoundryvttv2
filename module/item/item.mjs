@@ -5427,8 +5427,28 @@ export class HeroSystem6eItem extends Item {
             return "PD";
         }
 
-        if (this.usesStrength) {
+        if (this.system.usesStrength) {
             return "PD";
+        }
+
+        if (this.system.EFFECT.includes("[NNDDC]")) {
+            return "NND";
+        }
+
+        if (this.system.EFFECT.includes("Strike")) {
+            return "PD";
+        }
+
+        if (this.system.EFFECT.includes("WEAPONDC")) {
+            return "PD";
+        }
+
+        if (this.system.EFFECT.includes("Block")) {
+            return "-";
+        }
+
+        if (this.system.EFFECT.includes("Target Falls")) {
+            return "-";
         }
 
         console.warn(`Unable to determine defense for ${this.name}`);

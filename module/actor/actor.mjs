@@ -1864,33 +1864,6 @@ export class HeroSystem6eActor extends Actor {
                     .map((o) => o.system),
                 was5e: this.is5e,
             };
-            // if (
-            //     retainValuesOnUpload.body ||
-            //     retainValuesOnUpload.stun ||
-            //     retainValuesOnUpload.end ||
-            //     retainValuesOnUpload.charges.length > 0
-            // ) {
-            //     let content = `${this.name} has:<ul>`;
-            //     if (retainValuesOnUpload.body) content += `<li>${retainValuesOnUpload.body} BODY damage</li>`;
-            //     if (retainValuesOnUpload.stun) content += `<li>${retainValuesOnUpload.stun} STUN damage</li>`;
-            //     if (retainValuesOnUpload.end) content += `<li>${retainValuesOnUpload.end} END used</li>`;
-            //     for (const c of retainValuesOnUpload.charges) {
-            //         content += `<li>Charges: ${c.NAME || c.ALIAS}</li>`;
-            //     }
-            //     content += `</ul><p>Do you want to apply resource usage after the upload?</p>`;
-            //     const confirmed = await Dialog.confirm({
-            //         title: "Retain resource usage after upload?",
-            //         content: content,
-            //     });
-            //     if (confirmed === null) {
-            //         return ui.notifications.warn(`${this.name} upload canceled.`);
-            //     } else if (!confirmed) {
-            //         retainValuesOnUpload.body = 0;
-            //         retainValuesOnUpload.stun = 0;
-            //         retainValuesOnUpload.end = 0;
-            //         retainValuesOnUpload.charges = [];
-            //     }
-            // }
 
             const uploadPerformance = {
                 startTime: new Date(),
@@ -1916,10 +1889,6 @@ export class HeroSystem6eActor extends Actor {
                     this.effects.map((o) => o.id),
                 ),
             );
-
-            // Remove all items from
-            // Working on a merge instead of delete all and create all
-            //promiseArray.push(this.deleteEmbeddedDocuments("Item", Array.from(this.items.keys())));
 
             let changes = {};
 
@@ -1974,22 +1943,7 @@ export class HeroSystem6eActor extends Actor {
                     await this.update({ [`system.characteristics.-=${key}`]: null });
                 }
             }
-            // if (this.id) {
-            //     // TODO: This shouldn't be required as we have migration handling this.
-            //     for (const prop of Object.keys(this.flags).filter((f) => f !== game.system.id)) {
-            //         changes[`flags.-=${prop}`] = null;
-            //     }
-            //     for (const prop of Object.keys(this.flags[game.system.id]).filter(
-            //         (f) => !["uploading", "file"].includes(f),
-            //     )) {
-            //         changes[`flags.${game.system.id}-=${prop}`] = null;
-            //     }
 
-            //     promiseArray.push(this.update(changes));
-            // }
-
-            // Wait for promiseArray to finish
-            //await Promise.all(promiseArray);
             uploadPerformance.resetToDefault = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
             promiseArray = [];
@@ -2044,6 +1998,7 @@ export class HeroSystem6eActor extends Actor {
             }
 
             // is5e
+            this.system.CHARACTER = heroJson.CHARACTER;
             if (typeof this.system.CHARACTER?.TEMPLATE === "string") {
                 if (
                     this.system.CHARACTER.TEMPLATE.includes("builtIn.") &&
@@ -2075,18 +2030,9 @@ export class HeroSystem6eActor extends Actor {
                 }
             }
 
-            // Delete maneuvers when changing is5e
-            if (this.is5e !== this.was5e) {
-                await this.deleteEmbeddedDocuments(
-                    "Item",
-                    this.items.filter((i) => i.type === "maneuver").map((m) => m.id),
-                );
-            }
-
             if (this.id) {
                 // We can't delay this with the changes array because any items based on this actor needs this value.
                 // Specifically compound power is a problem if we don't set is5e properly for a 5e actor.
-                // Caution: Any this.system.* variables are lost if they are not updated here.
                 await this.update(changes);
                 await this.update({
                     "system.is5e": this.system.is5e,
@@ -2128,6 +2074,17 @@ export class HeroSystem6eActor extends Actor {
                 1; // Not really sure why we need an extra +1
             const uploadProgressBar = new HeroProgressBar(`${this.name}: Processing HDC file`, xmlItemsToProcess);
             uploadPerformance.itemsToCreateEstimate = xmlItemsToProcess - 6;
+
+            // Delete maneuvers (or any other item) when changing is5e
+            if (this.system.is5e !== retainValuesOnUpload.was5e) {
+                uploadProgressBar.advance(`${this.name}: Deleting items with mismatched is5e`, 0);
+                await this.deleteEmbeddedDocuments(
+                    "Item",
+                    this.items
+                        .filter((i) => i.type === "maneuver" || i.system.is5e !== this.system.is5e)
+                        .map((m) => m.id),
+                );
+            }
 
             // NOTE don't put this into the promiseArray because we create things in here that are absolutely required by later items (e.g. strength placeholder).
             // if (this.type === "pc" || this.type === "npc" || this.type === "automaton") {
@@ -2796,7 +2753,7 @@ export class HeroSystem6eActor extends Actor {
         const mismatchItems = this.items.filter(
             (item) =>
                 (item.system.XMLID === "PERCEPTION" || item.type === "maneuver") &&
-                (item.is5e !== this.is5e || !this.baseInfo),
+                (item.is5e !== this.is5e || !item.baseInfo),
         );
 
         if (mismatchItems.length > 0) {
@@ -3444,21 +3401,19 @@ export class HeroSystem6eActor extends Actor {
             _is5e = true;
         }
 
-        // 5e has COM characteristic, 6e does not
-        // Not a great check for bases and other 5e actor types that don't have COM
-        if (this.system.COM?.XMLID) {
-            if (_is5e === false) {
-                console.error(`${this.name} is5e mismatch`);
+        if (_is5e !== undefined && this.system.is5e !== _is5e) {
+            window[game.system.id] ??= {};
+            window[game.system.id].squelch ??= {};
+            if (window[game.system.id].squelch[this.id]) {
+                if (Date.now() - window[game.system.id].squelch[this.id] < 1000) {
+                    return this.system.is5e;
+                }
             }
-            _is5e = true;
+            window[game.system.id].squelch[this.id] = Date.now();
+
+            console.error(`${this.name} is5e mismatch`);
         }
 
-        // For Defense Calculation Actor, Quench and any actor that didn't upload an HDC
-        // if (this.system.is5e !== _is5e) {
-        //     console.error(`${this.name} is5e mismatch`);
-        // }
-
-        if (_is5e !== undefined) return _is5e;
         return this.system.is5e;
     }
 

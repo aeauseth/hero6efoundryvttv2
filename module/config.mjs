@@ -585,10 +585,7 @@ function characteristicBaseEffectDiceParts(item /* , options */) {
  * Shouldn't ever be called. Only here to make sure we don't have to check if baseEffectDicePartsBundle exists
  */
 function noDamageBaseEffectDicePartsBundle(item /* , _options */) {
-    console.error(
-        `${item.actor.name}:${item.detailedName()} is defined as having no effect but effect is called`,
-        item,
-    );
+    console.warn(`${item.actor.name}:${item.detailedName()} is defined as having no effect but effect is called`, item);
 
     return {
         diceParts: {
