@@ -5,9 +5,9 @@ function getAllActorsInGame() {
     return [
         ...game.actors.contents,
         ...game.scenes.contents
-            .map((scene) => scene.tokens)
-            .map((token) => token.actorLink)
-            .filter((actorLink) => actorLink),
+            .map((scene) => [...scene.tokens.map((t) => t.actor)])
+            .flat()
+            .filter((a) => a),
     ];
 }
 
@@ -160,7 +160,7 @@ export async function migrateWorld() {
         "remove placeholder weapon item",
         async (actor) => await removePlaceholderWeaponItem(actor),
     );
-    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.10`, "background: #1111FF; color: #FFFFFF");
+    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.13`, "background: #1111FF; color: #FFFFFF");
 
     await migrateToVersion(
         "4.1.18",
@@ -169,7 +169,7 @@ export async function migrateWorld() {
         "Coerce is5e===undefined to boolean value",
         async (actor) => await coerceIs5eToBoolean(actor),
     );
-    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.10`, "background: #1111FF; color: #FFFFFF");
+    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.18`, "background: #1111FF; color: #FFFFFF");
 
     // Always rebuild the database for all actors by recreating actors and all their items (description, cost, etc)
     _start = Date.now();
@@ -187,16 +187,23 @@ export async function migrateWorld() {
 
 // https://github.com/dmdorman/hero6e-foundryvtt/issues/2812
 async function coerceIs5eToBoolean(actor) {
-    if (actor.system.is5e === undefined) {
+    if (!actor.system.is5e && actor.system.is5e !== false) {
         await actor.update({ "system.is5e": false });
     }
 
     const itemUpdates = [];
-    for (const item of actor.items.filter((i) => i.system.is5e === undefined)) {
+    for (const item of actor.items.filter((i) => !i.system.is5e && i.system.is5e !== false)) {
         if (!item.baseInfo) {
+            if (["maneuver", "attack"].includes(item.type)) {
+                console.error(
+                    `${actor.name}/${item.detailedName()} deleting invalid ${actor.system.is5e ? "5e" : "6e"} ${item.type}`,
+                );
+                await item.delete();
+                continue;
+            }
             console.error(`${actor.name}/${item.detailedName()} has no baseInfo`);
-            itemUpdates.push({ _id: item.id, "system.is5e": false });
         }
+        itemUpdates.push({ _id: item.id, "system.is5e": actor.system.is5e });
     }
 
     if (itemUpdates.length > 0) {

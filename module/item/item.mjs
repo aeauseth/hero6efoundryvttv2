@@ -2119,20 +2119,22 @@ export class HeroSystem6eItem extends Item {
     }
 
     get is5e() {
-        if (this.system.is5e !== undefined && this.actor && this.actor.is5e !== this.system.is5e) {
+        // If item has undefined is5e use actor.is5e
+        if (!this.system.is5e && this.system.is5e !== false) {
             console.warn(
+                `${this.actor?.name}/${this.detailedName()} has is5e=${this.system.is5e} does not match actor=${this.actor.system.is5e}`,
+                this,
+            );
+            return this.actor?.is5e;
+        }
+
+        if (this.actor?.is5e !== this.system.is5e) {
+            console.error(
                 `${this.actor?.name}/${this.detailedName()} has is5e=${this.system.is5e} does not match actor=${this.actor.system.is5e}`,
                 this,
             );
         }
 
-        if (this.system.is5e === undefined) {
-            // console.warn(
-            //     `${this.name} has is5e=${this.system.is5e} does not match actor=${this.actor.system.is5e}`,
-            //     this,
-            // );
-            return this.actor?.is5e;
-        }
         return this.system.is5e;
     }
 
