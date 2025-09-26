@@ -803,6 +803,7 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
         if (itemDataArray.length === 1) {
             const stackItem = itemDataArray[0];
             if (stackItem.type === "equipment") {
+                stackItem.system.MODIFIER ??= [];
                 const charges = stackItem.system.MODIFIER.find((o) => o.XMLID === "CHARGES");
                 const levels = parseInt(charges?.OPTION_ALIAS);
                 if (levels > 0) {
