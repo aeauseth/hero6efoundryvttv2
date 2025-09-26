@@ -162,6 +162,15 @@ export async function migrateWorld() {
     );
     console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.10`, "background: #1111FF; color: #FFFFFF");
 
+    await migrateToVersion(
+        "4.1.18",
+        lastMigration,
+        getAllActorsInGame(),
+        "Coerce is5e===undefined to boolean value",
+        async (actor) => await coerceIs5eToBoolean(actor),
+    );
+    console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.10`, "background: #1111FF; color: #FFFFFF");
+
     // Always rebuild the database for all actors by recreating actors and all their items (description, cost, etc)
     _start = Date.now();
     await migrateToVersion(
@@ -174,6 +183,25 @@ export async function migrateWorld() {
     console.log(`%c Took ${Date.now() - _start}ms to migrate to latest version`, "background: #1111FF; color: #FFFFFF");
 
     await ui.notifications.info(`Migration complete to ${game.system.version}`);
+}
+
+// https://github.com/dmdorman/hero6e-foundryvtt/issues/2812
+async function coerceIs5eToBoolean(actor) {
+    if (actor.system.is5e === undefined) {
+        await actor.update({ "system.is5e": false });
+    }
+
+    const itemUpdates = [];
+    for (const item of actor.items.filter((i) => i.system.is5e === undefined)) {
+        if (!item.baseInfo) {
+            console.error(`${actor.name}/${item.detailedName()} has no baseInfo`);
+            itemUpdates.push({ _id: item.id, "system.is5e": false });
+        }
+    }
+
+    if (itemUpdates.length > 0) {
+        await actor.updateEmbeddedDocuments("Item", itemUpdates);
+    }
 }
 
 // We no longer need __InternalManeuverPlaceholderWeapon as we now have effective attack items. Delete
