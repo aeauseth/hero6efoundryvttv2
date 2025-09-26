@@ -2008,9 +2008,7 @@ export class HeroSystem6eActor extends Actor {
 
             if (this.id) {
                 // Delete maneuvers (or any other item) when changing is5e
-                const itemsToDeleteIs5e = this.items
-                    .filter((i) => i.type === "maneuver" || i.system.is5e !== this.system.is5e)
-                    .map((m) => m.id);
+                const itemsToDeleteIs5e = this.items.filter((i) => i.system.is5e !== _is5e).map((m) => m.id);
                 if (itemsToDeleteIs5e.length > 0) {
                     console.warn(`Deleting ${itemsToDeleteIs5e.length} is5e mismatches`);
                     await this.deleteEmbeddedDocuments("Item", itemsToDeleteIs5e);
