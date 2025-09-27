@@ -1439,6 +1439,13 @@ export class HeroSystem6eActor extends Actor {
             await ae.delete();
         }
 
+        // Remove Maneuver/Martial effects
+        for (const ae of this.appliedEffects.filter(
+            (ae) => ae.flags[game.system.id]?.type === "maneuverNextPhaseEffect",
+        )) {
+            await ae.delete();
+        }
+
         // Remove all active effects with ACTOR as the parent
         // Shouldn't need this and sometimes causes duplicate delete
         // for (const ae of this.effects) {
@@ -1462,6 +1469,7 @@ export class HeroSystem6eActor extends Actor {
         }
         if (this._id && Object.keys(characteristicChangesMax).length > 0) {
             await this.update(characteristicChangesMax);
+            this.applyActiveEffects();
         }
 
         // Set Characteristics VALUE to MAX
