@@ -10,7 +10,8 @@ import {
     combatSkillLevelsForAttack,
 } from "../utility/damage.mjs";
 
-const { NumberField, StringField, ObjectField, BooleanField, ArrayField, EmbeddedDataField } = foundry.data.fields;
+const { NumberField, StringField, ObjectField, BooleanField, ArrayField, EmbeddedDataField, SchemaField } =
+    foundry.data.fields;
 
 class HeroItemModCommonModel extends foundry.abstract.DataModel {
     // constructor(data, context) {
@@ -1350,6 +1351,9 @@ export class HeroActorModel extends foundry.abstract.DataModel {
             RUNNING: new EmbeddedDataField(HeroItemCharacteristic),
             SWIMMING: new EmbeddedDataField(HeroItemCharacteristic),
             LEAPING: new EmbeddedDataField(HeroItemCharacteristic),
+            hap: new SchemaField({
+                value: new NumberField({ integer: true, nullable: true }),
+            }),
 
             characteristics: new EmbeddedDataField(HeroCharacteristicsModel),
             versionHeroSystem6eUpload: new StringField(),

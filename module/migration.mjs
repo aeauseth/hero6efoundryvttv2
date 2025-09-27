@@ -163,11 +163,11 @@ export async function migrateWorld() {
     console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.13`, "background: #1111FF; color: #FFFFFF");
 
     await migrateToVersion(
-        "4.1.18",
+        "4.2.0",
         lastMigration,
         getAllActorsInGame(),
         "Coerce is5e===undefined to boolean value",
-        async (actor) => await coerceIs5eToBoolean(actor),
+        async (actor) => await migrateTo4_2_0(actor),
     );
     console.log(`%c Took ${Date.now() - _start}ms to migrate to version 4.1.18`, "background: #1111FF; color: #FFFFFF");
 
@@ -183,6 +183,23 @@ export async function migrateWorld() {
     console.log(`%c Took ${Date.now() - _start}ms to migrate to latest version`, "background: #1111FF; color: #FFFFFF");
 
     await ui.notifications.info(`Migration complete to ${game.system.version}`);
+}
+
+async function migrateTo4_2_0(actor) {
+    try {
+        await coerceIs5eToBoolean(actor);
+        await addPerceptionXmlTag(actor);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function addPerceptionXmlTag(actor) {
+    const perception = actor.items.find((i) => i.system.XMLID === "PERCEPTION" && i.system.xmlTag !== "SKILL");
+    if (perception) {
+        await perception.update({ "system.xmlTag": "SKILL" });
+    }
+    return;
 }
 
 // https://github.com/dmdorman/hero6e-foundryvtt/issues/2812
