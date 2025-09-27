@@ -2811,14 +2811,14 @@ export class HeroSystem6eItem extends Item {
         );
     }
 
-    async _postUpload(options) {
+    async _postUpload() {
         return false;
         // try {
         //     // Compendium?
         //     if (this.pack) {
         //         console.log(`skipping _postUpload for ${this.pack}.${this.name}`, this);
         //         return;
-        //     }
+        //     }P
 
         //     if (this.type === "characteristic") {
         //         return;

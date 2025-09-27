@@ -9,6 +9,7 @@ import {
     getFullyQualifiedEffectFormulaFromItem,
     combatSkillLevelsForAttack,
 } from "../utility/damage.mjs";
+import { maneuverHasFlashTrait, maneuverHasBlockTrait } from "./maneuver.mjs";
 
 const { NumberField, StringField, ObjectField, BooleanField, ArrayField, EmbeddedDataField, SchemaField } =
     foundry.data.fields;
@@ -629,6 +630,58 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         return 0;
     }
 
+    get noHitLocations() {
+        if (["maneuver", "martialart"].includes(this.item.type)) {
+            // Flash doesn't have a hit location
+            if (maneuverHasFlashTrait(this.item)) {
+                return true;
+            }
+
+            // Block doesn't use a hit location
+            if (maneuverHasBlockTrait(this.item)) {
+                return true;
+            }
+        }
+
+        // Specific power overrides.
+        switch (this.item.system.XMLID) {
+            case "CHOKE":
+            case "DISARM":
+            case "DIVEFORCOVER":
+            case "GRAB":
+            case "GRABBY":
+            case "SHOVE":
+            case "THROW":
+            case "TRIP":
+            case "ENTANGLE":
+            case "DARKNESS":
+            case "IMAGES":
+            case "ABSORPTION":
+            case "AID":
+            case "SUCCOR":
+            case "DISPEL":
+            case "DRAIN":
+            case "HEALING":
+            case "SUPPRESS":
+            case "TRANSFER":
+            case "EGOATTACK":
+            case "MINDCONTROL":
+            case "MENTALILLUSIONS":
+            case "MINDSCAN":
+            case "TELEPATHY":
+            case "CHANGEENVIRONMENT":
+            case "FLASH":
+            case "TRANSFORM":
+            case "SUSCEPTIBILITY":
+            case "LUCK":
+            case "UNLUCK":
+            case "FORCEWALL":
+                return true;
+        }
+
+        return false;
+    }
+
     #genericDetails = function (prop) {
         const propUpper = prop.toUpperCase();
         const propLower = prop.toLowerCase();
@@ -1205,8 +1258,8 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
     get valueTitle() {
         // Active Effects may be blocking updates
         const ary = [];
-        const activeEffects = Array.from(this.actor.allApplicableEffects()).filter(
-            (ae) => ae.changes.find((p) => p.key === `system.characteristics.${this.key}.value`) && !ae.disabled,
+        const activeEffects = this.actor.appliedEffects.filter((ae) =>
+            ae.changes.find((p) => p.key === `system.characteristics.${this.key}.value`),
         );
         let _valueTitle = "";
         for (const ae of activeEffects) {
