@@ -545,7 +545,7 @@ export class HeroSystem6eActor extends Actor {
         if (this.is5e && data.system?.characteristics?.dex?.value) {
             const dex = parseInt(data.system.characteristics.dex.value);
             if (dex) {
-                const cv = Math.round(dex / 3);
+                const cv = RoundFavorPlayerUp(dex / 3);
                 await this.update({
                     "system.characteristics.ocv.max": cv,
                     "system.characteristics.ocv.value": cv,
@@ -557,7 +557,7 @@ export class HeroSystem6eActor extends Actor {
         if (this.is5e && data.system?.characteristics?.ego?.value) {
             const ego = parseInt(data.system.characteristics.ego.value);
             if (ego) {
-                const cv = Math.round(ego / 3);
+                const cv = RoundFavorPlayerUp(ego / 3);
                 await this.update({
                     "system.characteristics.omcv.max": cv,
                     "system.characteristics.omcv.value": cv,
