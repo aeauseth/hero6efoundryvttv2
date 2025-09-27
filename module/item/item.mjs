@@ -396,7 +396,7 @@ export class HeroSystem6eItem extends Item {
             const edAdd = Math.floor(this.system.LEVELS);
 
             let activeEffect = Array.from(this.effects)?.[0] || {};
-            activeEffect.name = (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} ${this.system.value}`;
+            activeEffect.name = (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} ${this.system.LEVELS}`;
             activeEffect.img = "icons/svg/upgrade.svg";
             activeEffect.changes = [
                 {
@@ -445,7 +445,7 @@ export class HeroSystem6eItem extends Item {
             const details = this.baseInfo?.details(this) || {};
             let activeEffect = Array.from(this.effects)?.[0] || {};
             activeEffect.name = (this.system.ALIAS || this.system.XMLID || this.name) + ": ";
-            activeEffect.name += `${this.system.XMLID} ${this.is5e ? this.system.value : this.system.OPTIONID}`;
+            activeEffect.name += `${this.system.XMLID} ${this.is5e ? this.system.LEVELS : this.system.OPTIONID}`;
             activeEffect.img = "icons/svg/upgrade.svg";
             activeEffect.changes = [
                 {
