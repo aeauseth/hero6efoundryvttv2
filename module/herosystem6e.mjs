@@ -699,7 +699,7 @@ Hooks.on("updateWorldTime", async (worldTime, options) => {
                 !naturalBodyHealing &&
                 parseInt(actor.system.characteristics.body.value) < parseInt(actor.system.characteristics.body.max)
             ) {
-                const bodyPerMonth = parseInt(actor.system.characteristics.rec.value);
+                const bodyPerMonth = Math.max(1, parseInt(actor.system.characteristics.rec.value));
                 const secondsPerBody = Math.floor(2.628e6 / bodyPerMonth);
                 const activeEffect = {
                     name: `Natural Body Healing (${bodyPerMonth}/month)`,
