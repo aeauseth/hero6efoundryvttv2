@@ -518,13 +518,14 @@ export function gmActive() {
 }
 
 export function squelch(id) {
+    const _id = id ? id.toString() : "undefined";
     window[game.system.id] ??= {};
     window[game.system.id].squelch ??= {};
-    if (window[game.system.id].squelch[id]) {
-        if (Date.now() - window[game.system.id].squelch[id] < 100) {
+    if (window[game.system.id].squelch[_id]) {
+        if (Date.now() - window[game.system.id].squelch[_id] < 100) {
             return true;
         }
     }
-    window[game.system.id].squelch[id] = Date.now();
+    window[game.system.id].squelch[_id] = Date.now();
     return false;
 }

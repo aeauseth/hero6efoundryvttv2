@@ -2352,7 +2352,7 @@ export class HeroSystem6eActor extends Actor {
                 // Power needs to exist
                 if (!power) {
                     await ui.notifications.error(
-                        `${this.name}/${item.detailedName()} has unknown power XMLID}. Please report.`,
+                        `${this.name}/${item.detailedName()} has unknown power XMLID. Please report.`,
                         { console: true, permanent: true },
                     );
                 } else if (!power.behaviors) {
@@ -2968,7 +2968,10 @@ export class HeroSystem6eActor extends Actor {
             // Items should have an XMLID
             // Some super old items are missing XMLID, which we will try to fix
             // A bit more generic
-            if (!jsonChild.XMLID && child.parentNode.tagName === "CHARACTERISTICS") {
+            if (
+                !jsonChild.XMLID &&
+                ["CHARACTERISTICS", ...HeroSystem6eItem.ItemXmlTags].includes(child.parentNode.tagName)
+            ) {
                 const powerInfo = getPowerInfo({
                     xmlid: jsonChild.xmlTag,
                     xmlTag: jsonChild.xmlTag,
@@ -2982,6 +2985,11 @@ export class HeroSystem6eActor extends Actor {
                     jsonChild.errors ??= [];
                     jsonChild.errors.push("Missing XMLID, using xmlTag reference");
                 }
+            }
+
+            // Super old HDC missing XMLID for power frameworks & lists (newer has XMLID=GENERIC_OBJECT)
+            if (!jsonChild.XMLID && ["LIST", "VPP", "MULTIPOWER"].includes(jsonChild.xmlTag)) {
+                jsonChild.XMLID = jsonChild.xmlTag;
             }
 
             // Some super old items are missing OPTIONID, which we will try to fix

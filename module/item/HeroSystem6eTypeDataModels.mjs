@@ -1,6 +1,6 @@
 //import { RoundFavorPlayerDown, RoundFavorPlayerUp } from "../utility/round.mjs";
 import { HeroSystem6eActor } from "../actor/actor.mjs";
-import { getPowerInfo } from "../utility/util.mjs";
+import { getPowerInfo, squelch } from "../utility/util.mjs";
 //import { getSystemDisplayUnits } from "../utility/units.mjs";
 import { HeroSystem6eItem } from "./item.mjs";
 import { calculateVelocityInSystemUnits } from "../heroRuler.mjs";
@@ -549,7 +549,9 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
         // cache getPowerInfo
         this.#baseInfo ??= getPowerInfo({ item: this.parent, xmlTag: this.xmlTag });
         if (!this.#baseInfo) {
-            console.warn(`${this.item.name}/${this.XMLID} has no baseInfo`);
+            if (!squelch(this.id)) {
+                console.warn(`${this.item.name}/${this.XMLID} has no baseInfo`);
+            }
         }
         return this.#baseInfo;
     }
