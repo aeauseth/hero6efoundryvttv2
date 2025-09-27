@@ -919,6 +919,14 @@ export class HeroSystem6eItemManeuver extends HeroSystem6eItemTypeDataModelGette
             active: new BooleanField({ initial: null, nullable: true }),
         };
     }
+
+    get ocv() {
+        return parseInt(this.OCV) || 0;
+    }
+
+    get dcv() {
+        return parseInt(this.DCV) || 0;
+    }
 }
 
 export class HeroSystem6eItemMartialArt extends HeroSystem6eItemTypeDataModelProps {
@@ -975,6 +983,14 @@ export class HeroSystem6eItemMartialArt extends HeroSystem6eItemTypeDataModelPro
 
     get damage() {
         return getFullyQualifiedEffectFormulaFromItem(this.item, { ignoreDeadlyBlow: true });
+    }
+
+    get ocv() {
+        return parseInt(this.OCV) || 0;
+    }
+
+    get dcv() {
+        return parseInt(this.DCV) || 0;
     }
 }
 
