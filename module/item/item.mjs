@@ -5978,9 +5978,9 @@ export class HeroSystem6eItem extends Item {
     /// Real Cost = Active Cost / (1 + total value of all Limitations)
     get _realCost() {
         // VPP parent?
-        if (this.parentItem?.system.XMLID === "VPP" || this.parentItem?.parentItem?.system.XMLID === "VPP") {
-            return 0;
-        }
+        // if (this.parentItem?.system.XMLID === "VPP" || this.parentItem?.parentItem?.system.XMLID === "VPP") {
+        //     return 0;
+        // }
 
         if (this.baseInfo?.realCost) {
             return this.baseInfo.realCost(this);
@@ -6021,6 +6021,10 @@ export class HeroSystem6eItem extends Item {
 
     get _characterPointCost() {
         let _cost = this._realCost;
+
+        if (this.parentItem?.system.XMLID === "VPP" || this.parentItem?.parentItem?.system.XMLID === "VPP") {
+            return 0;
+        }
 
         // Power cost in Power Framework is applied before limitations
         if (this.parentItem) {

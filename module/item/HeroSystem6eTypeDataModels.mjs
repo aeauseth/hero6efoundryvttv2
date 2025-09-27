@@ -778,6 +778,16 @@ export class HeroSystem6eItemTypeDataModelGetters extends foundry.abstract.TypeD
 
         return _targets;
     }
+
+    get ocv() {
+        // Powers never/rarely give OCV bonus
+        return 0;
+    }
+
+    get dcv() {
+        // Powers never/rarely give DCV bonus
+        return 0;
+    }
 }
 
 export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeDataModelGetters {
