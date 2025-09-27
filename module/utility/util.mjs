@@ -25,7 +25,7 @@ export function getPowerInfo(options) {
     }
 
     if (!options.xmlTag && options.item?.type !== "maneuver") {
-        console.warn(`${options.item?.detailedName()} is missing xmlTag`);
+        console.warn(`${options.item?.detailedName()}/${options.xmlid} is missing xmlTag`);
     }
 
     // Legacy init of an item (we now include xmlTag during upload process)
@@ -515,4 +515,16 @@ export function tokenEducatedGuess(options = {}) {
 
 export function gmActive() {
     return !!game.users.filter((u) => u.active && u.isGM).length;
+}
+
+export function squelch(id) {
+    window[game.system.id] ??= {};
+    window[game.system.id].squelch ??= {};
+    if (window[game.system.id].squelch[id]) {
+        if (Date.now() - window[game.system.id].squelch[id] < 100) {
+            return true;
+        }
+    }
+    window[game.system.id].squelch[id] = Date.now();
+    return false;
 }

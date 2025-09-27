@@ -1,7 +1,12 @@
 import { HEROSYS } from "../herosystem6e.mjs";
 import { HeroSystem6eActorActiveEffects } from "./actor-active-effects.mjs";
 import { HeroSystem6eItem } from "../item/item.mjs";
-import { getPowerInfo, getCharacteristicInfoArrayForActor, whisperUserTargetsForActor } from "../utility/util.mjs";
+import {
+    getPowerInfo,
+    getCharacteristicInfoArrayForActor,
+    whisperUserTargetsForActor,
+    squelch,
+} from "../utility/util.mjs";
 import { HeroProgressBar } from "../utility/progress-bar.mjs";
 import { clamp } from "../utility/compatibility.mjs";
 import { overrideCanAct } from "../settings/settings-helpers.mjs";
@@ -1818,6 +1823,7 @@ export class HeroSystem6eActor extends Actor {
         //     await game.actors.get(this.id).uploadFromXml(xml, options);
         //     return;
         // }
+        let uploadProgressBar;
         try {
             // Convert xml string to xml document (if necessary)
             if (typeof xml === "string") {
@@ -1988,31 +1994,34 @@ export class HeroSystem6eActor extends Actor {
             }
 
             // is5e
-            let _is5e; // keep track indepentantly of item.system.is5e as targetType can reload it
-            if (typeof heroJson.CHARACTER?.TEMPLATE === "string") {
-                if (heroJson.CHARACTER.TEMPLATE.includes("builtIn.") && !heroJson.CHARACTER.TEMPLATE.includes("6E.")) {
+
+            // keep track indepentantly of item.system.is5e as targetType can reload it
+            // Assume true for those super old HDC files
+            let _is5e = true;
+
+            const template = heroJson.CHARACTER?.TEMPLATE || heroJson.CHARACTER?.BASIC_CONFIGURATION?.TEMPLATE;
+
+            if (typeof template === "string") {
+                if (template.includes("builtIn.") && !template.includes("6E.")) {
                     // 5E
                     _is5e = this.system.is5e = true;
-                } else if (
-                    heroJson.CHARACTER.TEMPLATE.includes("builtIn.") &&
-                    heroJson.CHARACTER.TEMPLATE.includes("6E.")
-                ) {
+                } else if (template.includes("builtIn.") && template.includes("6E.")) {
                     // 6E
                     _is5e = this.system.is5e = false;
                 } else {
-                    console.error(`Unrecognized template ${heroJson.CHARACTER?.TEMPLATE}`);
+                    console.error(`Unrecognized template ${template}`);
                 }
             }
 
             // Update actor type
-            const targetType = heroJson.CHARACTER?.TEMPLATE?.match(
-                /\.(ai|automaton|base|computer|heroic|normal|superheroic|vehicle)[56.]/i,
-            )?.[1]
+            const targetType = template
+                ?.match(/\.(ai|automaton|base|computer|heroic|normal|superheroic|vehicle|standardsuper)[56.]/i)?.[1]
                 .toLowerCase()
                 .replace("base", "base2")
                 .replace("normal", "pc")
                 .replace("superheroic", "pc")
-                .replace("heroic", "pc");
+                .replace("heroic", "pc")
+                .replace("standardsuper", "pc"); // super old HDC
 
             if (this.id) {
                 // Delete maneuvers (or any other item) when changing is5e
@@ -2068,7 +2077,7 @@ export class HeroSystem6eActor extends Actor {
                 1 + // Final save
                 1 + // Restore retained damage
                 1; // Not really sure why we need an extra +1
-            const uploadProgressBar = new HeroProgressBar(`${this.name}: Processing HDC file`, xmlItemsToProcess);
+            uploadProgressBar = new HeroProgressBar(`${this.name}: Processing HDC file`, xmlItemsToProcess);
             uploadPerformance.itemsToCreateEstimate = xmlItemsToProcess - 6;
 
             // NOTE don't put this into the promiseArray because we create things in here that are absolutely required by later items (e.g. strength placeholder).
@@ -2149,7 +2158,11 @@ export class HeroSystem6eActor extends Actor {
                                 // We only care about arrays and objects (array of 1)
                                 // These are expected to be POWERS, SKILLS, etc that make up the COMPOUNDPOWER
                                 // Instead of COMPOUNDPOWER attributes, they should be separate items, with PARENT/CHILD
-                                if (typeof value === "object") {
+                                if (value && typeof value === "object") {
+                                    if (value.constructor !== Array) {
+                                        console.error(`${this.name}/${system.name}/${key} is not an array`, value);
+                                        continue;
+                                    }
                                     const values = value.length ? value : [value];
                                     for (const system2 of values) {
                                         if (system2.XMLID) {
@@ -2622,9 +2635,8 @@ export class HeroSystem6eActor extends Actor {
             }
 
             if (this.id) {
-                // Something weird is happing here (Nekhbet Vulture Child Goddess)
                 await this.setFlag(game.system.id, "uploading", false);
-                //await this.update({ [`flags.${game.system.id}.-=uploading`]: null });
+                await this.setFlag(game.system.id, "uploadingError", null);
             }
             uploadPerformance.retainedDamage = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
@@ -2702,6 +2714,8 @@ export class HeroSystem6eActor extends Actor {
             }
         } catch (e) {
             console.error(e);
+            await this.setFlag(game.system.id, "uploadingError", e.stack.replace(/http(s)?:[/[a-z0-9_.-:()]+\//gi, ""));
+            uploadProgressBar.close(`Upload Failed ${this.name}`);
         }
     }
 
@@ -2954,10 +2968,10 @@ export class HeroSystem6eActor extends Actor {
             // Items should have an XMLID
             // Some super old items are missing XMLID, which we will try to fix
             // A bit more generic
-            if (!jsonChild.XMLID) {
+            if (!jsonChild.XMLID && child.parentNode.tagName === "CHARACTERISTICS") {
                 const powerInfo = getPowerInfo({
                     xmlid: jsonChild.xmlTag,
-                    xmlTag: child.parentNode.tagName === "CHARACTERISTICS" ? jsonChild.xmlTag : null,
+                    xmlTag: jsonChild.xmlTag,
                     is5e: true,
                 });
                 if (powerInfo) {
@@ -3388,16 +3402,10 @@ export class HeroSystem6eActor extends Actor {
         }
 
         if (_is5e !== undefined && this.system.is5e !== _is5e) {
-            window[game.system.id] ??= {};
-            window[game.system.id].squelch ??= {};
-            if (window[game.system.id].squelch[this.id]) {
-                if (Date.now() - window[game.system.id].squelch[this.id] < 1000) {
-                    return this.system.is5e;
-                }
+            if (!squelch(this.id)) {
+                console.error(`${this.name} is5e mismatch`);
             }
-            window[game.system.id].squelch[this.id] = Date.now();
-
-            console.error(`${this.name} is5e mismatch`);
+            return this.system.is5e;
         }
 
         return this.system.is5e;

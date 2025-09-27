@@ -15,6 +15,7 @@ import {
     maneuverDoesKillingDamage,
 } from "./utility/damage.mjs";
 import { HeroSystem6eItem } from "./item/item.mjs";
+import { squelch } from "./utility/util.mjs";
 
 export const HERO = { heroDice, cache: HeroSystemGenericSharedCache };
 
@@ -585,7 +586,12 @@ function characteristicBaseEffectDiceParts(item /* , options */) {
  * Shouldn't ever be called. Only here to make sure we don't have to check if baseEffectDicePartsBundle exists
  */
 function noDamageBaseEffectDicePartsBundle(item /* , _options */) {
-    console.warn(`${item.actor.name}:${item.detailedName()} is defined as having no effect but effect is called`, item);
+    if (!squelch(item.id)) {
+        console.warn(
+            `${item.actor.name}:${item.detailedName()} is defined as having no effect but effect is called`,
+            item,
+        );
+    }
 
     return {
         diceParts: {

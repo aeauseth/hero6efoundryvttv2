@@ -35,7 +35,14 @@
 
         <section class="sheet-body">
             <section class="sheet-content"> {{!-- sheet-content scrolls --}}
-                <span style="padding:20px;font-size:48px">Upload in progress</span>
+                {{#if (getScopedFlagValue actor @root/gameSystemId "uploadingError")}}
+                    <span style="padding:20px;font-size:48px;color:red">Upload failed, please Report.</span>
+                    <div style="color:red;user-select:text;">
+                        <pre>{{{getScopedFlagValue actor @root/gameSystemId "uploadingError"}}}</pre>
+                    </div>
+                {{else}}
+                    <span style="padding:20px;font-size:48px">Upload in progress</span>
+                {{/if}}
             </section>
         </section>
     {{else}}
