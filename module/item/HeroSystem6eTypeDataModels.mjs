@@ -331,8 +331,8 @@ export class HeroSystem6eItemCharges extends foundry.abstract.DataModel {
     static defineSchema() {
         // Note that the return is just a simple object
         return {
-            value: new NumberField({ integer: true }),
-            clips: new NumberField({ integer: true }),
+            value: new NumberField({ integer: true, min: 0, initial: 0, nullable: false }),
+            clips: new NumberField({ integer: true, min: 0, initial: 0, nullable: false }),
         };
     }
 
