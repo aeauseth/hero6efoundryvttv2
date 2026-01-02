@@ -5,24 +5,22 @@
     data-tab="attacks"
 >
 
-    <table class="item-list-container">
-        <thead>
-            <tr class="item-header">
-                <th class="item-column item-name">{{localize "ActorSheet.Name"}}</th>
-                <th class="item-column item-ocv">{{localize "ActorSheet.OCV"}}</th>
-                <th class="item-column item-dcv">{{localize "ActorSheet.DCV"}}</th>
-                <th class="item-column item-offdef">{{localize "ActorSheet.OffVDef"}}</th>
-                <th class="item-column item-dmg">{{localize "ActorSheet.Dmg"}}</th>
-                <th class="item-column item-res">{{localize "ActorSheet.Res"}}</th>
-                <th class="item-column item-end">{{localize "ActorSheet.End"}}</th>
-                <th class="item-column item-aoe">{{localize "ActorSheet.Aoe"}}</th>
-                <th class="item-column item-controls"></th>
-            </tr>
-        </thead>
-        <tbody class="item-list abilities-list">
+    <section class="item-list-container">
+        <div class="item-header">
+            <div class="item-column item-name">{{localize "ActorSheet.Name"}}</div>
+            <div class="item-column item-ocv">{{localize "ActorSheet.OCV"}}</div>
+            <div class="item-column item-dcv">{{localize "ActorSheet.DCV"}}</div>
+            <div class="item-column item-offdef">{{localize "ActorSheet.OffVDef"}}</div>
+            <div class="item-column item-dmg">{{localize "ActorSheet.Dmg"}}</div>
+            <div class="item-column item-res">{{localize "ActorSheet.Res"}}</div>
+            <div class="item-column item-end">{{localize "ActorSheet.End"}}</div>
+            <div class="item-column item-aoe">{{localize "ActorSheet.Aoe"}}</div>
+            <div class="item-column item-controls"></div>
+        </div>
+        <div class="item-list abilities-list">
             {{#each items as |item|}}
-                <tr class="item attack draggable expandable-document" data-document-uuid="{{this.uuid}}">
-                    <td class="item-row">
+                <div class="item attack draggable expandable-document" data-document-uuid="{{this.uuid}}">
+                    <div class="item-row">
                         <div class="item-column item-name rollable" data-action"useAbility">
                             {{!-- <img class="item-image" src="{{this.img}}" alt="{{this.name}}"> --}}
                             <div class="name">
@@ -30,40 +28,39 @@
                                 <div class="keywords">{{this.system.XMLID}}</div>
                             </div>
                         </div>
-                    </td>
-                    <td data-tooltip="{{{item.system.ocvDetails.tooltip}}}">
-                        {{item.system.ocvDetails.value}}
-                    </td>
-                    <td data-tooltip="{{{item.system.dcvDetails.tooltip}}}">
-                        {{item.system.dcvDetails.value}}
-                    </td>
-                    <td>
-                        {{item.attacksWith}} vs {{item.defendsWith}}
-                    </td>
-                    <td>
-                        {{item.system.damage}}
-                    </td>
-                    <td>
-                        {{item.attackDefenseVs}}
-                    </td>
-                    <td>
-                        {{item.system.endEstimate}}
-                    </td>
-                    <td>
-                        {{#if item.aoeAttackParameters}}
-                            {{item.aoeAttackParameters.shortDesc}}
-                        {{else}}
-                            -
-                        {{/if}}
-                    </td>
-                    <td class="item-column item-controls">
-                        <a class="fa-fw fa-solid fa-ellipsis-vertical" data-action="documentListContext"></a>
-                        <a class="fa-solid fa-angle-{{ifThen abilityContext.expanded "down" "right"}}" data-action="toggleDocumentDescription"></a>
-                    </td>
-                </tr>
-
+                        <div class="item-column item-ocv" data-tooltip="{{{item.system.ocvDetails.tooltip}}}">
+                            {{item.system.ocvDetails.value}}
+                        </div>
+                        <div class="item-column item-dcv" data-tooltip="{{{item.system.dcvDetails.tooltip}}}">
+                            {{item.system.dcvDetails.value}}
+                        </div>
+                        <div class="item-column item-offdef">
+                            {{item.attacksWith}} vs {{item.defendsWith}}
+                        </div>
+                        <div class="item-column item-dmg">
+                            {{item.system.damage}}
+                        </div>
+                        <div class="item-column item-res">
+                            {{item.attackDefenseVs}}
+                        </div>
+                        <div class="item-column item-end">
+                            {{item.system.endEstimate}}
+                        </div>
+                        <div class="item-column item-aoe">
+                            {{#if item.aoeAttackParameters}}
+                                {{item.aoeAttackParameters.shortDesc}}
+                            {{else}}
+                                -
+                            {{/if}}
+                        </div>
+                        <div class="item-column item-controls">
+                            <a class="fa-fw fa-solid fa-ellipsis-vertical" data-action="documentListContext"></a>
+                            <a class="fa-solid fa-angle-{{ifThen abilityContext.expanded "down" "right"}}" data-action="toggleDocumentDescription"></a>
+                        </div>
+                    </div>
+                </div>
             {{/each}}
-        </tbody>
-    </table>
+        </div>
+    </section>
         
 </section>

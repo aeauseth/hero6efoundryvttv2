@@ -130,20 +130,17 @@
 
 /* Attacks */
 .herosystem6e.actor-sheet-v2 .window-content section.tab.attacks {
-    table {
-        border-collapse: separate;
-        border-radius: 5px;
-        margin: 0;
-        overflow: auto hidden;
-
-        th,
-        td {
-            padding: 0;
-        }
-    }
-
     .item-list-container {
-        // margin: 10px 0;
+        margin: 10px 0;
+        display: grid;
+        grid-template-columns: repeat(9, auto);
+
+        .item-header,
+        .item-list,
+        .item-row,
+        .expandable-document {
+            display: contents;
+        }
 
         .item-row,
         .item-header {
@@ -153,15 +150,11 @@
         }
 
         .item-header {
-            color: var(--table-header-text-color);
+            // color: var(--table-header-text-color);
             background-color: var(--herosystem-table-header-bg-color);
             border-radius: 5px 5px 0 0;
-
-            .item-column {
-                position: sticky;
-                top: 0;
-                background-color: var(--herosystem-table-header-bg-color);
-            }
+            position: sticky;
+            top: 0;
 
             .item-name {
                 font-weight: bold;
@@ -222,7 +215,7 @@
 
                 .item-row {
                     .item-name {
-                        // gap: 5px;
+                        gap: 5px;
                         display: flex;
 
                         &.rollable {
