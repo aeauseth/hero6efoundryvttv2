@@ -21,7 +21,13 @@
         {{#if (and this.childIdx this.parentItem)}}
             {{this.childIdx}})
         {{/if}}
-        {{{itemFullDescription this}}}
+        
+        {{#if this.system.TEXT}}
+            <span class="item-description-text">{{this.system.TEXT}}</span>
+        {{else}}
+            {{{itemFullDescription this}}}
+        {{/if}}
+       
         {{#if this.system.NOTES}}
             <div class="item-notes-editable-content"><b>Notes:</b> {{{this.system.NOTES}}}</div>
         {{/if}}

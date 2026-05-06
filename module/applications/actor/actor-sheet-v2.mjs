@@ -1095,7 +1095,7 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
                     await item.update({ "system.PARENTID": dropTargetItem.system.ID });
                 } else if (item.system.PARENTID && !dropTargetItem?.system.PARENTID) {
                     ui.notifications.info(
-                        `<b>${item.name}</b> was removed from parent <b>${item.parentItem.name}</b>.`,
+                        `<b>${item.name}</b> was removed from parent <b>${item.parentItem?.name}</b>.`,
                     );
                     await item.update({ "system.-=PARENTID": null });
                 } else if (!item.isContainer && dropTargetItem?.isContainer) {

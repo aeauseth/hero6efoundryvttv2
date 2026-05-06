@@ -369,6 +369,10 @@ input.over-max {
         .item-column.item-description {
             flex: 1;
             justify-content: left;
+
+            .item-description-text {
+                color: blue;
+            }
         }
 
         .item-list {

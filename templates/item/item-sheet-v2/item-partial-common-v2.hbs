@@ -1,4 +1,4 @@
-{{ log 'item-partial-common' this }}
+{{ log 'item-partial-common-v2' this }}
 <div class="description">
     {{item.system.description}}
     {{#if item.system.NOTES}}
@@ -17,6 +17,13 @@
     <div class="form-group">
         <label>ALIAS</label>
         <input type="text" name="system.ALIAS" value="{{item.system.ALIAS}}" data-dtype="text" />
+    </div>
+{{/if}}
+
+{{#if (isdefined item.system.TEXT item "system.TEXT")}}
+    <div class="form-group">
+        <label>OVERRIDE TEXT</label>
+        <input type="text" name="system.TEXT" value="{{item.system.TEXT}}" data-dtype="text" />
     </div>
 {{/if}}
 

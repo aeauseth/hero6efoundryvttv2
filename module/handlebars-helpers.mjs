@@ -105,7 +105,11 @@ function concat() {
     return outStr;
 }
 
-function isDefined(value) {
+function isDefined(value, item, property) {
+    // Prefer passing item and attributePath so we can check the schema.
+    if (item.constructor?.name === "HeroSystem6eItem") {
+        return foundry.utils.hasProperty(item, property);
+    }
     return value !== undefined;
 }
 

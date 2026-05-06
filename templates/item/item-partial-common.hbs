@@ -16,6 +16,13 @@
     <input type="text" name="system.ALIAS" value="{{system.ALIAS}}" data-dtype="text" />
 </div>
 
+{{#if (isdefined item.system.TEXT item "system.TEXT")}}
+    <div class="form-group">
+        <label>OVERRIDE TEXT</label>
+        <input type="text" name="system.TEXT" value="{{item.system.TEXT}}" data-dtype="text" />
+    </div>
+{{/if}}
+
 {{#unless editOptions.hideLEVELS}}
     <div class="form-group">
         <label>LEVELS</label>
