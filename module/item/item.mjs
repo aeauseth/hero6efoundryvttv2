@@ -1010,6 +1010,16 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             }
         }
 
+        // Updating item.name with NAME/ALIAS/XMLID
+        const _NAME = changes.system.NAME ?? this.system.NAME;
+        const _ALIAS = changes.system.ALIAS ?? this.system.ALIAS;
+        const _XMLID = changes.system.XMLID ?? this.system.XMLID;
+        const newName = _NAME || _ALIAS || _XMLID;
+        if (this.name !== newName) {
+            //console.log(`Updating name from ${this.name} to ${newName}`);
+            changes.name = newName;
+        }
+
         await super._preUpdate(changes, options, user);
     }
 

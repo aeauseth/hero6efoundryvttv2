@@ -1,4 +1,4 @@
-{{log "actor-sheet-item-description-v2" this}}
+{{!-- {{log "actor-sheet-item-description-v2" this}} --}}
 
 <div class="item-column item-description item-depth-{{this.childDepth}}"
     data-tooltip="{{this.validationTooltip}}"
@@ -21,7 +21,7 @@
         {{#if (and this.childIdx this.parentItem)}}
             {{this.childIdx}})
         {{/if}}
-        
+
         {{#if this.system.TEXT}}
             <span class="item-description-text">{{this.system.TEXT}}</span>
         {{else}}

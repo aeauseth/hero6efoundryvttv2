@@ -1,11 +1,11 @@
-{{!-- {{ log 'item-power-sheet' this }} --}}
+{{ log 'item-power-sheet' this }}
 <form class="hero {{cssClass}} flexcol auto-overflow" autocomplete="off" data-id="{{item._id}}">
     <header class="sheet-header flexrow">
         <img class="profile" name="img" src="{{item.img}}" title="{{item.name}}" data-edit="img" />
 
         <div class="header-details flexrow">
             <h1 class="charname">
-                <input name="name" type="text" value="{{item.name}}" placeholder="Name" />
+                <input Xname="Xname" type="text" value="{{item.name}}" placeholder="Name" disabled/>
             </h1>
         </div>
     </header>
