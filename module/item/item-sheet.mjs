@@ -484,10 +484,11 @@ export class HeroSystem6eItemSheet extends FoundryVttItemSheet {
             return;
         }
 
-        // If name is empty then create a default one
-        if (!expandedData.name) {
-            formData.name = this.item.system.DISPLAY || this.item.system.XMLID;
-        }
+        // Update item.name (done in item.mjs:_preUpdate)
+        // const newName = expandedData.system.NAME || expandedData.system.ALIAS || this.item.system.XMLID;
+        // if (newName !== this.name) {
+        //     formData.name = newName;
+        // }
 
         const previousOPTIONID = this.item.system.OPTIONID;
 
