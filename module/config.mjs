@@ -68,6 +68,47 @@ HERO.folderColors = {
     "Powers.Talents": "#ff6666",
 };
 
+HERO.SENSE_FLAGS = {
+    // Sight Group & Specific Senses
+    SIGHTGROUP_DISABLED: "flags.hero6efoundryvttv2.senses.sightSenseDisabledEffect",
+    INFRAREDPERCEPTION: "flags.hero6efoundryvttv2.senses.hasInfraredPerception",
+    ULTRAVIOLETSIGHT: "flags.hero6efoundryvttv2.senses.hasUltravioletPerception",
+    NIGHTVISION: "flags.hero6efoundryvttv2.senses.hasNightvisionPerception",
+
+    // Hearing Group & Specific Senses
+    HEARINGGROUP_DISABLED: "flags.hero6efoundryvttv2.senses.hearingSenseDisabledEffect",
+    NORMALHEARING_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingNormalHearing",
+    HEARINGGROUP_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingHearingGroup",
+
+    // Radio Group
+    RADIOGROUP_DISABLED: "flags.hero6efoundryvttv2.senses.radioSenseDisabledEffect",
+    RADIOGROUP_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingRadioGroup",
+
+    // Smell Group & Specific Senses
+    SMELLGROUP_DISABLED: "flags.hero6efoundryvttv2.senses.smellSenseDisabledEffect",
+    NORMALSMELL_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingNormalSmell",
+    SMELLGROUP_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingSmellGroup",
+
+    // Touch Group & Specific Senses
+    TOUCHGROUP_DISABLED: "flags.hero6efoundryvttv2.senses.touchSenseDisabledEffect",
+    NORMALTOUCH_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingNormalTouch",
+    TOUCHGROUP_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingTouchGroup",
+
+    // Mental Group
+    MENTALGROUP_DISABLED: "flags.hero6efoundryvttv2.senses.mentalSenseDisabled",
+    MENTALAWARENESS: "flags.hero6efoundryvttv2.senses.hasMentalAwareness",
+    MENTALGROUP_TARGETING: "flags.hero6efoundryvttv2.senses.hasTargetingMentalGroup",
+};
+
+HERO.ACTIVE_EFFECT_MODES = {
+    CUSTOM: "custom",
+    MULTIPLY: "multiply",
+    ADD: "add",
+    DOWNGRADE: "downgrade",
+    UPGRADE: "upgrade",
+    OVERRIDE: "override",
+};
+
 HERO.DEFENSE_ABBREVIATIONS = {
     FLASHDEFENSE: "FlashD",
     POWERDEFENSE: "PowD",
@@ -7837,9 +7878,11 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 ae.changes = [];
                 ae.statuses ??= new Set();
                 ae.statuses.add("invisible");
-                ae.system = {
-                    XMLID: this.key,
-                };
+                ((ae.showIcon = 2), // V14: always
+                    (ae.system = {
+                        XMLID: this.key,
+                    }));
+
                 return ae;
             },
             defenseTagVsAttack: function () {
@@ -9069,7 +9112,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: "#ff9999",  // washes out sewer tiles.  May need to create a custom visionMode.
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             xml: `<ADDER XMLID="INFRAREDPERCEPTION" ID="1763830934861" BASECOST="5.0" LEVELS="0" ALIAS="Infrared Perception" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="No" INCLUDEINBASE="Yes" DISPLAYINSTRING="No" GROUP="No" LVLCOST="-1.0" LVLVAL="-1.0" SELECTED="YES"></ADDER>`,
         },
@@ -9087,7 +9132,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: "#ff9999",  // washes out sewer tiles.  May need to create a custom visionMode.
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             activeEffect: function (item) {
                 return item?.createVisionActiveEffect("darkvision", true);
@@ -9189,11 +9236,6 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costPerLevel: fixedValueFunction(0),
             target: "self only",
             rangeForItem: fixedValueFunction(HERO.RANGE_TYPES.SELF),
-            sight: {
-                visionMode: "basic",
-                range: null, // infinite
-            },
-
             xml: `<ADDER XMLID="NIGHTVISION" ID="1763830932609" BASECOST="5.0" LEVELS="0" ALIAS="Nightvision" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="No" INCLUDEINBASE="Yes" DISPLAYINSTRING="No" GROUP="No" LVLCOST="-1.0" LVLVAL="-1.0" SELECTED="YES"></ADDER>`,
         },
         {},
@@ -9210,8 +9252,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: null,
-                //color: "aaaaff",
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             activeEffect: function (item) {
                 return item?.createVisionActiveEffect("darkvision", true);
@@ -9510,6 +9553,13 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             activeEffect: function (item) {
                 return item?.createVisionActiveEffect("darkvision", true);
             },
+            sight: {
+                flags: function (item) {
+                    const flags = [HERO.SENSE_FLAGS[`${item.system.OPTIONID}_TARGETING`]];
+
+                    return flags;
+                },
+            },
             xml: `<POWER XMLID="TARGETINGSENSE" ID="1765683750863" BASECOST="10.0" LEVELS="0" ALIAS="Targeting" POSITION="21" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="NORMALHEARING" OPTIONID="NORMALHEARING" OPTION_ALIAS="Normal Hearing" INCLUDE_NOTES_IN_PRINTOUT="Yes" PARENTID="1765665248447" NAME="" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes"></POWER>`,
         },
         {},
@@ -9612,7 +9662,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: "ffaaff",
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             xml: `<ADDER XMLID="ULTRASONICPERCEPTION" ID="1763943707845" BASECOST="10.0" LEVELS="0" ALIAS="Ultrasonic Perception" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="No" INCLUDEINBASE="No" DISPLAYINSTRING="Yes" GROUP="No" SELECTED="YES"></ADDER>`,
         },
@@ -9630,7 +9682,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: "ffaaff",
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             xml: `<POWER XMLID="ULTRASONICPERCEPTION" ID="1763927364247" BASECOST="3.0" LEVELS="0" ALIAS="Ultrasonic Perception" POSITION="2" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes" GROUP="HEARINGGROUP"></POWER>`,
         },
@@ -9648,7 +9702,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: "7F00FF",
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             xml: `<ADDER XMLID="ULTRAVIOLETPERCEPTION" ID="1762134835235" BASECOST="5.0" LEVELS="0" ALIAS="Ultraviolet Perception" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="No" INCLUDEINBASE="Yes" DISPLAYINSTRING="No" GROUP="No" LVLCOST="-1.0" LVLVAL="-1.0" SELECTED="YES"></ADDER>`,
         },
@@ -9666,7 +9722,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             sight: {
                 visionMode: "basic",
                 range: null, // infinite
-                //color: "7F00FF",
+                flags: function (item) {
+                    return [HERO.SENSE_FLAGS[item.system.XMLID]];
+                },
             },
             activeEffect: function (item) {
                 return item?.createVisionActiveEffect("darkvision", true);

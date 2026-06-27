@@ -734,7 +734,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         // While we create these AE's in V13 and V14, only V14 knows what to do with them.
         // We assume a valid actor.
 
-        const visionMaximumDistanceInMeters = this.actor?.visionMaximumDistanceInMeters;
+        //const visionMaximumDistanceInMeters = this.actor?.visionMaximumDistanceInMeters;
 
         const ae = {
             name: this.name,
@@ -749,30 +749,41 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         //TODO: Add the default priority V14 values, because we will take another pass at this when we implement darkness regions.
 
         // If this is a TARGETING SENSE, then we can can we sense (see/hear/taste/smell) the map
-        if (isTargetingSense) {
+        // if (isTargetingSense) {
+        //     ae.system.changes.push({
+        //         key: "token.sight.range",
+        //         value: visionMaximumDistanceInMeters, // Should be Infinity? Or blur when range exceeded?
+        //         mode: "upgrade", // "upgrade" has a V14 bug, so not using it, but would prefer to
+        //     });
+        // }
+
+        for (const flag of this.baseInfo.sight?.flags(this) || []) {
+            if (!flag) {
+                console.error(`${this.name} has undefined sight flags`);
+            }
             ae.system.changes.push({
-                key: "token.sight.range",
-                value: visionMaximumDistanceInMeters, // Should be Infinity? Or blur when range exceeded?
-                mode: "upgrade", // "upgrade" has a V14 bug, so not using it, but would prefer to
+                key: flag,
+                value: true,
+                mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.OVERRIDE,
             });
         }
 
-        // Detection of tokens
-        ae.system.changes.push({
-            key: `token.detectionModes.basicSight.range`,
-            value: visionMaximumDistanceInMeters,
-            mode: "upgrade",
-        });
-        ae.system.changes.push({
-            key: `token.detectionModes.${visionDetectMode}.range`,
-            value: visionMaximumDistanceInMeters,
-            mode: "upgrade",
-        });
-        ae.system.changes.push({
-            key: `token.detectionModes.${visionDetectMode}.enabled`,
-            value: true,
-            mode: "override",
-        });
+        // // Detection of tokens
+        // ae.system.changes.push({
+        //     key: `token.detectionModes.basicSight.range`,
+        //     value: visionMaximumDistanceInMeters,
+        //     mode: "upgrade",
+        // });
+        // ae.system.changes.push({
+        //     key: `token.detectionModes.${visionDetectMode}.range`,
+        //     value: visionMaximumDistanceInMeters,
+        //     mode: "upgrade",
+        // });
+        // ae.system.changes.push({
+        //     key: `token.detectionModes.${visionDetectMode}.enabled`,
+        //     value: true,
+        //     mode: "override",
+        // });
 
         ae.system.XMLID = this.system.XMLID;
         return ae;
@@ -1251,12 +1262,12 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             await this.update({ ["system.active"]: false });
         }
 
-        if (this.system.XMLID === "INVISIBILITY" && this.system.active) {
-            // Invisibility status effect for SIGHTGROUP?
-            if (this.system.OPTIONID === "SIGHTGROUP" && !this.actor.statuses.has("invisible")) {
-                this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.invisibleEffect);
-            }
-        }
+        // if (this.system.XMLID === "INVISIBILITY" && this.system.active) {
+        //     // Invisibility status effect for SIGHTGROUP?
+        //     if (this.system.OPTIONID === "SIGHTGROUP" && !this.actor.statuses.has("invisible")) {
+        //         this.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.invisibleEffect);
+        //     }
+        // }
     }
 
     // Largely used to determine if we can drag to hotbar
@@ -1825,7 +1836,9 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         // Generic set VALUE = MAX
         if (this.actor && game.actors.get(this.actor.id)) {
             for (const activeEffect of this.transferredEffects) {
-                for (const change of activeEffect.changes) {
+                for (const change of activeEffect.changes.filter(
+                    (c) => c.key.endsWith(".max") || c.key.endsWith(".value"),
+                )) {
                     const maxValue = foundry.utils.getProperty(this.actor, change.key);
                     if (maxValue == undefined) {
                         console.error(`${change.key} is ${maxValue}`);
@@ -1985,6 +1998,11 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
 
         // Movement Powers are Inobvious most of the time
         if (this.baseInfo?.type.includes("movement")) {
+            return perceptionSuccess;
+        }
+
+        // Senses are typically Inobvious (you can see them moving head to follow/sense you)
+        if (this.baseInfo?.type.includes("sense")) {
             return perceptionSuccess;
         }
 

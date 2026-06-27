@@ -1930,34 +1930,48 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
     async _prepareStatusEffects() {
         /** @type {Record<string, StatusInfo>} */
         const statusInfo = {};
+
+        // 1. Populate baseline information straight from the central configuration array
         for (const status of CONFIG.statusEffects) {
-            // Only display if it would show in the token HUD *and* it has an assigned _id
-            //if (!status._id || !ActiveEffect.implementation.validHud(status, this.actor)) continue;
             statusInfo[status.id] = {
-                _id: status._id,
-                name: status.name,
+                id: status.id,
+                name: game.i18n.localize(status.name),
                 img: status.img,
-                disabled: false,
+                disabled: false, // Default to editable/toggleable
                 active: "",
             };
 
+            // Enrich documentation tooltips safely using V14 asynchronous ux text managers
             if (status.rule) {
                 const page = await fromUuid(status.rule);
                 statusInfo[status.id].tooltip = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
-                    page.text.content,
+                    page.text?.content || "",
                     { relativeTo: this.actor },
                 );
             }
         }
 
-        // If the actor has the status and it's not from the canonical statusEffect
-        // Then we want to force more individual control rather than allow toggleStatusEffect
+        // 2. Scan every active effect currently applying to this character token
         const allApplicableEffects = Array.from(this.actor.allApplicableEffects());
+
         for (const effect of allApplicableEffects) {
             for (const id of effect.statuses) {
                 if (!(id in statusInfo)) continue;
-                statusInfo[id].active = "active";
-                if (!Object.values(statusInfo).some((s) => s._id === effect._id)) statusInfo[id].disabled = true;
+
+                // ====================================================================
+                // V14 ORIGIN EXTRACTION: Item Block Protection
+                // If the effect's origin string points to an Item, or its parent document
+                // is an Item class, lock the checkbox toggle control row on the sheet.
+                // ====================================================================
+                const isFromItem = effect.origin?.includes(".Item.") || effect.parent?.documentName === "Item";
+
+                // TODO: We may want tie together show statuses from items and statuses from
+                // conditions (like from tokenHud) in the future.  This could allow turning off
+                // all items with a specific condition when toggled from ActorSheet or tokenHud.
+                if (!isFromItem) {
+                    // Mark the condition row as visually highlighted/selected on our sheet template
+                    statusInfo[id].active = "active";
+                }
             }
         }
 

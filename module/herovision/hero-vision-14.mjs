@@ -1,74 +1,133 @@
 import { gridUnitsToMeters } from "../utility/units.mjs";
 
-class HeroUnifiedDetectionModeV14 extends foundry.canvas.perception.DetectionMode {
-    static get TYPE() {
-        return foundry.canvas.perception.DetectionMode.DETECTION_TYPES.SIGHT;
+/**
+ * Utility blueprint layout definition to enforce structural symmetry
+ * between Observer Senses and Target Invisibility profiles.
+ */
+class HeroSenseProfileTemplate {
+    static create() {
+        return {
+            SIGHT: {
+                NORMAL: false,
+                INFRARED: false,
+                ULTRAVIOLET: false,
+            },
+            HEARING: {
+                NORMAL: false,
+                TARGETING: false,
+            },
+            RADIO: {
+                TARGETING: false,
+            },
+            SMELL: {
+                NORMAL: false,
+                TARGETING: false,
+            },
+            TOUCH: {
+                NORMAL: false,
+                TARGETING: false,
+            },
+            MENTAL: {
+                AWARENESS: false,
+                TARGETING: false,
+            },
+        };
+    }
+}
+
+class HeroBaseDetectionModeV14 extends foundry.canvas.perception.DetectionMode {
+    _getObserverSensoryProfile(sourceToken, sourceActor) {
+        const sData = sourceActor.getFlag("hero6efoundryvttv2", "senses") || {};
+        const isBlind = sourceToken.document.hasStatusEffect("blind") || !!sData.sightSenseDisabledEffect;
+        const isDeaf = !!sData.hearingSenseDisabledEffect;
+        const profile = HeroSenseProfileTemplate.create();
+
+        profile.SIGHT.NORMAL = !isBlind;
+        profile.SIGHT.INFRARED = !isBlind && !!sData.hasInfraredPerception;
+        profile.SIGHT.ULTRAVIOLET = !isBlind && !!sData.hasUltravioletPerception;
+        profile.HEARING.NORMAL = !isDeaf;
+        profile.HEARING.TARGETING = !isDeaf && (!!sData.hasTargetingNormalHearing || !!sData.hasTargetingHearingGroup);
+        profile.RADIO.TARGETING = !sData.radioSenseDisabledEffect && !!sData.hasTargetingRadioGroup;
+        profile.SMELL.NORMAL = !sData.smellSenseDisabledEffect;
+        profile.SMELL.TARGETING =
+            !sData.smellSenseDisabledEffect && (!!sData.hasTargetingNormalSmell || !!sData.hasTargetingSmellGroup);
+        profile.TOUCH.NORMAL = !sData.touchSenseDisabledEffect;
+        profile.TOUCH.TARGETING =
+            !sData.touchSenseDisabledEffect && (!!sData.hasTargetingNormalTouch || !!sData.hasTargetingTouchGroup);
+        profile.MENTAL.AWARENESS = !sData.mentalSenseDisabled && !!sData.hasMentalAwareness;
+        profile.MENTAL.TARGETING = !sData.mentalSenseDisabled && !!sData.hasTargetingMentalGroup;
+
+        return profile;
     }
 
-    /**
-     * Main entry point evaluating enhanced individual senses and group baselines.
-     * @override
-     */
-    /**
-     * Main entry point evaluating enhanced individual senses and group baselines.
-     * Fully accounts for square diagonal and hex adjacency distance tolerances.
-     * @override
-     */
-    _canDetect(visionSource, target, level) {
-        const basicCheck = super._canDetect(visionSource, target, level);
+    _getTargetInvisibilityProfile(targetToken, targetActor) {
+        const activeInvisPowers = targetActor.items.filter((i) => i.system.XMLID === "INVISIBILITY" && i.isActive);
+        const hasCoreInvisibleStatus =
+            targetToken.document.hasStatusEffect("invisible") || targetActor.statuses?.has("invisible");
+        const profile = HeroSenseProfileTemplate.create();
 
-        // 1. Validate Target/Source Documents (V14 Standard Validation)
-        const targetToken = target.document?.documentName === "Token" ? target : null;
-        const targetActor = targetToken?.actor;
-        if (!targetActor) return basicCheck;
+        profile.SIGHT.NORMAL = hasCoreInvisibleStatus;
+        if (!activeInvisPowers.length) return { profile, fringeType: "none" };
 
-        const sourceToken = visionSource.object?.document?.documentName === "Token" ? visionSource.object : null;
-        const sourceActor = sourceToken?.actor;
-        if (!sourceActor) return basicCheck;
+        let worstFringe = "none";
+        for (const item of activeInvisPowers) {
+            const blocksSense = (modXmlid) => !!item.findModsByXmlid(modXmlid);
 
-        // 2. Gather state parameters using specialized sub-functions
-        const activeSenses = this._getObserverSenses(sourceToken, sourceActor);
-        const targetInvisibility = this._getTargetInvisibility(targetToken, targetActor);
+            if (!blocksSense("SIGHTGROUP_EXEMPT")) {
+                profile.SIGHT.NORMAL = true;
+                if (blocksSense("INFRAREDPERCEPTION")) profile.SIGHT.INFRARED = true;
+                if (blocksSense("ULTRAVIOLETSIGHT")) profile.SIGHT.ULTRAVIOLET = true;
+            }
+            if (blocksSense("HEARINGGROUP")) {
+                profile.HEARING.NORMAL = true;
+                profile.HEARING.TARGETING = true;
+            }
+            if (blocksSense("RADIOGROUP")) {
+                profile.RADIO.TARGETING = true;
+            }
+            if (blocksSense("SMELLGROUP")) {
+                profile.SMELL.NORMAL = true;
+                profile.SMELL.TARGETING = true;
+            }
+            if (blocksSense("TOUCHGROUP")) {
+                profile.TOUCH.NORMAL = true;
+                profile.TOUCH.TARGETING = true;
+            }
+            if (blocksSense("MENTALGROUP")) {
+                profile.MENTAL.AWARENESS = true;
+                profile.MENTAL.TARGETING = true;
+            }
 
-        // 3. Compute V14 Path Measurements
+            if (blocksSense("BRIGHTFRINGE")) worstFringe = "bright";
+            else if (worstFringe !== "bright" && !blocksSense("NOFRINGE")) worstFringe = "standard";
+            else if (worstFringe === "none" && blocksSense("NOFRINGE")) worstFringe = "noFringe";
+        }
+
+        if (worstFringe === "none") worstFringe = "standard";
+        return { profile, fringeType: worstFringe };
+    }
+
+    _getCalculatedDistance(sourceToken, targetToken) {
+        const tokenScene = sourceToken.document.parent;
         const waypoints = [
             { x: sourceToken.center.x, y: sourceToken.center.y },
             { x: targetToken.center.x, y: targetToken.center.y },
         ];
-
         const pathMeasurement = canvas.grid.measurePath(waypoints);
         const rawGridDistance = pathMeasurement?.distance ?? 0;
 
-        // Extract the specific parent scene context for this token
-        const tokenScene = sourceToken.document.parent;
-
-        // SAFE HIGH-FREQUENCY INVOKATION: Passes context to ensure zero interface lag
-        const distanceMultiplier = gridUnitsToMeters({
-            silent: true,
-            scene: tokenScene,
-        });
-
+        const distanceMultiplier = gridUnitsToMeters({ silent: true, scene: tokenScene });
         let distanceInMeters = rawGridDistance * distanceMultiplier;
 
-        // ====================================================================
-        // GRID ADJACENCY PROTECTION MATRIX
-        // Handles fractional diagonals (2.8m square) and hex vertex adjustments
-        // ====================================================================
-        if (canvas.grid.type !== foundry.CONST.GRID_TYPES.GRIDLESS) {
+        if (canvas.grid.type !== foundry.CONST.GRID_TYPES.GRIDLESS && tokenScene) {
             const sourceClust = canvas.grid.getOffset({ x: sourceToken.x, y: sourceToken.y });
             const targetClust = canvas.grid.getOffset({ x: targetToken.x, y: targetToken.y });
-
             const dx = Math.abs(sourceClust.i - targetClust.i);
             const dy = Math.abs(sourceClust.j - targetClust.j);
 
-            // Check if the tokens occupy immediately touching grid cells
             const isAdjacent = dx <= 1 && dy <= 1;
+            const metersPerSingleGridSpace = (tokenScene.grid?.distance ?? 1) * distanceMultiplier;
 
-            // Calculate what 1 single grid space equals in true metric length on this scene
-            const metersPerSingleGridSpace = (canvas.scene.grid.distance ?? 1) * distanceMultiplier;
-
-            // If adjacent, force the proximity range check to match exactly 1 single space length
-            // This stops 2.8m square diagonals or 2.3m hex offsets from dropping out of the 2m fringe!
             if (
                 isAdjacent &&
                 distanceInMeters > metersPerSingleGridSpace &&
@@ -77,221 +136,249 @@ class HeroUnifiedDetectionModeV14 extends foundry.canvas.perception.DetectionMod
                 distanceInMeters = metersPerSingleGridSpace;
             }
         }
-
-        // 4. Resolve sensory processing matrix
-        return this._resolveSensoryMatrix(activeSenses, targetInvisibility, distanceInMeters, basicCheck);
+        return distanceInMeters;
     }
 
-    /**
-     * Compiles all active, un-Flashed senses and targeting capabilities for the observer.
-     * Accounts for native normal sense baselines.
-     * @protected
-     */
-    _getObserverSenses(sourceToken, sourceActor) {
-        // Check if the observer has purchased an item providing a specific sense or targeting capability
-        const hasSenseItem = (xmlid, optionId = null) =>
-            sourceActor.items.some((item) => {
-                if (!item.isActive) return false;
-                if (item.system.XMLID !== xmlid) return false;
-                if (optionId && item.system.OPTIONID !== optionId) return false;
-                return true;
-            });
+    _evaluateSenseWithFringe(isInvisible, fringeType, distance, maxRange) {
+        if (!isInvisible) return distance <= maxRange;
+        if (fringeType === "noFringe") return false;
 
-        const hasTargetingSenseItem = (optionIds) =>
-            sourceActor.items.some(
-                (item) =>
-                    item.system.XMLID === "TARGETINGSENSE" && optionIds.includes(item.system.OPTIONID) && item.isActive,
-            );
-
-        // Base Flash/Blindness statuses
-        const isBlind =
-            sourceToken.document.hasStatusEffect("blind") ||
-            sourceToken.document.hasStatusEffect("sightSenseDisabledEffect");
-        const isDeaf = sourceToken.document.hasStatusEffect("hearingSenseDisabledEffect");
-
-        return {
-            // SIGHT GROUP
-            SIGHT: {
-                NORMAL: !isBlind, // Natively active for all tokens unless blinded/Flashed
-                INFRARED: !isBlind && hasSenseItem("ENHANCEDPERCEPTION", "INFRAREDPERCEPTION"),
-                ULTRAVIOLET: !isBlind && hasSenseItem("ENHANCEDPERCEPTION", "ULTRAVIOLETSIGHT"),
-            },
-
-            // HEARING GROUP
-            HEARING: {
-                // Normal Hearing is natively targeting in HERO System unless modified
-                NORMAL: !isDeaf,
-                TARGETING: !isDeaf && (hasTargetingSenseItem(["NORMALHEARING", "HEARINGGROUP"]) || true), // True if normal hearing is default targeting
-            },
-
-            // RADIO GROUP
-            RADIO: {
-                RADAR: !sourceToken.document.hasStatusEffect("radioSenseDisabledEffect") && hasSenseItem("RADAR"),
-                TARGETING: !sourceToken.document.hasStatusEffect("radioSenseDisabledEffect") && hasSenseItem("RADAR"),
-            },
-
-            // SMELL GROUP
-            SMELL: {
-                NORMAL: !sourceToken.document.hasStatusEffect("smellSenseDisabledEffect"),
-                TARGETING:
-                    !sourceToken.document.hasStatusEffect("smellSenseDisabledEffect") &&
-                    hasTargetingSenseItem(["NORMALSMELL", "SMELLGROUP"]),
-            },
-
-            // TOUCH GROUP
-            TOUCH: {
-                NORMAL: !sourceToken.document.hasStatusEffect("touchSenseDisabledEffect"),
-                TARGETING:
-                    !sourceToken.document.hasStatusEffect("touchSenseDisabledEffect") &&
-                    hasTargetingSenseItem(["NORMALTOUCH", "TOUCHGROUP"]),
-            },
-
-            // MENTAL GROUP
-            MENTAL: {
-                AWARENESS:
-                    !sourceToken.document.hasStatusEffect("mentalSenseDisabled") && hasSenseItem("MENTALAWARENESS"),
-                TARGETING:
-                    !sourceToken.document.hasStatusEffect("mentalSenseDisabled") &&
-                    hasTargetingSenseItem(["MENTALGROUP"]),
-            },
-        };
-    }
-
-    /**
-     * Gathers active invisibility properties from the target, splitting them into groups and specific senses.
-     * @protected
-     */
-    _getTargetInvisibility(targetToken, targetActor) {
-        const item = targetActor.items.find((i) => i.system.XMLID === "INVISIBILITY" && i.isActive);
-
-        // Baseline native system invisible condition (Defaults to mapping strictly to Normal Sight)
-        const hasCoreInvisibleStatus = targetToken.document.hasStatusEffect("invisible");
-
-        // Check if the Invisibility item explicitly covers an adder/modifier exception
-        const blocksSense = (modXmlid) => !!item?.findModsByXmlid(modXmlid);
-
-        return {
-            // Sight group coverage
-            SIGHT: {
-                ANY: hasCoreInvisibleStatus || (item && !blocksSense("SIGHTGROUP")),
-                NORMAL: hasCoreInvisibleStatus || (item && !blocksSense("SIGHTGROUP")),
-                INFRARED: item && !blocksSense("SIGHTGROUP") && blocksSense("INFRAREDPERCEPTION"),
-                ULTRAVIOLET: item && !blocksSense("SIGHTGROUP") && blocksSense("ULTRAVIOLETSIGHT"),
-            },
-
-            // Other group coverages
-            HEARING: !!item && blocksSense("HEARINGGROUP"),
-            RADIO: !!item && blocksSense("RADIOGROUP"),
-            SMELL: !!item && blocksSense("SMELLGROUP"),
-            MENTAL: !!item && blocksSense("MENTALGROUP"),
-            TOUCH: !!item && blocksSense("TOUCHGROUP"),
-
-            // Fringe attributes
-            NO_FRINGE: !!item && blocksSense("NOFRINGE"),
-            BRIGHT_FRINGE: !!item && blocksSense("BRIGHTFRINGE"),
-        };
-    }
-
-    /**
-     * Sequential sensory matching block evaluating individual senses vs group-wide closures.
-     * Standardizes Fringe handling universally across all physical categories.
-     * @protected
-     */
-    _resolveSensoryMatrix(senses, inv, distance, basicCheck) {
-        // A. Radio Group Checks
-        if (senses.RADIO.TARGETING) {
-            if (this._evaluateSenseWithFringe(inv.RADIO, inv, distance, 100)) return true;
-        }
-
-        // B. Hearing Group Checks
-        if (senses.HEARING.TARGETING) {
-            if (this._evaluateSenseWithFringe(inv.HEARING, inv, distance, 40)) return true;
-        }
-
-        // C. Mental Group Checks
-        if (senses.MENTAL.TARGETING) {
-            if (this._evaluateSenseWithFringe(inv.MENTAL, inv, distance, 80)) return true;
-        }
-
-        // D. Smell Group Checks
-        if (senses.SMELL.TARGETING) {
-            if (this._evaluateSenseWithFringe(inv.SMELL, inv, distance, 20)) return true;
-        }
-
-        // E. Touch Group Checks
-        if (senses.TOUCH.TARGETING) {
-            if (this._evaluateSenseWithFringe(inv.TOUCH, inv, distance, 1)) return true;
-        }
-
-        // F. Sight Group Resolution (Maintains unique sub-sense bypass rules like Infrared)
-        if (foundry.utils.hasProperty(senses, "SIGHT")) {
-            // 1. Enhanced Senses Bypass Check
-            if (inv.SIGHT.ANY) {
-                if (senses.SIGHT.INFRARED && !inv.SIGHT.INFRARED) return true;
-                if (senses.SIGHT.ULTRAVIOLET && !inv.SIGHT.ULTRAVIOLET) return true;
-            }
-
-            // 2. Normal Sight Baseline with Universal Fringe
-            if (senses.SIGHT.NORMAL) {
-                if (this._evaluateSenseWithFringe(inv.SIGHT.NORMAL, inv, distance, Infinity)) {
-                    // If the target is NOT invisible to normal sight, return Foundry's true geometry check
-                    return !inv.SIGHT.NORMAL ? basicCheck : true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Universal framework checking if a target can be perceived based on invisibility,
-     * maximum tracking limits, and close-proximity sensory fringe anomalies.
-     * @protected
-     * @param {boolean} isInvisible Is the target hidden from this specific sense category?
-     * @param {object} inv The master target invisibility payload containing fringe adders
-     * @param {number} distance Current path measurement length in meters
-     * @param {number} maxRange Maximum allowed tracing range for this alternative sensory block
-     * @returns {boolean} Can this specific sense track the token?
-     */
-    _evaluateSenseWithFringe(isInvisible, inv, distance, maxRange) {
-        // Scenario 1: Target is not invisible to this sense group
-        if (!isInvisible) {
-            return distance <= maxRange;
-        }
-
-        // Scenario 2: Target IS invisible. Check for No Fringe adder restriction
-        if (inv.NO_FRINGE) {
-            return false;
-        }
-
-        // Scenario 3: Target has a distortion bubble. Check if observer is inside proximity limits
-        const maxFringeRange = inv.BRIGHT_FRINGE ? 16 : 2;
-
-        // Clamp the fringe check to whichever is lower: the active fringe bubble or the max operational range of the sense
+        const maxFringeRange = fringeType === "bright" ? 16 : 2;
         const trackingLimit = Math.min(maxFringeRange, maxRange);
-
         return distance <= trackingLimit;
     }
 }
 
-// ==========================================
-// 3. REGISTRATION INITIALIZATION
-// ==========================================
+/**
+ * Targeting sense group implementation.
+ * Extends the Base HERO sensory class.
+ */
+class HeroTargetingDetectionModeV14 extends HeroBaseDetectionModeV14 {
+    static PRIORITY = 10;
+
+    static get TYPE() {
+        return foundry.canvas.perception.DetectionMode.DETECTION_TYPES.SIGHT;
+    }
+
+    /** @override */
+    testVisibility(visionSource, config, options = {}) {
+        const targetToken = options.object;
+
+        if (!targetToken || targetToken.document?.documentName !== "Token") {
+            return super.testVisibility(visionSource, config, options);
+        }
+
+        const result = this._processHeroSensoryMatrix(visionSource, targetToken, config, options);
+        console.log(`HeroTargetingDetectionModeV14 ${visionSource.object.name} ${targetToken.name} ${result}`);
+        return result;
+    }
+
+    /** @protected */
+    _processHeroSensoryMatrix(visionSource, targetToken, config, options) {
+        // Get Foundry's raw wall line-of-sight geometry check first
+        // Note: Do not use visionSource.testVisibility(target, ...) here to avoid recursive lockouts!
+        const basicCheck = visionSource.los.contains(targetToken.center.x, targetToken.center.y);
+
+        const targetActor = targetToken.actor;
+        if (!targetActor) return basicCheck;
+
+        const sourceToken = visionSource.object;
+        const sourceActor = sourceToken?.actor;
+        if (!sourceActor) return basicCheck;
+
+        // Gather profiles natively from your symmetric templates
+        const { profile: inv, fringeType } = this._getTargetInvisibilityProfile(targetToken, targetActor);
+
+        // PERFORMANCE SHORT-CIRCUIT: If target has no invisibility active, fall back to basic LoS
+        const hasAnyInvis = Object.values(inv).some((g) => Object.values(g).some((v) => v === true));
+        if (!hasAnyInvis) {
+            if (targetToken.mesh) targetToken.mesh.isAmbientDetectedOnly = false;
+            return basicCheck;
+        }
+
+        const senses = this._getObserverSensoryProfile(sourceToken, sourceActor);
+        const distanceInMeters = this._getCalculatedDistance(sourceToken, targetToken);
+
+        // UNUSUAL / DEFENSIVE TARGETING SENSES VERIFICATION
+        if (
+            senses.RADIO.TARGETING &&
+            this._evaluateSenseWithFringe(inv.RADIO.TARGETING, fringeType, distanceInMeters, 100)
+        )
+            return true;
+        if (
+            senses.HEARING.TARGETING &&
+            this._evaluateSenseWithFringe(inv.HEARING.TARGETING, fringeType, distanceInMeters, 40)
+        )
+            return true;
+        if (
+            senses.MENTAL.TARGETING &&
+            this._evaluateSenseWithFringe(inv.MENTAL.TARGETING, fringeType, distanceInMeters, 80)
+        )
+            return true;
+        if (
+            senses.SMELL.TARGETING &&
+            this._evaluateSenseWithFringe(inv.SMELL.TARGETING, fringeType, distanceInMeters, 20)
+        )
+            return true;
+        if (
+            senses.TOUCH.TARGETING &&
+            this._evaluateSenseWithFringe(inv.TOUCH.TARGETING, fringeType, distanceInMeters, 1)
+        )
+            return true;
+
+        // Sight Group Unusual Bypass (Infrared / Ultraviolet)
+        if (inv.SIGHT.NORMAL) {
+            if (senses.SIGHT.INFRARED && !inv.SIGHT.INFRARED) return basicCheck;
+            if (senses.SIGHT.ULTRAVIOLET && !inv.SIGHT.ULTRAVIOLET) return basicCheck;
+        }
+
+        // Normal Sight Baseline
+        if (
+            senses.SIGHT.NORMAL &&
+            this._evaluateSenseWithFringe(inv.SIGHT.NORMAL, fringeType, distanceInMeters, Infinity)
+        ) {
+            // If they are invisible to normal sight, return false here so this mode stops trampling the ambient mode!
+            return !inv.SIGHT.NORMAL ? basicCheck : false;
+        }
+
+        return false;
+    }
+}
+
+/**
+ * Non-targeting ambient sense group implementation.
+ * Overridden to natively force Foundry's Token Outline sensory drawing style.
+ */
+class HeroAmbientDetectionModeV14 extends HeroBaseDetectionModeV14 {
+    static PRIORITY = 5;
+
+    static get TYPE() {
+        // Enforces native "Sense Invisibility" outline shader styles across the canvas layer
+        return foundry.canvas.perception.DetectionMode.DETECTION_TYPES.SENSE_INVISIBILITY;
+    }
+
+    static getDetectionFilter() {
+        // Return cached reference instantly to avoid GPU layout re-allocation stuttering
+        // return (this._detectionFilter ??= GlowOverlayFilter.create({
+        //     glowColor: [0, 0.6, 0.33, 1], // Emerald Green [R, G, B, A]
+        //     thickness: 2,
+        //     knockout: true, // Set to true if you want a hollow outline bubble, or false if you want a glowing halo around the token art!
+        // }));
+
+        return (this._detectionFilter ??= OutlineOverlayFilter.create({
+            outlineColor: [1, 0, 1, 1],
+            knockout: true,
+            wave: true,
+        }));
+    }
+
+    /** @override */
+    testVisibility(visionSource, config, options = {}) {
+        const targetToken = options.object;
+
+        if (!targetToken || targetToken.document?.documentName !== "Token") {
+            return false;
+        }
+
+        // 1. Evaluate your custom HERO System non-targeting ambient senses loop
+        const hasAmbientDetection = this._processHeroAmbientMatrix(visionSource, targetToken, config, options);
+        console.log(
+            `%c HeroAmbientDetectionModeV14 ${visionSource.object.name} ${targetToken.name} ${hasAmbientDetection}`,
+
+            "background: #1111FF; color: #FFFFFF",
+        );
+
+        // 2. If undetected, return false immediately to keep the token hidden
+        if (!hasAmbientDetection) {
+            if (targetToken.mesh) targetToken.mesh.isAmbientDetectedOnly = false;
+            return false;
+        }
+
+        // 3. V14 CORE ENFORCEMENT: Force the canvas engine to render this token
+        // using the outline/ghost shader profile instead of drawing raw texture files!
+        if (targetToken.mesh) {
+            targetToken.mesh.isAmbientDetectedOnly = true;
+        }
+
+        return true;
+    }
+
+    /** @protected */
+    _processHeroAmbientMatrix(visionSource, targetToken, config, options) {
+        const targetActor = targetToken.actor;
+        if (!targetActor) return false;
+
+        const sourceToken = visionSource.object;
+        const sourceActor = sourceToken?.actor;
+        if (!sourceActor) return false;
+
+        const { profile: inv, fringeType } = this._getTargetInvisibilityProfile(targetToken, targetActor);
+
+        // Ambient pings only run if the target is currently cloaked/invisible to standard sight!
+        if (!inv.SIGHT.NORMAL) return false;
+
+        const senses = this._getObserverSensoryProfile(sourceToken, sourceActor);
+        const distanceInMeters = this._getCalculatedDistance(sourceToken, targetToken);
+
+        // NON-TARGETING SENSORY RESOLVER (Sound/Odor proximity pings)
+        if (senses.HEARING.NORMAL && !senses.HEARING.TARGETING) {
+            if (this._evaluateSenseWithFringe(inv.HEARING.NORMAL, fringeType, distanceInMeters, 40)) return true;
+        }
+        if (senses.MENTAL.AWARENESS && !senses.MENTAL.TARGETING) {
+            if (this._evaluateSenseWithFringe(inv.MENTAL.AWARENESS, fringeType, distanceInMeters, 80)) return true;
+        }
+        if (senses.SMELL.NORMAL && !senses.SMELL.TARGETING) {
+            if (this._evaluateSenseWithFringe(inv.SMELL.NORMAL, fringeType, distanceInMeters, 20)) return true;
+        }
+        if (senses.TOUCH.NORMAL && !senses.TOUCH.TARGETING) {
+            if (this._evaluateSenseWithFringe(inv.TOUCH.NORMAL, fringeType, distanceInMeters, 1)) return true;
+        }
+
+        return false;
+    }
+}
+
+// ====================================================================
+// SECURE CENTRALIZED INITIALIZATION & REGISTRY PIPELINE
+// Registers your class architecture safely into Foundry V14.
+// ====================================================================
 export function initializeHeroVisionV14() {
     const isV14 = game.release ? game.release.generation >= 14 : false;
     if (!isV14) return;
 
-    CONFIG.Canvas.detectionModes["heroUnifiedDetectionV14"] = new HeroUnifiedDetectionModeV14({
-        id: "heroUnifiedDetectionV14",
-        label: "HERO: Sensory Processor (v14)",
+    // A. Register Full Targeting Configuration Profile Class Model
+    CONFIG.Canvas.detectionModes["heroTargetingSenses"] = new HeroTargetingDetectionModeV14({
+        id: "heroTargetingSenses",
+        label: "HERO: Targeting Senses Matrix",
         type: foundry.canvas.perception.DetectionMode.DETECTION_TYPES.SIGHT,
     });
 
+    // B. Register Ambient Non-Targeting Detection Profile Class Model
+    CONFIG.Canvas.detectionModes["heroAmbientSenses"] = new HeroAmbientDetectionModeV14({
+        id: "heroAmbientSenses",
+        label: "HERO: Ambient Sensory Pings",
+        type: foundry.canvas.perception.DetectionMode.DETECTION_TYPES.SENSE_INVISIBILITY,
+
+        // FIX: Tells Foundry's Token Sheet UI configuration manager that this is a
+        // system-managed tracking channel. This stops the core interface builder from
+        // forcefully injecting checkbox controls or enabling it blindly on prototype tokens!
+        enabled: false,
+    });
+
+    // C. Register Master Unified Vision Mode UI Dropdown Configuration Profile
     CONFIG.Canvas.visionModes["heroUnifiedVisionV14"] = new foundry.canvas.perception.VisionMode({
         id: "heroUnifiedVisionV14",
         label: "HERO: Dynamic System Vision",
         tokenConfig: true,
-        detectionMode: "heroUnifiedDetectionV14",
+
+        // Structured V14 vision data model template settings
+        vision: {
+            darkness: { adaptive: true },
+            defaults: {
+                // Automatically injects your custom targeting matrix as a baseline engine fallback
+                heroTargetingSenses: null,
+            },
+        },
         canvas: {},
     });
 }

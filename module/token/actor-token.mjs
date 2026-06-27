@@ -148,7 +148,8 @@ export class HeroSystem6eTokenDocument extends FoundryVttTokenDocument {
 
     _prepareDetectionModesV14() {
         if (!this.sight.enabled) return;
-        this.detectionModes.heroUnifiedDetectionV14 ??= { enabled: true, range: Infinity };
+        this.detectionModes.heroTargetingSenses ??= { enabled: true, range: Infinity };
+        this.detectionModes.heroAmbientSenses ??= { enabled: true, range: Infinity };
     }
 
     static async createCombatants(tokens, { combat } = {}) {
