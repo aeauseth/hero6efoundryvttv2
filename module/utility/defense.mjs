@@ -420,6 +420,10 @@ export async function getConditionalDefenses(token, item, avad) {
     const vulnerabilities = token.actor.items.filter((o) => o.system.XMLID === "VULNERABILITY");
     conditionalDefenses.push(...vulnerabilities);
 
+    // PH: FIXME: avad is either AVAD or NND. This should done correctly and not kludged as the avad parameter presently is.
+    const nndLikeDefense = avad.INPUT ?? avad.COMMENTS ?? "";
+    const nndLikeDefenseKey = nndLikeDefense.trim().toUpperCase();
+
     // AVAD Life Support
     if (avad) {
         const avadItems = token.actor.items.filter(
@@ -430,13 +434,12 @@ export async function getConditionalDefenses(token, item, avad) {
 
     // AVAD characteristic defenses (PD/ED)
     if (avad) {
-        const key = avad.INPUT.trim().toUpperCase(); //item.system.INPUT.trim().toUpperCase();
-        const char = token.actor.system[key];
+        const char = token.actor.system[nndLikeDefenseKey];
         if (!char) {
-            console.warn(`possible unhandled AVAD defense vs "${key}"`);
+            console.warn(`possible unhandled AVAD defense vs "${nndLikeDefenseKey}"`);
         } else {
             if (!char.baseInfo) {
-                console.error(`missing baseInfo for "${key}", skipping conditional defense check`);
+                console.error(`missing baseInfo for "${nndLikeDefenseKey}", skipping conditional defense check`);
             } else {
                 const value = char.baseInfo.base(item.actor) + char.LEVELS;
                 if (value > 0) {
@@ -465,65 +468,64 @@ export async function getConditionalDefenses(token, item, avad) {
             if (!option.checked) {
                 if (defense instanceof HeroSystem6eItem) {
                     // Damage Reduction
-                    if (avad?.INPUT?.toUpperCase() == "PD" && defense.system.INPUT === "Physical")
-                        option.checked = true;
-                    if (avad?.INPUT?.toUpperCase() == "ED" && defense.system?.INPUT === "Energy") option.checked = true;
+                    if (nndLikeDefenseKey === "PD" && defense.system.INPUT === "Physical") option.checked = true;
+                    if (nndLikeDefenseKey === "ED" && defense.system?.INPUT === "Energy") option.checked = true;
                     if (
-                        avad?.INPUT.replace("Mental Defense", "MD").toUpperCase() == "MD" &&
+                        nndLikeDefenseKey.replace("Mental Defense", "MD").toUpperCase() === "MD" &&
                         defense.system?.INPUT === "Mental"
                     )
                         option.checked = true;
 
                     // Damage Negation
-                    if (avad?.INPUT?.toUpperCase() == "PD" && defense.findModsByXmlid("PHYSICAL"))
-                        option.checked = true;
-                    if (avad?.INPUT?.toUpperCase() == "ED" && defense?.findModsByXmlid("ENERGY")) option.checked = true;
+                    if (nndLikeDefenseKey === "PD" && defense.findModsByXmlid("PHYSICAL")) option.checked = true;
+                    if (nndLikeDefenseKey === "ED" && defense?.findModsByXmlid("ENERGY")) option.checked = true;
                     if (
-                        avad?.INPUT?.replace("Mental Defense", "MD").toUpperCase() == "MD" &&
+                        nndLikeDefenseKey.replace("Mental Defense", "MD").toUpperCase() === "MD" &&
                         defense.findModsByXmlid("MENTAL")
                     )
                         option.checked = true;
 
                     // Flash Defense
-                    if (avad?.INPUT?.match(/flash/i) && defense.system.XMLID === "FLASHDEFENSE") option.checked = true;
+                    if (nndLikeDefenseKey.match(/flash/i) && defense.system.XMLID === "FLASHDEFENSE")
+                        option.checked = true;
 
                     // Power Defense
-                    if (avad?.INPUT?.match(/power/i) && defense.system.XMLID === "POWERDEFENSE") option.checked = true;
+                    if (nndLikeDefenseKey.match(/power/i) && defense.system.XMLID === "POWERDEFENSE")
+                        option.checked = true;
 
                     // Life Support
-                    if (avad?.INPUT?.match(/life/i) && defense.system.XMLID === "LIFESUPPORT") option.checked = true;
+                    if (nndLikeDefenseKey.match(/life/i) && defense.system.XMLID === "LIFESUPPORT")
+                        option.checked = true;
 
                     // Resistant Damage Reduction
                     if (
-                        avad?.INPUT == "Resistant PD" &&
+                        nndLikeDefenseKey === "Resistant PD" &&
                         defense.system.INPUT === "Physical" &&
                         defense.system.OPTION.match(/RESISTANT/i)
                     )
                         option.checked = true;
                     if (
-                        avad?.INPUT == "Resistant ED" &&
+                        nndLikeDefenseKey === "Resistant ED" &&
                         defense.system.INPUT === "Energy" &&
                         defense.system.OPTION.match(/RESISTANT/i)
                     )
                         option.checked = true;
                     if (
-                        avad?.INPUT == "Resistant MD" &&
+                        nndLikeDefenseKey === "Resistant MD" &&
                         defense.system.INPUT === "Mental" &&
                         defense.system.OPTION.match(/RESISTANT/i)
                     )
                         option.checked = true;
 
                     // FORCEFIELD, RESISTANT PROTECTION
-                    if (avad?.INPUT?.toUpperCase() == "PD" && parseInt(defense.system.PDLEVELS || 0) > 0)
-                        option.checked = true;
-                    if (avad?.INPUT?.toUpperCase() == "ED" && parseInt(defense.system.EDLEVELS || 0) > 0)
-                        option.checked = true;
+                    if (nndLikeDefenseKey === "PD" && parseInt(defense.system.PDLEVELS || 0) > 0) option.checked = true;
+                    if (nndLikeDefenseKey === "ED" && parseInt(defense.system.EDLEVELS || 0) > 0) option.checked = true;
                     if (
-                        avad?.INPUT?.replace("Mental Defense", "MD").toUpperCase() == "MD" &&
+                        nndLikeDefenseKey.replace("Mental Defense", "MD").toUpperCase() === "MD" &&
                         parseInt(defense.system.MDLEVELS || 0) > 0
                     )
                         option.checked = true;
-                    if (avad?.INPUT?.match(/power/i) && parseInt(defense.system.POWDLEVELS || 0) > 0)
+                    if (nndLikeDefenseKey.match(/power/i) && parseInt(defense.system.POWDLEVELS || 0) > 0)
                         option.checked = true;
                 } else {
                     console.error(

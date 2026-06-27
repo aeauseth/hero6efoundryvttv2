@@ -29,6 +29,8 @@ const heroAoeTypeToFoundryAoeTypeConversions = Object.freeze({
 });
 
 export class ItemAttackFormApplication extends FormApplication {
+    #hookIds = {};
+
     constructor(data) {
         super();
         this.data = data;
@@ -39,14 +41,14 @@ export class ItemAttackFormApplication extends FormApplication {
             // to properly wait for promises to resolve before refreshing the UI.
             window.setTimeout(() => this.refresh(), 1);
         };
-        Hooks.on("targetToken", _targetToken.bind(this));
+        this.#hookIds.targetToken = Hooks.on("targetToken", _targetToken.bind(this));
 
         const _controlToken = async function () {
             // Necessary for situations where it is not possible
             // to properly wait for promises to resolve before refreshing the UI.
             window.setTimeout(() => this.refresh(), 1);
         };
-        Hooks.on("controlToken", _controlToken.bind(this));
+        this.#hookIds.controlToken = Hooks.on("controlToken", _controlToken.bind(this));
 
         // If  CSLs change on the Actor we need to know
         const _updateItem = async function (item) {
@@ -55,7 +57,15 @@ export class ItemAttackFormApplication extends FormApplication {
                 this.refresh();
             }
         };
-        Hooks.on("updateItem", _updateItem.bind(this));
+        this.#hookIds.updateItem = Hooks.on("updateItem", _updateItem.bind(this));
+    }
+
+    async close(options) {
+        Hooks.off("targetToken", this.#hookIds.targetToken);
+        Hooks.off("controlToken", this.#hookIds.controlToken);
+        Hooks.off("updateItem", this.#hookIds.updateItem);
+
+        return super.close(options);
     }
 
     refresh() {
@@ -495,6 +505,13 @@ export class ItemAttackFormApplication extends FormApplication {
                 this.data.aoeText += ` (${levels}${getSystemDisplayUnits(this.data.effectiveItem.actor.is5e)})`;
             }
 
+            this.data.aoeFreeform = aoe.type === "any" || aoe.type === "surface";
+            if (this.data.aoeFreeform) {
+                this.data.aoeAllowedCount = this.data.effectiveItem.actor.is5e
+                    ? `${levels} hex(es)`
+                    : `${levels} 2m area(s)`;
+            }
+
             if (this.getAoeTemplate() || game.user.targets.size > 0) {
                 this.data.noTargets = false;
             } else {
@@ -660,6 +677,14 @@ export class ItemAttackFormApplication extends FormApplication {
             return processActionToHit(this.data.effectiveItem, formData, { token: this.data.token });
         }
 
+        if (event.submitter?.name === "rollManualTarget") {
+            formData.aoeManualTargeting = true;
+            canvas.tokens.activate();
+            await this.close();
+
+            return processActionToHit(this.data.effectiveItem, formData, { token: this.data.token });
+        }
+
         this.data.formData ??= {};
 
         if (event.submitter?.name === "continueMultiattack") {
@@ -686,7 +711,7 @@ export class ItemAttackFormApplication extends FormApplication {
                 canvas.tokens.activate();
                 await this.close();
             } else {
-                return await new ItemAttackFormApplication(this.data).render(true);
+                return this.render();
             }
         } else if (event.submitter?.name === "missedMultiattack") {
             // TODO: charge user the end cost for the remaining attacks
@@ -766,6 +791,14 @@ export class ItemAttackFormApplication extends FormApplication {
 
         const aoeType = areaOfEffect.type;
         const aoeValue = areaOfEffect.value;
+
+        // TODO: Remove when V13 support is dropped. Freeform shapes need drawable Regions (V14+); the V13
+        // MeasuredTemplate path can't represent them, so refuse cleanly rather than throwing.
+        if (aoeType === "any" || aoeType === "surface") {
+            return ui.notifications.warn(
+                `Placing a template for a "${aoeType}" Area Of Effect is not supported in this version of Foundry. Use "Use manual token targeting (skip template)" instead.`,
+            );
+        }
 
         const actor = item.actor;
         const token = actor.getActiveTokens()[0] || canvas.tokens.controlled[0];

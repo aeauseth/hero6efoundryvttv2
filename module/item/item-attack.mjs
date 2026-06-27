@@ -359,8 +359,8 @@ export async function processActionToHit(item, formData, options = {}) {
 
     // PH: FIXME: Need to not pass in formData and move the interesting stuff into action
 
-    // Does the effective attack item have an AoE?
-    if (item.effectiveAttackItem.getAoeModifier()) {
+    // Manual targeting resolves an AoE per-target via the single-target path, not the origin roll.
+    if (item.effectiveAttackItem.getAoeModifier() && !formData.aoeManualTargeting) {
         await doAoeActionToHit(action, formData, options);
     } else {
         await doSingleTargetActionToHit(action, formData, options);
@@ -929,8 +929,10 @@ async function doSingleTargetActionToHit(action, options) {
     }
 
     const isAoE = item.effectiveAttackItem.getAoeModifier();
-    const aoeTemplate = isAoE ? item.getAoeTemplateForBaseItem : null;
-    if (isAoE && !aoeTemplate) {
+    // Manual targeting has no placed template; resolve against the selected tokens, not an origin.
+    const manualAoeTargeting = !!isAoE && !!options.aoeManualTargeting;
+    const aoeTemplate = isAoE && !manualAoeTargeting ? item.getAoeTemplateForBaseItem : null;
+    if (isAoE && !manualAoeTargeting && !aoeTemplate) {
         return ui.notifications.error(`Attack AOE template was not found.`);
     }
 
@@ -975,7 +977,8 @@ async function doSingleTargetActionToHit(action, options) {
         ? aoeModifier.ADDER.find((o) => o.XMLID === "NONSELECTIVETARGET")
         : null;
 
-    const aoeAlwaysHit = aoeModifier && !(SELECTIVETARGET || NONSELECTIVETARGET);
+    // Manual targeting rolls to-hit per target instead of auto-hitting everything in the area.
+    const aoeAlwaysHit = aoeModifier && !manualAoeTargeting && !(SELECTIVETARGET || NONSELECTIVETARGET);
 
     let targetData = [];
     const targetIds = [];
@@ -985,8 +988,8 @@ async function doSingleTargetActionToHit(action, options) {
         targetsArray = canvas.tokens.controlled;
     }
 
-    // If AOE then sort by distance from center
-    if (explosion) {
+    // Sort by distance from the template origin (absent under manual targeting).
+    if (explosion && aoeTemplate) {
         targetsArray.sort(function (a, b) {
             const distanceA = calculateDistanceBetween(aoeTemplate, a).distance;
             const distanceB = calculateDistanceBetween(aoeTemplate, b).distance;
@@ -1054,7 +1057,7 @@ async function doSingleTargetActionToHit(action, options) {
 
         // Pick the appropriate target based on the attack type. For AoE it's the base of the AoE template for
         // a single target attack it's the actual target.
-        const targetForDistance = isAoE ? aoeTemplate : target;
+        const targetForDistance = isAoE && aoeTemplate ? aoeTemplate : target;
         const distance = token ? calculateDistanceBetween(token, targetForDistance).distance : 0;
 
         // Range modifiers
@@ -1271,6 +1274,7 @@ async function doSingleTargetActionToHit(action, options) {
         flags: {
             [game.system.id]: {
                 ...cardData,
+                token: cardData.token.document.toObject(),
             },
         },
     };
@@ -3009,6 +3013,7 @@ export async function _onApplyDamageToSpecificToken(item, _damageData, action, t
 
         // Massive Kludge: MANEUVERS don't have INPUT but some of the rest of the code includes check for that
         item.system.INPUT = "PD";
+        avad.INPUT = "PD";
     }
 
     // Try to make sure we have a PD/ED/MD type for AVAD

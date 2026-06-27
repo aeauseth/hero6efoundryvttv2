@@ -54,14 +54,24 @@
                 {{/each}}
               </select>
               <label>
-                {{#if (eq index 0)}}
-                  <span class="fas fa-plus {{#unless @root/action.current.missed}}add-multiattack{{/unless}}" > </span>
+                {{#if (or @root/action.current.missed (eq @root/action.maneuver.attackKeys.length 1))}}
+                  <span class="fas fa-trash disabled" ></span>
                 {{else}}
-                  <span class="fas fa-trash {{#unless @root/action.current.missed}}remove-multiattack{{/unless}}" data-multiattack="{{multiAttack.attackKey}}" ></span>
+                  <span class="fas fa-trash remove-multiattack" data-action="removeMultiattack" data-multiattack="{{multiAttack.attackKey}}" ></span>
                 {{/if}}
               </label>
             </div>
           {{/each}}
+          <div class="target-info-row add-attack-row">
+            <select class="add-attack-spacer" tabindex="-1" aria-hidden="true" disabled></select>
+            <label>
+              {{#if @root/action.current.missed}}
+                <span class="fas fa-plus disabled" ></span>
+              {{else}}
+                <span class="fas fa-plus add-multiattack" data-action="addMultiattack" ></span>
+              {{/if}}
+            </label>
+          </div>
         </div>
       </div>
       <div {{#unless action.current.cvMod.cvMod.ocv }}style="display: none;"{{/unless}}>
@@ -198,7 +208,7 @@
         </div>
       {{/if}}
 
-      {{#if (or effectiveItem.system.usesStrength effectiveItem.system.usesTk)}}
+      {{#if (or effectiveItem.system.usesStrength effectiveItem.system.usesTk multiAttackCurrentItem.system.usesStrength multiAttackCurrentItem.system.usesTk)}}
         <div class="form-group">
           <label>Effective Strength</label>
           <div class="noflexwrap">
@@ -419,6 +429,12 @@
       <button class="aoe-button" type="submit" name="aoe">
         Place {{aoeText}} template
       </button>
+      <button class="aoe-button" type="submit" name="rollManualTarget">
+        Use manual token targeting (skip template)
+      </button>
+      {{#if aoeFreeform}}
+        <p class="notes">Covers up to {{aoeAllowedCount}}; areas/tokens must be contiguous.</p>
+      {{/if}}
     {{/if}}
 
     {{#if action.maneuver.isMultipleAttackManeuver}}

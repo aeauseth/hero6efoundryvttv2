@@ -413,6 +413,12 @@
       <button class="aoe-button" type="submit" name="aoe">
         Place {{aoeText}} template
       </button>
+      <button class="aoe-button" type="submit" name="rollManualTarget">
+        Use manual token targeting (skip template)
+      </button>
+      {{#if aoeFreeform}}
+        <p class="notes">Covers up to {{aoeAllowedCount}}; areas/tokens must be contiguous.</p>
+      {{/if}}
     {{/if}}
 
     {{#if action.maneuver.isMultipleAttackManeuver}}

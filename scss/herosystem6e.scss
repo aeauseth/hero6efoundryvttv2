@@ -22,6 +22,74 @@ body {
 /* Styles for dice which are direct overrides of FoundryVTT styling */
 @include meta.load-css("components/foundry-overrides/dice");
 
+/* FIXME: This should not be using the class as a guard. These rules should all use the hero guard and be more tightly scoped (e.g. remove body as they're not global overrides). */
+.herosystem6e,
+.herosystem6e.theme-hc {
+    --herosystem-blue: #286293;
+    --herosystem-table-header-bg-color: var(--table-header-bg-color);
+    --herosystem-shadow-45: rgb(0 0 0 / 45%);
+    --herosystem-border: var(--herosystem-blue);
+    --herosystem-search-background: var(--color-light-1);
+    --herosystem-search-text: var(--color-dark-1);
+    --herosystem-text-light-6: #666;
+    --herosystem-filter-control-color: #999;
+    --herosystem-header-background: var(--table-header-bg-color);
+    --herosystem-item-row-border: rgb(var(--herosystem-blue) / 20%);
+    --herosystem-header-text: var(--table-header-text-color);
+}
+
+body.theme-light .herosystem6e,
+.herosystem6e.theme-light {
+    // opacity+sticky is a problem
+    --herosystem-table-header-bg-color: #cac7bf;
+    --herosystem-header-background: #cac7bf;
+}
+
+body.theme-dark .herosystem6e:not(.themed),
+.herosystem6e.theme-dark {
+    --herosystem-table-header-bg-color: var(--color-cool-4); // #333
+    --background: black;
+    --herosystem-search-background: var(--color-dark-3); // 333
+    --herosystem-search-text: var(--color-light-1); // #f7f3e8
+}
+
+// ref: https://venngage.com/tools/accessible-color-palette-generator
+form.herosystem6e.theme-hc {
+    --herosystem-table-header-bg-color: var(--color-dark-1);
+    --table-header-text-color: white;
+    --background: var(--color-light-1);
+    --color-text-primary: var(--color-dark-1);
+    --color-text-secondary: var(--color-dark-2);
+    --input-text-color: var(--color-dark-2);
+    --input-background-color: var(--color-light-2);
+
+    border: 1px solid white;
+
+    button:not(.unbutton),
+    header {
+        background-color: black;
+        color: white;
+
+        div {
+            background-color: var(--color-light-1);
+            color: black;
+        }
+    }
+
+    input {
+        color: black;
+        background-color: var(--color-light-2);
+        border: 1px solid black;
+    }
+
+    fieldset {
+        border-width: 1px;
+        margin-bottom: 2px;
+    }
+}
+
+/* END FIXME: This should not be using the class as a guard. These rules should all use the hero guard and be more tightly scoped (e.g. remove body as they're not global overrides). */
+
 /* Styles limited to hero sheets */
 .hero {
     @include meta.load-css("global/grid"); /* V13 - Moved from global as these should be scoped */
@@ -34,71 +102,6 @@ body {
 
     &.auto-overflow {
         overflow: auto;
-    }
-
-    .herosystem6e,
-    .herosystem6e.theme-hc {
-        --herosystem-blue: #286293;
-        --herosystem-table-header-bg-color: var(--table-header-bg-color);
-        --herosystem-shadow-45: rgb(0 0 0 / 45%);
-        --herosystem-border: var(--herosystem-blue);
-        --herosystem-search-background: var(--color-light-1); // #f7f3e8 // #f8f4f1;
-        --herosystem-search-text: var(--color-dark-1);
-        --herosystem-text-light-6: #666;
-        --herosystem-filter-control-color: #999;
-        --herosystem-header-background: var(--table-header-bg-color);
-        --herosystem-item-row-border: rgb(var(--herosystem-blue) / 20%);
-        --herosystem-header-text: var(--table-header-text-color);
-    }
-
-    body.theme-light .herosystem6e,
-    .herosystem6e.theme-light {
-        // opacity+sticky is a problem
-        --herosystem-table-header-bg-color: #cac7bf;
-        --herosystem-header-background: #cac7bf;
-    }
-
-    body.theme-dark .herosystem6e:not(.themed),
-    .herosystem6e.theme-dark {
-        --herosystem-table-header-bg-color: var(--color-cool-4); // #333
-        --background: black;
-        --herosystem-search-background: var(--color-dark-3); // 333
-        --herosystem-search-text: var(--color-light-1); // #f7f3e8
-    }
-
-    // ref: https://venngage.com/tools/accessible-color-palette-generator
-    form.herosystem6e.theme-hc {
-        --herosystem-table-header-bg-color: var(--color-dark-1);
-        --table-header-text-color: white;
-        --background: var(--color-light-1);
-        --color-text-primary: var(--color-dark-1);
-        --color-text-secondary: var(--color-dark-2);
-        --input-text-color: var(--color-dark-2);
-        --input-background-color: var(--color-light-2);
-
-        border: 1px solid white;
-
-        button:not(.unbutton),
-        header {
-            background-color: black;
-            color: white;
-
-            div {
-                background-color: var(--color-light-1);
-                color: black;
-            }
-        }
-
-        input {
-            color: black;
-            background-color: var(--color-light-2);
-            border: 1px solid black;
-        }
-
-        fieldset {
-            border-width: 1px;
-            margin-bottom: 2px;
-        }
     }
 
     .hero-warning {

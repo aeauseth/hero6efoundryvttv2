@@ -1323,10 +1323,13 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
                 case "MINDSCAN":
                 case "MOVEBY":
                 case "MOVETHROUGH":
+                case "MULTIPLEATTACK":
+                case "RAPIDFIRE":
                 case "RKA":
                 case "SET":
                 case "STRIKE":
                 case "SUCCOR":
+                case "SWEEP":
                 case "TELEKINESIS":
                 case "TRANSFER":
                 case "TRANSFORM":
@@ -1346,17 +1349,14 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
                 case "GRABBY":
                 case "HIPSHOT":
                 case "HURRY":
-                case "MULTIPLEATTACK":
                 case "OTHERATTACKS":
                 case "PULLINGAPUNCH":
-                case "RAPIDFIRE":
                 case "ROLLWITHAPUNCH":
                 case "SETANDBRACE":
                 case "SHOVE":
                 case "SNAPSHOT":
                 case "STRAFE":
                 case "SUPPRESSIONFIRE":
-                case "SWEEP":
                 case "THROW":
                 case "TRIP":
                 default:
@@ -4984,7 +4984,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         const avad = this.findModsByXmlid("AVAD");
         const nnd5e = this.findModsByXmlid("NND");
         if (avad || nnd5e) {
-            const nndLikeDefense = avad?.INPUT ?? nnd5e.COMMENTS;
+            const nndLikeDefense = avad?.INPUT ?? nnd5e.COMMENTS ?? "";
             const input = nndLikeDefense.trim().toUpperCase();
             if (input.match(/SELF[-\s]CONTAINED BREATHING/)) {
                 return "SELFCONTAINEDBREATHING";
