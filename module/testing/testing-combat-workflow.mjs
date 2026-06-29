@@ -1,4 +1,4 @@
-import { waitForElementInChat } from "./quench-helper.mjs";
+import { waitForElementInChat, waitForTokenDrawn } from "./quench-helper.mjs";
 
 export function registerCombatWorkflowTests(quench) {
     quench.registerBatch(
@@ -19,12 +19,22 @@ export function registerCombatWorkflowTests(quench) {
                     activeScene = game.scenes.active ?? game.scenes.contents?.[0];
                     if (!activeScene) {
                         activeScene = await Scene.create({ name: "Test Arena", grid: { distance: 1, units: "m" } });
+                    }
+
+                    // Ensure the scene is the one rendered on the canvas so created tokens get drawn,
+                    // otherwise their placeables never finish _draw() and targeting them throws.
+                    if (canvas.scene?.id !== activeScene.id) {
                         await activeScene.view();
                     }
 
                     attackerActor = await Actor.create({
                         name: "_Quench_Attacker",
                         type: "pc",
+                        flags: {
+                            core: {
+                                sheetClass: "herosystem6e.HeroSystemActorSheetV2",
+                            },
+                        },
                         img: "icons/svg/sword.svg",
                         prototypeToken: { actorLink: true },
                     });
@@ -32,6 +42,11 @@ export function registerCombatWorkflowTests(quench) {
                     defenderActor = await Actor.create({
                         name: "_Quench_Defender",
                         type: "pc",
+                        flags: {
+                            core: {
+                                sheetClass: "herosystem6e.HeroSystemActorSheetV2",
+                            },
+                        },
                         img: "icons/svg/shield.svg",
                         prototypeToken: { actorLink: true },
                     });
@@ -64,7 +79,11 @@ export function registerCombatWorkflowTests(quench) {
 
                     // Simulate Targeting
                     game.user.targets.clear();
-                    const targetTokenObject = defenderTokenDoc.object || canvas.tokens?.get(defenderTokenDoc.id);
+
+                    // Wait for the token placeable to finish drawing before targeting it. Targeting starts the
+                    // target-animation ticker (Token#_drawTargetArrows), which needs the targetArrows graphics
+                    // created at the end of Token#_draw(); targeting too early throws on targetArrows.clear().
+                    const targetTokenObject = await waitForTokenDrawn(defenderTokenDoc);
 
                     if (targetTokenObject) {
                         game.user.targets.add(targetTokenObject);

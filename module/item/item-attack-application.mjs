@@ -700,7 +700,7 @@ export class ItemAttackFormApplication extends FormApplication {
                 // TODO: if any roll misses, the multiattack ends, and the end cost for the remainding attacks are forfeit
 
                 // this is the roll:
-                await processActionToHit(this.data.effectiveItem, this.data.formData);
+                await processActionToHit(this.data.effectiveItem, this.data.formData, { token: this.data.token });
 
                 this.data.formData.execute = this.data.action.current.execute + 1;
             }

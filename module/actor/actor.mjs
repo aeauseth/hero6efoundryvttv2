@@ -113,7 +113,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
             // Characteristic defaults (if undefined)
             for (const charBaseInfo of getCharacteristicInfoArrayForActor(this)) {
-                const base = this.system.characteristics[charBaseInfo.key.toLowerCase()]?.base || 0;
+                const base = this.getCharacteristic(charBaseInfo.key.toLowerCase())?.base || 0;
+
+                // FIXME: CHARACTERISTICS AS ITEMS: Needs to be reworked
                 actorChanges.system.characteristics ??= {};
                 if (data.system?.characteristics[charBaseInfo.key.toLowerCase()]?.value == undefined) {
                     actorChanges.system.characteristics[charBaseInfo.key.toLowerCase()] = {
@@ -228,17 +230,25 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
      *          direct property access. This will be turned into a more expensive function. As well, the concepts of value, max, etc may well go away
      *          when characteristics are items.
      *
-     * Update the characteristic structure.
+     * Update the characteristic structure with the provided tuplets.
      *
-     * @param {String} characteristicName
-     * @param {Number} newValue
+     * @param {Array<[String, {String: Number}]>} characteristicNamesPropertiesAndValues
+     * @param {Object} options - options to pass into update
      *
      * @returns
      */
-    async updateCharacteristic(characteristicName, newValue) {
-        return this.update({
-            [`system.characteristics.${characteristicName}.value`]: newValue,
-        });
+    async updateCharacteristics(characteristicNamesPropertiesAndValues, options) {
+        if (characteristicNamesPropertiesAndValues.length === 0) {
+            console.error(`${this.name}: updateCharacteristics invoked with no changes`);
+        }
+
+        const characteristicNamePropertyAndValues = {};
+        for (const [characteristicName, propertyNewValueObject] of characteristicNamesPropertiesAndValues) {
+            characteristicNamePropertyAndValues[`system.characteristics.${characteristicName}`] =
+                propertyNewValueObject;
+        }
+
+        return this.update(characteristicNamePropertyAndValues, options);
     }
 
     /// Override and should probably be used instead of add/remove ActiveEffect
@@ -340,13 +350,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             if (activeEffect.id == "knockedOut") {
                 // When they wakes up, their END equals their
                 // current STUN total.
-                let newEnd = Math.min(
-                    parseInt(this.system.characteristics.stun.value),
-                    parseInt(this.system.characteristics.end.max),
-                );
-                await this.update({
-                    "system.characteristics.end.value": newEnd,
-                });
+                const newEnd = Math.min(this.getCharacteristic("stun").value, this.getCharacteristic("end").max);
+
+                await this.updateCharacteristics([["end", { value: newEnd }]], {});
             }
 
             await existingEffect.delete();
@@ -493,41 +499,42 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                   : false;
 
         if (changed?.system?.characteristics?.stun?.value && ShowCombatCharacteristicChangesBool) {
-            const valueT = parseInt(this.system.characteristics.stun.value);
-            const valueC = parseInt(changed.system.characteristics.stun.value);
-            const valueM = parseInt(this.system.characteristics.stun.max);
-            if (valueT != valueC) {
-                content += `STUN from ${valueT} to ${valueC}`;
+            const presentStun = this.getCharacteristic("stun");
+            const presentStunValue = presentStun.value;
+            const presentStunMax = presentStun.max;
+            const changeStunToValue = changed.system.characteristics.stun.value;
+            if (presentStunValue != changeStunToValue) {
+                content += `STUN from ${presentStunValue} to ${changeStunToValue}`;
 
-                if (valueC === valueM) {
+                if (changeStunToValue === presentStunMax) {
                     content += " (at max)";
                 }
 
-                //this._displayScrollingChange(valueC - valueT, { max: valueM, fill: '0x00FF00' });
                 options.displayScrollingChanges.push({
-                    value: valueC - valueT,
-                    options: { max: valueM, fill: "0x00FF00" },
+                    value: changeStunToValue - presentStunValue,
+                    options: { max: presentStunMax, fill: "0x00FF00" },
                 });
             }
         }
 
         if (changed?.system?.characteristics?.body?.value && ShowCombatCharacteristicChangesBool) {
-            const valueT = parseInt(this.system.characteristics.body.value);
-            const valueC = parseInt(changed.system.characteristics.body.value);
-            const valueM = parseInt(this.system.characteristics.body.max);
+            const presentBody = this.getCharacteristic("body");
+            const presentBodyValue = presentBody.value;
+            const presentBodyMax = presentBody.max;
+            const changeBodyToValue = changed.system.characteristics.body.value;
             if (content.length > 0) {
                 content += "<br>";
             }
-            if (valueT != valueC) {
-                content += `BODY from ${valueT} to ${valueC}`;
+            if (presentBodyValue != changeBodyToValue) {
+                content += `BODY from ${presentBodyValue} to ${changeBodyToValue}`;
 
-                if (valueC === valueM) {
+                if (changeBodyToValue === presentBodyMax) {
                     content += " (at max)";
                 }
 
                 options.displayScrollingChanges.push({
-                    value: valueC - valueT,
-                    options: { max: valueM, fill: "0xFF1111" },
+                    value: changeBodyToValue - presentBodyValue,
+                    options: { max: presentBodyMax, fill: "0xFF1111" },
                 });
             }
         }
@@ -539,7 +546,6 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 author: game.user.id,
                 whisper: whisperUserTargetsForActor(this),
                 speaker: ChatMessage.getSpeaker({ actor: this }),
-                blind: true,
                 content: content,
             };
 
@@ -581,8 +587,8 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
         // Mark as undefeated in combat tracker (pc/npc)
         if (
-            (data.system?.characteristics?.body?.value ?? this.system.characteristics.body.value) >
-                -this.system.characteristics.body.value &&
+            (data.system?.characteristics?.body?.value ?? this.getCharacteristic("body").value) >
+                -this.getCharacteristic("body").value &&
             this.statuses.has("dead")
         ) {
             await this.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.deadEffect.id, {
@@ -596,7 +602,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             userId === game.user.id &&
             this.hasCharacteristic("STUN")
         ) {
-            const newStun = data.system?.characteristics?.stun?.value ?? this.system.characteristics.stun.value;
+            const newStun = data.system?.characteristics?.stun?.value ?? this.getCharacteristic("stun").value;
 
             if (newStun <= 0) {
                 await this.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.knockedOutEffect.id, {
@@ -638,7 +644,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         // Mark as defeated in combat tracker (pc/npc)
         if (
             ["pc", "npc"].includes(this.type) &&
-            data.system?.characteristics?.body?.value <= -this.system.characteristics.body.max
+            data.system?.characteristics?.body?.value <= -this.getCharacteristic("body").max
         ) {
             await this.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.deadEffect.id, {
                 overlay: true,
@@ -695,13 +701,11 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 if (data.system[charKEY]?.LEVELS != null) {
                     const charKey = charKEY.toLowerCase();
                     if (this.hasCharacteristic(charKey.toUpperCase())) {
-                        const basePlusLevels = this.system.characteristics[charKey].basePlusLevels;
-                        await this.update({
-                            [`system.characteristics.${charKey}.max`]: basePlusLevels,
-                        });
-                        await this.update({
-                            [`system.characteristics.${charKey}.value`]: this.system.characteristics[charKey].max,
-                        });
+                        const basePlusLevels = this.getCharacteristic(charKey).basePlusLevels;
+
+                        // PH: FIXME: The fact we have to update separately indicates some kind of a problem being painted over.
+                        await this.updateCharacteristics([[charKey, { max: basePlusLevels }]], {});
+                        await this.updateCharacteristics([[charKey, { value: basePlusLevels }]], {});
 
                         // Check for any figuredCharacteristic dependencies.
                         await this.updateFiguredCharacteristicDependencies(charKey);
@@ -713,7 +717,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         // 5e calculated characteristics
         if (this.is5e && data.system?.characteristics) {
             const characteristicInfoArrayForActor = getCharacteristicInfoArrayForActor(this); // a bit of caching
-            const changes = {};
+            const changes = [];
             for (const changeKey of Object.keys(data.system.characteristics)) {
                 if (data.system.characteristics[changeKey].value !== undefined) {
                     for (const char of characteristicInfoArrayForActor.filter(
@@ -723,15 +727,15 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
                         if (char.calculated5eCharacteristic) {
                             const newValue = char.calculated5eCharacteristic(this);
-                            changes[`system.characteristics.${key}.max`] = newValue;
-                            changes[`system.characteristics.${key}.value`] = newValue;
+
+                            changes.push([key, { value: newValue, max: newValue }]);
                         }
                     }
                 }
             }
 
-            if (Object.keys(changes).length > 0) {
-                await this.update(changes);
+            if (changes.length > 0) {
+                await this.updateCharacteristics(changes, {});
             }
         }
 
@@ -742,9 +746,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     sizeDetails(size) {
-        let _size = Math.max(0, parseInt(size || this.system.characteristics.size?.value || 0));
+        let _size = Math.max(0, parseInt(size || this.getCharacteristic("size")?.value || 0));
         if (this.type === "base2") {
-            _size = 6 + Math.max(0, parseInt(size || this.system.characteristics.basesize?.value || 0));
+            _size = 6 + Math.max(0, parseInt(size || this.getCharacteristic("basesize")?.value || 0));
         }
 
         const values =
@@ -800,12 +804,10 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 //         committing to the database will kindly round to an integer for us.
                 const newValue = Math.floor(charPowerInfo.figured5eCharacteristic(this) + (levels ?? 0));
 
-                // Intentionally making 2 update calls to allow for AEs to kick in for max so we can set value to match
+                // FIXME: Intentionally making 2 update calls to allow for AEs to kick in for max so we can set value to match
                 // TODO: May break adjustment powers
-                await this.update({ [`system.characteristics.${key}.max`]: newValue });
-                await this.update({
-                    [`system.characteristics.${key}.value`]: this.system.characteristics[key].max,
-                });
+                await this.updateCharacteristics([[key, { max: newValue }]], {});
+                await this.updateCharacteristics([[key, { value: newValue }]], {});
             }
         }
     }
@@ -851,14 +853,13 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const tokenName = token?.name || this.name;
 
         if (!asAction && this.statuses.has("knockedOut")) {
-            if (this.system.characteristics.stun?.value <= -31) {
+            if (this.getCharacteristic("stun")?.value <= -31) {
                 return `${tokenName} is knockedOut for "a long time" and does not get a recovery (untracked).`;
-            }
-            if (this.system.characteristics.stun?.value <= -30) {
+            } else if (this.getCharacteristic("stun")?.value <= -21) {
                 return `${tokenName} is knockedOut and only gets a recovery once per minute (untracked).`;
             }
-            // stun.value <=-20 (Post-Segment 12 only)
-            // stun.value <=-10 (Every Phase and Post-Segment 12)
+            // stun.value <= -11 (Post-Segment 12 only)
+            // stun.value <= -0 (Every Phase and Post-Segment 12)
         }
 
         // Bases don't get/need a recovery
@@ -872,8 +873,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             return `${tokenName} is a BASE and does not get a recovery.`;
         }
 
+        // PH: FIXME: If this is not required, then we should get rid of it.
         // Catchall for no stun or end (shouldn't be needed as base type check above should be sufficient)
-        if ((this.system.characteristics.end?.max || 0) === 0 && (this.system.characteristics.stun?.max || 0) === 0) {
+        if ((this.getCharacteristic("end")?.max || 0) === 0 && (this.getCharacteristic("stun")?.max || 0) === 0) {
             console.log(`${token?.name || this.name} has no STUN or END thus does not get/need a recovery.`);
             if (asAction) {
                 ui.notifications.warn(
@@ -883,8 +885,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             return `${tokenName} has no STUN or END characteristic and does not get a recovery.`;
         }
 
-        // A character who holds their breath does not get to Recover (even
-        // on Post-Segment 12)
+        // A character who holds their breath does not get to Recover (even on Post-Segment 12)
         if (this.statuses.has("holdingBreath")) {
             const content = `${tokenName} <i>is holding their breath</i> and does not get a recovery.`;
             if (asAction) {
@@ -899,21 +900,14 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             return content;
         }
 
+        // FIXME: CHARACTERISTICS TO ITEMS: Rework from here.
         const chars = this.system.characteristics;
 
-        // Shouldn't happen, but you never know
-        if (chars.stun && isNaN(parseInt(chars.stun.value))) {
-            chars.stun.value = 0;
-        }
-        if (chars.end && isNaN(parseInt(chars.end.value))) {
-            chars.end.value = 0;
-        }
-
         // Need to account for negative RECovery
-        const rec = Math.max(0, parseInt(chars.rec.value));
+        const rec = Math.max(0, chars.rec.value);
 
-        let newStun = parseInt(chars.stun.value) + rec;
-        let newEnd = Math.max(0, parseInt(chars.end.value)) + rec;
+        let newStun = chars.stun.value + rec;
+        let newEnd = Math.max(0, chars.end.value) + rec;
 
         // newEnd should not exceed newStun if current stun <=0
         if (chars.stun.value <= 0) {
@@ -921,23 +915,23 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         }
 
         if (newStun > chars.stun.max) {
-            newStun = Math.max(chars.stun.max, parseInt(chars.stun.value)); // possible > MAX (which is OKish)
+            newStun = Math.max(chars.stun.max, chars.stun.value); // possible > MAX (which is OKish)
         }
-        const deltaStun = newStun - parseInt(chars.stun.value);
+        const deltaStun = newStun - chars.stun.value;
 
         if (newEnd > chars.end.max) {
-            newEnd = Math.max(chars.end.max, parseInt(chars.end.value)); // possible > MAX (which is OKish)
+            newEnd = Math.max(chars.end.max, chars.end.value); // possible > MAX (which is OKish)
         }
 
         // Ignore negative deltaEnd values.
         // It seems like END should be set to 0 when you are KO'd, but haven't found such a rule.
-        const deltaEnd = Math.max(0, newEnd - parseInt(chars.end.value));
+        const deltaEnd = Math.max(0, newEnd - chars.end.value);
 
-        await this.update(
-            {
-                "system.characteristics.stun.value": newStun,
-                "system.characteristics.end.value": newEnd,
-            },
+        await this.updateCharacteristics(
+            [
+                ["stun", { value: newStun }],
+                ["end", { value: newEnd }],
+            ],
             { hideChatMessage: true, preventRecoverFromStun },
         );
 

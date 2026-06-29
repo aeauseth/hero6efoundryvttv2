@@ -750,17 +750,16 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
         try {
             for (const _char of characteristics) {
                 const characteristic = _char.key.toLowerCase();
-                if (!this.actor.system.characteristics) {
-                    console.log("Missing this.actor.system.characteristics");
-                } else if (!this.actor.system.characteristics?.[characteristic]) {
-                    console.log(`Missing this.actor.system.characteristics[${characteristic}]`);
+
+                if (this.actor.hasCharacteristic(characteristic)) {
+                    console.log(`${this.actor.name} doesn't have ${characteristic}`);
                 } else if (!expandedData.Xsystem?.characteristics?.[characteristic]) {
                     console.log(`Missing expandedData.Xsystem.characteristics[${characteristic}]`);
                 } else {
                     if (
-                        this.actor.system.characteristics[characteristic] &&
+                        this.actor.getCharacteristic(characteristic) &&
                         expandedData.Xsystem.characteristics?.[characteristic].value !==
-                            this.actor.system.characteristics[characteristic].value
+                            this.actor.getCharacteristic(characteristic).value
                     ) {
                         expandedData.system.characteristics[characteristic].value =
                             expandedData.Xsystem.characteristics[characteristic].value;
@@ -1181,8 +1180,8 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
                                 // Target is a characteristic or movement
                                 const actor = parent;
                                 const newMax =
-                                    actor.system.characteristics[target].max + ae.flags[game.system.id]?.affectedPoints;
-                                const presentValue = actor.system.characteristics[target].value;
+                                    actor.getCharacteristic(target).max + ae.flags[game.system.id]?.affectedPoints;
+                                const presentValue = actor.getCharacteristic(target).value;
 
                                 let newValue;
                                 if (ae.flags[game.system.id]?.affectedPoints < 0) {
@@ -1196,9 +1195,9 @@ export class HeroSystemActorSheet extends FoundryVttActorSheet {
                                 }
 
                                 if (newValue !== presentValue) {
-                                    const change = {};
-                                    change[`system.characteristics.${target}.value`] = newValue;
-                                    actionsToAwait.push(actor.update(change));
+                                    actionsToAwait.push(
+                                        actor.updateCharacteristics([[target, { value: newValue }]], {}),
+                                    );
                                 }
                             }
                         }

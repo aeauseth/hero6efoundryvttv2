@@ -130,6 +130,26 @@ export function registerGlobalTeardown(quench) {
     );
 }
 
+/**
+ * Wait until a Token's canvas placeable has finished drawing.
+ *
+ * @param {TokenDocument} tokenDoc The token document whose placeable should be drawn.
+ * @param {number} timeoutMs How long to wait before giving up.
+ * @returns {Promise<Token|null>} The drawn token placeable, or whatever object is available on timeout.
+ */
+export async function waitForTokenDrawn(tokenDoc, timeoutMs = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        const obj = tokenDoc.object ?? canvas.tokens?.get(tokenDoc.id);
+        // targetArrows is created at the end of Token#_draw(), so its presence means drawing finished.
+        if (obj?.targetArrows) {
+            return obj;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return tokenDoc.object ?? canvas.tokens?.get(tokenDoc.id) ?? null;
+}
+
 export async function waitForElementInChat(elementSelector, timeoutMs = 1000) {
     let messageHookId;
 

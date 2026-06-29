@@ -846,7 +846,7 @@ export class HeroSystem6eCombat extends Combat {
                         const value = parseInt(this.combatant.actor.getCharacteristic("end").value);
                         const newEnd = value - endCostPerTurn;
 
-                        await this.combatant.actor.updateCharacteristic("end", newEnd);
+                        await this.combatant.actor.updateCharacteristics([["end", { value: newEnd }]], {});
                     }
                 }
             }

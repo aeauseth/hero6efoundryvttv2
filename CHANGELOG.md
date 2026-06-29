@@ -1,10 +1,17 @@
 # Releases
 
-### Version 4.3.11 so far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+### Version 4.3.13 20260628 [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
 
+- Fixed issue where some attacks silently fail, console logs show "Invalid string length" and/or "lost connection to the server". [#4290](https://github.com/dmdorman/hero6e-foundryvtt/issues/4290)
+- Fixed issue where the ChatMessage for using STUN in place of endurance was a blind GM roll. It is now a whisper where both token owners and GM can see the details. [#4356](https://github.com/dmdorman/hero6e-foundryvtt/issues/4356)
+
+### Version 4.3.12 20260627
+
+- We continue to improve FoundryVTT V14 support. We don't recommend running a game with FoundryVTT V14 yet. There are some [known issues](https://github.com/dmdorman/hero6e-foundryvtt/issues?q=is%3Aissue%20state%3Aopen%20label%3Av14compatibility) ( HTH/NakedAdvantage with AoE, missing/duplicate condition icons, missing text on some ChatMessages) and we need to do more testing. Feel free to play around with it and bring any issues to our attention.
 - Improved compendium prefab support. Improved and drag/drop support of items.
 - Fix crashes with NND maneuvers. [#4326](https://github.com/dmdorman/hero6e-foundryvtt/issues/4326)
 - Added support for overriding AOE templates with manual targeting [#4358](https://github.com/dmdorman/hero6e-foundryvtt/issues/4358)
+- Fixed occasional inability to turn off INVISIBILITY power. [#4372](https://github.com/dmdorman/hero6e-foundryvtt/issues/4372)
 
 ### Version 4.3.11 20260621
 

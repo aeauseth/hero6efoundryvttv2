@@ -9546,6 +9546,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             key: "TARGETINGSENSE",
             type: ["sense"],
             behaviors: ["activatable", "targetingBuiltIn"],
+            perceivability: "inobvious",
             duration: HERO.DURATION_TYPES.PERSISTENT, // Enhanced Senses are typically persistent
             costPerLevel: fixedValueFunction(0),
             target: "self only",

@@ -421,7 +421,7 @@ export async function getConditionalDefenses(token, item, avad) {
     conditionalDefenses.push(...vulnerabilities);
 
     // PH: FIXME: avad is either AVAD or NND. This should done correctly and not kludged as the avad parameter presently is.
-    const nndLikeDefense = avad.INPUT ?? avad.COMMENTS ?? "";
+    const nndLikeDefense = avad?.INPUT ?? avad?.COMMENTS ?? "";
     const nndLikeDefenseKey = nndLikeDefense.trim().toUpperCase();
 
     // AVAD Life Support
