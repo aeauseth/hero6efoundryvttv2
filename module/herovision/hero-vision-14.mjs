@@ -40,20 +40,27 @@ class HeroBaseDetectionModeV14 extends foundry.canvas.perception.DetectionMode {
         const sData = sourceActor.getFlag("hero6efoundryvttv2", "senses") || {};
         const isBlind = sourceToken.document.hasStatusEffect("blind") || !!sData.sightSenseDisabledEffect;
         const isDeaf = !!sData.hearingSenseDisabledEffect;
+
         const profile = HeroSenseProfileTemplate.create();
 
+        // All mapped under the SIGHT group structure
         profile.SIGHT.NORMAL = !isBlind;
         profile.SIGHT.INFRARED = !isBlind && !!sData.hasInfraredPerception;
         profile.SIGHT.ULTRAVIOLET = !isBlind && !!sData.hasUltravioletPerception;
+
         profile.HEARING.NORMAL = !isDeaf;
         profile.HEARING.TARGETING = !isDeaf && (!!sData.hasTargetingNormalHearing || !!sData.hasTargetingHearingGroup);
+
         profile.RADIO.TARGETING = !sData.radioSenseDisabledEffect && !!sData.hasTargetingRadioGroup;
+
         profile.SMELL.NORMAL = !sData.smellSenseDisabledEffect;
         profile.SMELL.TARGETING =
             !sData.smellSenseDisabledEffect && (!!sData.hasTargetingNormalSmell || !!sData.hasTargetingSmellGroup);
+
         profile.TOUCH.NORMAL = !sData.touchSenseDisabledEffect;
         profile.TOUCH.TARGETING =
             !sData.touchSenseDisabledEffect && (!!sData.hasTargetingNormalTouch || !!sData.hasTargetingTouchGroup);
+
         profile.MENTAL.AWARENESS = !sData.mentalSenseDisabled && !!sData.hasMentalAwareness;
         profile.MENTAL.TARGETING = !sData.mentalSenseDisabled && !!sData.hasTargetingMentalGroup;
 
@@ -64,35 +71,55 @@ class HeroBaseDetectionModeV14 extends foundry.canvas.perception.DetectionMode {
         const activeInvisPowers = targetActor.items.filter((i) => i.system.XMLID === "INVISIBILITY" && i.isActive);
         const hasCoreInvisibleStatus =
             targetToken.document.hasStatusEffect("invisible") || targetActor.statuses?.has("invisible");
+
         const profile = HeroSenseProfileTemplate.create();
 
-        profile.SIGHT.NORMAL = hasCoreInvisibleStatus;
+        // If they have the core status effect, assume baseline sight group invisibility
+        if (hasCoreInvisibleStatus) {
+            profile.SIGHT.NORMAL = true;
+            profile.SIGHT.INFRARED = true;
+            profile.SIGHT.ULTRAVIOLET = true;
+        }
+
         if (!activeInvisPowers.length) return { profile, fringeType: "none" };
 
         let worstFringe = "none";
+
         for (const item of activeInvisPowers) {
             const blocksSense = (modXmlid) => !!item.findModsByXmlid(modXmlid);
 
+            // HERO System Rule: Invisibility covers the entire Sight Group by default.
+            // If SIGHTGROUP_EXEMPT is NOT present, they are invisible to ALL sight senses.
             if (!blocksSense("SIGHTGROUP_EXEMPT")) {
                 profile.SIGHT.NORMAL = true;
+                profile.SIGHT.INFRARED = true;
+                profile.SIGHT.ULTRAVIOLET = true;
+            } else {
+                // If they ARE exempt from the group, check if they explicitly bought it for single special senses anyway
+                if (blocksSense("NORMAL_SIGHT")) profile.SIGHT.NORMAL = true; // Adjust string matching if your system uses a different XMLID for single normal sight
                 if (blocksSense("INFRAREDPERCEPTION")) profile.SIGHT.INFRARED = true;
                 if (blocksSense("ULTRAVIOLETSIGHT")) profile.SIGHT.ULTRAVIOLET = true;
             }
+
             if (blocksSense("HEARINGGROUP")) {
                 profile.HEARING.NORMAL = true;
                 profile.HEARING.TARGETING = true;
             }
+
             if (blocksSense("RADIOGROUP")) {
                 profile.RADIO.TARGETING = true;
             }
+
             if (blocksSense("SMELLGROUP")) {
                 profile.SMELL.NORMAL = true;
                 profile.SMELL.TARGETING = true;
             }
+
             if (blocksSense("TOUCHGROUP")) {
                 profile.TOUCH.NORMAL = true;
                 profile.TOUCH.TARGETING = true;
             }
+
             if (blocksSense("MENTALGROUP")) {
                 profile.MENTAL.AWARENESS = true;
                 profile.MENTAL.TARGETING = true;
@@ -104,6 +131,7 @@ class HeroBaseDetectionModeV14 extends foundry.canvas.perception.DetectionMode {
         }
 
         if (worstFringe === "none") worstFringe = "standard";
+
         return { profile, fringeType: worstFringe };
     }
 
@@ -163,37 +191,39 @@ class HeroTargetingDetectionModeV14 extends HeroBaseDetectionModeV14 {
     /** @override */
     testVisibility(visionSource, config, options = {}) {
         const targetToken = options.object;
-
         if (!targetToken || targetToken.document?.documentName !== "Token") {
             return super.testVisibility(visionSource, config, options);
         }
 
-        const result = this._processHeroSensoryMatrix(visionSource, targetToken, config, options);
-        console.log(`HeroTargetingDetectionModeV14 ${visionSource.object.name} ${targetToken.name} ${result}`);
+        // Capture both the boolean result and the descriptive reason string
+        const { result, reason } = this._processHeroSensoryMatrix(visionSource, targetToken, config, options);
+
+        // Color code based on success/failure, highlighting the exact reason
+        console.log(
+            `HeroTargetingDetectionModeV14: Can ${visionSource.object.name} see ${targetToken.name}? %c${result} [Reason: ${reason}]`,
+            `color: ${result ? "green" : "orange"}; font-weight: bold;`,
+        );
+
         return result;
     }
 
     /** @protected */
     _processHeroSensoryMatrix(visionSource, targetToken, config, options) {
-        // Get Foundry's raw wall line-of-sight geometry check first
-        // Note: Do not use visionSource.testVisibility(target, ...) here to avoid recursive lockouts!
         const basicCheck = visionSource.los.contains(targetToken.center.x, targetToken.center.y);
-
         const targetActor = targetToken.actor;
-        if (!targetActor) return basicCheck;
+        if (!targetActor) return { result: basicCheck, reason: "No target actor, using Basic LoS" };
 
         const sourceToken = visionSource.object;
         const sourceActor = sourceToken?.actor;
-        if (!sourceActor) return basicCheck;
+        if (!sourceActor) return { result: basicCheck, reason: "No source actor, using Basic LoS" };
 
-        // Gather profiles natively from your symmetric templates
         const { profile: inv, fringeType } = this._getTargetInvisibilityProfile(targetToken, targetActor);
 
-        // PERFORMANCE SHORT-CIRCUIT: If target has no invisibility active, fall back to basic LoS
+        // PERFORMANCE SHORT-CIRCUIT
         const hasAnyInvis = Object.values(inv).some((g) => Object.values(g).some((v) => v === true));
         if (!hasAnyInvis) {
             if (targetToken.mesh) targetToken.mesh.isAmbientDetectedOnly = false;
-            return basicCheck;
+            return { result: basicCheck, reason: `No target invisibility active. Basic LoS is: ${basicCheck}` };
         }
 
         const senses = this._getObserverSensoryProfile(sourceToken, sourceActor);
@@ -203,33 +233,49 @@ class HeroTargetingDetectionModeV14 extends HeroBaseDetectionModeV14 {
         if (
             senses.RADIO.TARGETING &&
             this._evaluateSenseWithFringe(inv.RADIO.TARGETING, fringeType, distanceInMeters, 100)
-        )
-            return true;
+        ) {
+            return { result: true, reason: "RADIO TARGETING bypassed invisibility" };
+        }
         if (
             senses.HEARING.TARGETING &&
             this._evaluateSenseWithFringe(inv.HEARING.TARGETING, fringeType, distanceInMeters, 40)
-        )
-            return true;
+        ) {
+            return { result: true, reason: "HEARING TARGETING bypassed invisibility" };
+        }
         if (
             senses.MENTAL.TARGETING &&
             this._evaluateSenseWithFringe(inv.MENTAL.TARGETING, fringeType, distanceInMeters, 80)
-        )
-            return true;
+        ) {
+            return { result: true, reason: "MENTAL TARGETING bypassed invisibility" };
+        }
         if (
             senses.SMELL.TARGETING &&
             this._evaluateSenseWithFringe(inv.SMELL.TARGETING, fringeType, distanceInMeters, 20)
-        )
-            return true;
+        ) {
+            return { result: true, reason: "SMELL TARGETING bypassed invisibility" };
+        }
         if (
             senses.TOUCH.TARGETING &&
             this._evaluateSenseWithFringe(inv.TOUCH.TARGETING, fringeType, distanceInMeters, 1)
-        )
-            return true;
+        ) {
+            return { result: true, reason: "TOUCH TARGETING bypassed invisibility" };
+        }
 
         // Sight Group Unusual Bypass (Infrared / Ultraviolet)
+        // If target is invisible to standard sight, see if observer has a special sense that isn't blocked!
         if (inv.SIGHT.NORMAL) {
-            if (senses.SIGHT.INFRARED && !inv.SIGHT.INFRARED) return basicCheck;
-            if (senses.SIGHT.ULTRAVIOLET && !inv.SIGHT.ULTRAVIOLET) return basicCheck;
+            if (senses.SIGHT.INFRARED && !inv.SIGHT.INFRARED) {
+                return {
+                    result: basicCheck,
+                    reason: `INFRARED sight bypassed normal invisibility. Basic LoS is: ${basicCheck}`,
+                };
+            }
+            if (senses.SIGHT.ULTRAVIOLET && !inv.SIGHT.ULTRAVIOLET) {
+                return {
+                    result: basicCheck,
+                    reason: `ULTRAVIOLET sight bypassed normal invisibility. Basic LoS is: ${basicCheck}`,
+                };
+            }
         }
 
         // Normal Sight Baseline
@@ -237,11 +283,14 @@ class HeroTargetingDetectionModeV14 extends HeroBaseDetectionModeV14 {
             senses.SIGHT.NORMAL &&
             this._evaluateSenseWithFringe(inv.SIGHT.NORMAL, fringeType, distanceInMeters, Infinity)
         ) {
-            // If they are invisible to normal sight, return false here so this mode stops trampling the ambient mode!
-            return !inv.SIGHT.NORMAL ? basicCheck : false;
+            const finalResult = !inv.SIGHT.NORMAL ? basicCheck : false;
+            return {
+                result: finalResult,
+                reason: `NORMAL SIGHT check evaluated. Target normal invis active: ${!!inv.SIGHT.NORMAL}. Basic LoS: ${basicCheck}`,
+            };
         }
 
-        return false;
+        return { result: false, reason: "Failed all sensory matrix checks" };
     }
 }
 
@@ -258,18 +307,60 @@ class HeroAmbientDetectionModeV14 extends HeroBaseDetectionModeV14 {
     }
 
     static getDetectionFilter() {
-        // Return cached reference instantly to avoid GPU layout re-allocation stuttering
-        // return (this._detectionFilter ??= GlowOverlayFilter.create({
-        //     glowColor: [0, 0.6, 0.33, 1], // Emerald Green [R, G, B, A]
-        //     thickness: 2,
-        //     knockout: true, // Set to true if you want a hollow outline bubble, or false if you want a glowing halo around the token art!
-        // }));
+        // 1. Force the base token artwork mesh to be translucent and faded
+        if (this.object?.mesh) {
+            this.object.mesh.alpha = 0.4; // 40% translucent ghost look
+        }
 
-        return (this._detectionFilter ??= OutlineOverlayFilter.create({
-            outlineColor: [1, 0, 1, 1],
-            knockout: true,
-            wave: true,
-        }));
+        // 2. Initialize the unified custom filter pipeline if it doesn't exist yet
+        if (!this._combinedDetectionFilter) {
+            // A. Create the native Glow Filter
+            const glowFilter = GlowOverlayFilter.create(
+                {
+                    glowColor: [1.0, 0.0, 1.0, 1.0], // Bright Magenta
+                    animated: true, // Native breathing animation loop
+                    innerGlow: false,
+                    knockout: false,
+                },
+                {
+                    distance: 30, // Thicker lines
+                    quality: 0.5,
+                },
+            );
+
+            // B. Create the Alpha Blur Filter from the global namespace
+            let alphaBlurFilter;
+            const AlphaBlurClass =
+                globalThis.AlphaBlurFilter || globalThis.foundry?.canvas?.rendering?.filters?.AlphaBlurFilter;
+
+            if (AlphaBlurClass) {
+                alphaBlurFilter = new AlphaBlurClass();
+                alphaBlurFilter.blur = 12;
+            } else {
+                alphaBlurFilter = new PIXI.BlurFilter();
+                alphaBlurFilter.blur = 8;
+            }
+
+            // C. COMBINE BOTH WITHOUT OVERRIDING: Use a standard PIXI Filter container pass
+            // This executes the Alpha Blur first, then passes the result into the Glow Filter
+            const vertexSrc = PIXI.Filter.defaultVertexSrc;
+            const fragmentSrc = `
+      varying vec2 vTextureCoord;
+      uniform sampler2D uSampler;
+      void main() {
+        gl_FragColor = texture2D(uSampler, vTextureCoord);
+      }
+    `;
+
+            const combinedFilter = new PIXI.Filter(vertexSrc, fragmentSrc);
+
+            // Inject the two native filters sequentially into the pipeline array
+            combinedFilter.subFilters = [alphaBlurFilter, glowFilter];
+
+            this._combinedDetectionFilter = combinedFilter;
+        }
+
+        return this._combinedDetectionFilter;
     }
 
     /** @override */
