@@ -278,7 +278,7 @@ export function registerStatusEffectTests(quench) {
                     }
                 });
 
-                it.only("Re-tint texture when knockedOut actor changes type", async function () {
+                it("Re-tint texture when knockedOut actor changes type", async function () {
                     const npcTestActor = await Actor.create({
                         name: "_Quench_Status_NPC_Tester",
                         type: "pc",

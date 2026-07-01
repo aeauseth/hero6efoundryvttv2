@@ -16,6 +16,7 @@ import { registerGlobalSetup, registerGlobalTeardown } from "./quench-helper.mjs
 import { registerCombatWorkflowTests } from "./testing-combat-workflow.mjs";
 import { registerTypeForceReplaceTests } from "./testing-type-force-replace.mjs";
 import { registerStatusEffectTests } from "./testing-status-effects.mjs";
+import { register5eCalculatedActiveEffectAutomationTests } from "./testing-5e-calculated-active-effect.mjs";
 
 Hooks.once("ready", async function () {
     if (!game.modules.get("_dev-mode")?.active) {
@@ -51,6 +52,7 @@ Hooks.on("quenchReady", async (quench) => {
     registerStatusEffectTests(quench);
     registerTypeForceReplaceTests(quench);
     registerCombatWorkflowTests(quench);
+    register5eCalculatedActiveEffectAutomationTests(quench);
     registerCombatTests(quench);
 
     registerGlobalTeardown(quench);
