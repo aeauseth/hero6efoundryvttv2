@@ -67,7 +67,14 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         foundry.utils.mergeObject(data, actorChanges);
     }
 
+    /**
+     * Prepares baseline characteristics during actor creation.
+     * Explicitly incorporates purchased point LEVELS to establish true starting baselines.
+     * @param {object} data - Raw incoming creation data payload object
+     * @param {object} actorChanges - The transactional mutation payload accumulator
+     */
     _preparePreCreateCharacteristics(data, actorChanges) {
+        // Inject structural identifier nodes safely
         for (const [key, char] of Object.entries(this.system)) {
             if (key.match(/[A-Z]/) && char instanceof HeroItemCharacteristic && !char.XMLID) {
                 actorChanges.system ??= {};
@@ -80,28 +87,43 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const payloadChars = data.system?.characteristics ?? {};
         const characteristicInfo = getCharacteristicInfoArrayForActor(this);
 
+        // Seed baseline rulebook numbers plus purchased point levels (e.g., 10 base + 3 levels = 13)
         for (const info of characteristicInfo) {
             const keyLower = info.key.toLowerCase();
             if (payloadChars[keyLower]?.value !== undefined) continue;
 
             const characteristic = this.getCharacteristic(keyLower);
+
+            // Extract rulebook baseline (e.g., 10 for STR)
             const basePoints = characteristic?.base ?? characteristic?.baseInfo?.base ?? 0;
 
-            actorChanges.system.characteristics[keyLower] = { value: basePoints, max: basePoints };
+            // CORE PARITY FIX: Safely probe the incoming payload data structures or your
+            // internal system node definitions to locate any explicitly purchased point LEVELS
+            const rawSystemNode = data.system?.[info.key] ?? this.system?.[info.key];
+            const purchasedLevels = Number(rawSystemNode?.LEVELS ?? payloadChars[keyLower]?.LEVELS ?? 0);
+
+            // Calculate the absolute rules baseline value total
+            const totalStartingPoints = basePoints + purchasedLevels;
+
+            actorChanges.system.characteristics[keyLower] = {
+                value: totalStartingPoints,
+                max: totalStartingPoints,
+            };
         }
 
+        // Trigger priority calculations over our point-inclusive payload to evaluate dependent formulas
         this._recalculateCharacteristicsByPriority(actorChanges.system.characteristics);
     }
 
     /**
      * Synchronously processes all 5e Figured and Calculated Characteristic priority matrices.
-     * Operates strictly as a database-staging helper during creation and updates.
+     * Safely extracts purchased point LEVELS to establish accurate database max states.
      * @param {object} targetChars - The characteristics data object to mutate inline
      */
     _recalculateCharacteristicsByPriority(targetChars) {
         const characteristicInfo = getCharacteristicInfoArrayForActor(this);
 
-        // High-Utility Lambda to identify both calculated and figured dependent stats
+        // High-Utility Lambda to identify calculated and figured dependent stats cleanly
         const isDependentCharacteristic = (info) => {
             const keyLower = info.key.toLowerCase();
             const characteristic = this.getCharacteristic(keyLower);
@@ -126,53 +148,58 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
                 const currentEntry = targetChars[keyLower] ?? {};
                 const isDependent = isDependentCharacteristic(info);
-                let baseValue = 0;
+                let calculatedMax;
 
                 if (isDependent) {
                     const baseInfo = characteristic.baseInfo;
+                    let rawCalculatedValue = null;
 
-                    try {
-                        let rawCalculatedValue = 0;
-                        if (baseInfo?.figured5eCharacteristic) {
-                            rawCalculatedValue = baseInfo.figured5eCharacteristic(this);
-                        } else if (baseInfo?.calculated5eCharacteristic) {
-                            rawCalculatedValue = baseInfo.calculated5eCharacteristic(this);
-                        } else {
-                            const currentDex = targetChars.dex?.max ?? targetChars.dex?.value ?? 0;
-                            rawCalculatedValue = ["ocv", "dcv"].includes(keyLower)
-                                ? currentDex / 3
-                                : (characteristic.base ?? 0);
-                        }
-
-                        if (keyLower === "spd") {
-                            baseValue = Number(Number(rawCalculatedValue).toFixed(1));
-                        } else {
-                            baseValue = Math.floor(rawCalculatedValue);
-                        }
-                    } catch (err) {
-                        const currentDex = targetChars.dex?.max ?? targetChars.dex?.value ?? 10;
-                        if (keyLower === "ocv" || keyLower === "dcv") {
-                            baseValue = Math.floor(currentDex / 3);
-                        } else if (keyLower === "spd") {
-                            baseValue = Number((1 + currentDex / 10).toFixed(1));
-                        } else {
-                            baseValue = characteristic.base ?? 0;
-                        }
+                    if (baseInfo?.figured5eCharacteristic) {
+                        rawCalculatedValue = baseInfo.figured5eCharacteristic(this);
+                    } else if (baseInfo?.calculated5eCharacteristic) {
+                        rawCalculatedValue = baseInfo.calculated5eCharacteristic(this);
+                    } else {
+                        const currentDex = Math.max(0, targetChars.dex?.max ?? targetChars.dex?.value ?? 0);
+                        rawCalculatedValue = ["ocv", "dcv"].includes(keyLower)
+                            ? currentDex / 3
+                            : (characteristic.base ?? 0);
                     }
 
-                    if (baseValue === 0 && characteristic.base !== undefined && characteristic.base > 0) {
-                        baseValue = characteristic.base;
+                    if (rawCalculatedValue !== null) {
+                        calculatedMax =
+                            keyLower === "spd"
+                                ? Number(Number(rawCalculatedValue).toFixed(1))
+                                : roundFavorPlayerAwayFromZero(rawCalculatedValue);
+                    } else {
+                        calculatedMax = characteristic.base ?? baseInfo?.base ?? 0;
+                    }
+
+                    if (calculatedMax === 0 && characteristic.base !== undefined && characteristic.base > 0) {
+                        calculatedMax = characteristic.base;
                     }
                 } else {
-                    baseValue = currentEntry.value ?? characteristic.base ?? 0;
-                    if (baseValue === 0 && characteristic.base !== undefined && characteristic.base > 0) {
-                        baseValue = characteristic.base;
-                    }
+                    // --- CORE LEVELS ALIGNMENT FIX ---
+                    // Dynamically locate any purchased levels across both raw payloads and the active document state.
+                    // This ensures HDC updates find the levels even when they aren't part of the direct characteristics block.
+                    const basePoints = characteristic.base ?? 0;
+                    const keyUpper = info.key.toUpperCase();
+
+                    const rawSystemNode = this.system?.[info.key] ?? this.system?.[keyUpper];
+                    const purchasedLevels = Number(rawSystemNode?.LEVELS ?? currentEntry.LEVELS ?? 0);
+
+                    calculatedMax = basePoints + purchasedLevels;
                 }
 
+                // Preserve existing resource pooling states (damage tracking shield)
+                let finalValueState = currentEntry.value;
+                if (finalValueState === undefined) {
+                    finalValueState = calculatedMax;
+                }
+
+                // Modify the target tracker payload inline
                 targetChars[keyLower] = {
-                    value: baseValue,
-                    max: currentEntry.max && currentEntry.max > baseValue ? currentEntry.max : baseValue,
+                    value: finalValueState,
+                    max: calculatedMax,
                 };
             }
 
@@ -217,10 +244,18 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
      * Processes dynamic 5e figured characteristics relationships in real-time.
      * Operates purely in transient memory over runtime proxies to inherit Active Effects.
      */
+    /**
+     * Processes active effects buffs and evaluates 5e figured tracking matrices in real-time.
+     * Strictly separates Calculated (cascading) and Figured (non-cascading) metrics per 5e rules.
+     */
+    /**
+     * Processes active effects buffs and evaluates 5e characteristic tracking matrices in real-time.
+     * Dynamically executes formula callbacks from config.mjs to keep the engine 100% DRY.
+     */
     prepareDerivedData() {
         super.prepareDerivedData();
 
-        // 1. Clear functional calculation caches first
+        // 1. Invalidate functional compilation caches first
         this._clearCachedObjectData();
 
         if (!this.system || !this.system.characteristics) return;
@@ -228,25 +263,34 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         this.composeMemoizableObjectFunction("analyzeEndurance");
         this.composeMemoizableObjectFunction("getActorCharacterAndActivePoints");
 
-        // 2. LIGHTWEIGHT ACTIVE EFFECTS PROPAGATION
-        // Foundry automatically overlays active effects on core Paths.
-        // We strictly re-evaluate the figured math ratios dynamically in memory.
+        // 2. DYNAMIC METADATA FORMULA PROPAGATION
         if (this.is5e) {
-            const chars = this.system.characteristics;
+            const characteristicInfo = getCharacteristicInfoArrayForActor(this);
 
-            if (chars.dex) {
-                const dexMax = chars.dex.max ?? 10;
-                if (chars.ocv) chars.ocv.max = Math.floor(dexMax / 3);
-                if (chars.dcv) chars.dcv.max = Math.floor(dexMax / 3);
-                if (chars.spd) chars.spd.max = 1 + Math.floor(dexMax / 10);
-            }
+            for (const info of characteristicInfo) {
+                const keyLower = info.key.toLowerCase();
+                const characteristic = this.getCharacteristic(keyLower);
+                if (!characteristic) continue;
 
-            if (chars.str) {
-                const strMax = chars.str.max ?? 10;
-                if (chars.pd) chars.pd.max = Math.floor(strMax / 5);
-                if (chars.rec) {
-                    const conVal = chars.con?.max ?? 10;
-                    chars.rec.max = Math.floor(strMax / 5) + Math.floor(conVal / 5);
+                const baseInfo = characteristic.baseInfo;
+                let calculatedValue = null;
+
+                // Extract the formula callback directly from your config.mjs metadata blueprints
+                if (baseInfo?.figured5eCharacteristic) {
+                    calculatedValue = baseInfo.figured5eCharacteristic(this);
+                } else if (baseInfo?.calculated5eCharacteristic) {
+                    calculatedValue = baseInfo.calculated5eCharacteristic(this);
+                }
+
+                // If a schema metadata formula is active, pipe it cleanly down to the runtime proxy
+                if (calculatedValue !== null) {
+                    // Enforce strict rules tracking: fractional float formatting for Speed,
+                    // and player-favorable rounding for combat/figured attributes.
+                    if (keyLower === "spd") {
+                        this.system.characteristics[keyLower].max = Number(Number(calculatedValue).toFixed(1));
+                    } else {
+                        this.system.characteristics[keyLower].max = roundFavorPlayerAwayFromZero(calculatedValue);
+                    }
                 }
             }
         }
@@ -317,15 +361,11 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const rawNode = this.system?.characteristics?.[characteristicName];
         if (!rawNode) return null;
 
-        // CORE LIFECYCLE BRIDGE: Only upscale if the incoming tracking node is an un-instantiated, uncommitted raw object literal
+        // Only upscale if the incoming tracking node is an un-instantiated, uncommitted raw object literal
         if (Object.getPrototypeOf(rawNode) === Object.prototype) {
             try {
-                // 1. Pass the parent schema context safely into the native constructor options payload block.
-                // This allows Foundry to map the structural relationship layout rules internally without throwing errors.
                 const coercedNode = new HeroActorCharacteristic(rawNode, { parent: this.system });
 
-                // 2. LINT-SAFE DESCRIPTOR BINDING: Use Object.defineProperty to bypass read-only proxy blocks.
-                // This injects explicit fallback pointers ensuring getters can find actor embedded item arrays.
                 Object.defineProperty(coercedNode, "parent", {
                     value: this.system,
                     writable: true,
@@ -333,8 +373,39 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                     enumerable: false,
                 });
 
+                // --- CRITICAL HDC UPLOAD LIFE-CYCLE FILTER SHIELD ---
+                // Instead of wrapping the execution inside a try/catch, we dynamically mock an actor wrapper
+                // with a filtered items collection to strip out half-parsed objects before getters execute.
+                const safeActorContext = Object.create(this);
+
+                if (this.items) {
+                    Object.defineProperty(safeActorContext, "items", {
+                        value: {
+                            filter: (callback) => {
+                                return this.items.filter((item) => {
+                                    const xmlid = item?.system?.XMLID ?? item?.XMLID;
+                                    if (!xmlid || typeof xmlid !== "string") return false; // Instantly drop un-hydrated inputs!
+                                    try {
+                                        return callback(item);
+                                    } catch {
+                                        return false;
+                                    }
+                                });
+                            },
+                            // Map standard collection shortcuts to protect underlying iteration paths
+                            [Symbol.iterator]: () => this.items[Symbol.iterator](),
+                            forEach: (cb) => this.items.forEach(cb),
+                            find: (cb) => this.items.find(cb),
+                            map: (cb) => this.items.map(cb),
+                        },
+                        writable: true,
+                        configurable: true,
+                        enumerable: false,
+                    });
+                }
+
                 Object.defineProperty(coercedNode, "actor", {
-                    value: this,
+                    value: safeActorContext,
                     writable: true,
                     configurable: true,
                     enumerable: false,
