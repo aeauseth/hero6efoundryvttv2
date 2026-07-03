@@ -416,6 +416,10 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
 
     #token;
 
+    // Fixed-position context menus are appended to document.body (via the popover API), not to this
+    // sheet's element, so ApplicationV2 teardown does not remove them. Track them to close on _onClose.
+    #contextMenus = [];
+
     get token() {
         return this.document.token ?? this.#token ?? tokenEducatedGuess({ actor: this.actor });
     }
@@ -826,20 +830,31 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         // Keep track of token; needed for linked actors
         this.#token = options.token ?? tokenEducatedGuess({ actor: this.actor });
 
-        // General right click on row
-        this._createContextMenu(this._getDocumentListContextOptions, "[data-document-uuid]", {
-            hookName: "getDocumentListContextOptions",
-            parentClassHooks: false,
-            fixed: true,
-        });
+        this.#contextMenus = [
+            // General right click on row
+            this._createContextMenu(this._getDocumentListContextOptions, "[data-document-uuid]", {
+                hookName: "getDocumentListContextOptions",
+                parentClassHooks: false,
+                fixed: true,
+            }),
 
-        // Same menu but for the specific vertical ellipsis control
-        this._createContextMenu(this._getDocumentListContextOptions, '[data-action="documentListContext"]', {
-            hookName: "getDocumentListContextOptions",
-            parentClassHooks: false,
-            fixed: true,
-            eventName: "click",
-        });
+            // Same menu but for the specific vertical ellipsis control
+            this._createContextMenu(this._getDocumentListContextOptions, '[data-action="documentListContext"]', {
+                hookName: "getDocumentListContextOptions",
+                parentClassHooks: false,
+                fixed: true,
+                eventName: "click",
+            }),
+        ];
+    }
+
+    _onClose(options) {
+        super._onClose(options);
+
+        // Fixed context menus live on document.body and survive sheet teardown; close them explicitly.
+        for (const menu of this.#contextMenus) {
+            if (menu?.element) menu.close({ animate: false });
+        }
     }
 
     _onRender(context, options) {

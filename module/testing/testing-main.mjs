@@ -1,24 +1,3 @@
-import { registerAutomatonTests } from "./testing-automaton.mjs";
-import { registerBaseTests } from "./testing-base.mjs";
-import { registerCslTests } from "./testing-csl.mjs";
-import { registerDamageFunctionTests } from "./testing-damage-functions.mjs";
-import { registerDefenseTests } from "./testing-defense.mjs";
-import { registerDiceTests } from "./testing-dice.mjs";
-import { registerEverythingLadLass } from "./testing-everything-lad-lass.mjs";
-import { registerFullTests } from "./testing-full.mjs";
-import { registerHeroMathTests } from "./testing-hero-math.mjs";
-import { registerManeuverTests } from "./testing-maneuvers.mjs";
-import { registerRequiresRollCheckTests } from "./testing-requires-roll-check.mjs";
-import { registerUploadTests } from "./testing-upload.mjs";
-import { registerVehicleTests } from "./testing-vehicles.mjs";
-import { registerCombatTests } from "./testing-combat-tracker.mjs";
-import { registerGlobalSetup, registerGlobalTeardown } from "./quench-helper.mjs";
-import { registerCombatWorkflowTests } from "./testing-combat-workflow.mjs";
-import { registerTypeForceReplaceTests } from "./testing-type-force-replace.mjs";
-import { registerStatusEffectTests } from "./testing-status-effects.mjs";
-import { register5eCalculatedActiveEffectAutomationTests } from "./testing-5e-calculated-active-effect.mjs";
-import { registerActorCharacteristicTests } from "./testing-default-characteristics.mjs";
-
 Hooks.once("ready", async function () {
     if (!game.modules.get("_dev-mode")?.active) {
         return;
@@ -34,6 +13,48 @@ Hooks.once("ready", async function () {
 });
 
 Hooks.on("quenchReady", async (quench) => {
+    // Only load the test suites once quench is ready so their code is never
+    // parsed or evaluated in worlds without quench installed and active.
+    const [
+        { registerAutomatonTests },
+        { registerBaseTests },
+        { registerCslTests },
+        { registerDamageFunctionTests },
+        { registerDefenseTests },
+        { registerDiceTests },
+        { registerEverythingLadLass },
+        { registerFullTests },
+        { registerHeroMathTests },
+        { registerManeuverTests },
+        { registerRequiresRollCheckTests },
+        { registerUploadTests },
+        { registerVehicleTests },
+        { registerCombatTests },
+        { registerGlobalSetup, registerGlobalTeardown },
+        { registerCombatWorkflowTests },
+        { registerTypeForceReplaceTests },
+        { registerStatusEffectTests },
+    ] = await Promise.all([
+        import("./testing-automaton.mjs"),
+        import("./testing-base.mjs"),
+        import("./testing-csl.mjs"),
+        import("./testing-damage-functions.mjs"),
+        import("./testing-defense.mjs"),
+        import("./testing-dice.mjs"),
+        import("./testing-everything-lad-lass.mjs"),
+        import("./testing-full.mjs"),
+        import("./testing-hero-math.mjs"),
+        import("./testing-maneuvers.mjs"),
+        import("./testing-requires-roll-check.mjs"),
+        import("./testing-upload.mjs"),
+        import("./testing-vehicles.mjs"),
+        import("./testing-combat-tracker.mjs"),
+        import("./quench-helper.mjs"),
+        import("./testing-combat-workflow.mjs"),
+        import("./testing-type-force-replace.mjs"),
+        import("./testing-status-effects.mjs"),
+    ]);
+
     registerGlobalSetup(quench);
 
     registerAutomatonTests(quench);

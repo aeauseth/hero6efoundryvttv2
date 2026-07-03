@@ -24,12 +24,18 @@
 
     .window-content {
         overflow-y: auto;
+        padding: 5px;
+    }
+
+    .sheet-footer button {
+        width: 100%;
+        height: auto;
     }
 
     div.description {
-        border: 1px solid var(--input-border-color);
-        background: var(--input-background-color);
-        color: var(--input-text-color);
+        color: var(--color-text-primary);
+        background: color-mix(in srgb, currentColor 8%, transparent);
+        border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
     }
 
     .multi-attack-options.target-container {
