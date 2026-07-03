@@ -1670,7 +1670,7 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
     }
 
     baseSumFiguredCharacteristicsNoRoundingFromItems(divisor) {
-        // Each item is rounded seperately
+        // Each item is rounded separately
         try {
             const powersWithThisCharacteristic = this.baseItemsContributingToFiguredCharacteristics;
             return powersWithThisCharacteristic.reduce((accumulator, currentItem) => {

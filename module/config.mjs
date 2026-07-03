@@ -1541,7 +1541,13 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         {
             key: "STUN",
             name: "Stun",
-            base: fixedValueFunction(20),
+            base: function (actor) {
+                if (actor.type === "automaton") {
+                    return 0;
+                }
+
+                return 20;
+            },
             costPerLevel: fixedValueFunction(1 / 2),
             type: ["characteristic"],
             behaviors: [],

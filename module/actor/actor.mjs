@@ -21,6 +21,7 @@ import {
     whisperUserTargetsForActor,
 } from "../utility/util.mjs";
 import { HeroSystem6eActorActiveEffects } from "./actor-active-effects.mjs";
+import { HeroActorCharacteristic } from "../item/HeroSystem6eTypeDataModels.mjs";
 
 // v13 compatibility
 const foundryVttRenderTemplate = foundry.applications?.handlebars?.renderTemplate || renderTemplate;
@@ -50,106 +51,134 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     /** @inheritdoc */
     // Pre-process a creation operation for a single Document instance.
     // Pre-operation events only occur for the client which requested the operation.
+    /**
+     * System level hook running before actor database persistence.
+     * Leverages the transient instance context to populate schema properties cleanly.
+     */
     async _preCreate(data, options, user) {
         await super._preCreate(data, options, user);
 
-        //TODO: Add user configuration for initial prototype settings
+        const actorChanges = {};
 
-        // Only updateSource when is5e is undefined or null.
-        // When is5e is defined then we are likely drag/drop to/drop a
-        // compendium and all this data already exists so don't overwrite.
-        if (this.system.is5e == undefined) {
-            HEROSYS.log(false, "_preCreate");
+        // Pass the transient in-memory instance context along with the tracking change payload
+        this._preparePreCreateCharacteristics(data, actorChanges);
 
-            const actorChanges = {};
-            actorChanges.prototypeToken = {
-                displayBars: CONST.TOKEN_DISPLAY_MODES.HOVER,
-                displayName: CONST.TOKEN_DISPLAY_MODES.HOVER,
-            };
+        // Merge the generated characteristic objects back into the master creation transaction payload
+        foundry.utils.mergeObject(data, actorChanges);
+    }
 
-            if (this.type !== "npc") {
-                actorChanges.prototypeToken.actorLink = true;
-                actorChanges.prototypeToken.disposition = CONST.TOKEN_DISPOSITIONS.FRIENDLY;
-                actorChanges.prototypeToken.displayBars = CONST.TOKEN_DISPLAY_MODES.ALWAYS;
-                actorChanges.prototypeToken.displayName = CONST.TOKEN_DISPLAY_MODES.HOVER;
-            }
-
-            // Enable vision
-            actorChanges.prototypeToken.sight = {
-                enabled: true,
-            };
-
-            const is5e =
-                options.is5e != undefined
-                    ? options.is5e
-                    : game.settings.get(HEROSYS.module, "DefaultEdition") === "five"
-                      ? true
-                      : false;
-
-            // Set XMLID for characteristics
-            // Used with conditional defenses, also for future baseInfo calls
-            actorChanges.system = {};
-            for (const key of Object.keys(this.system).filter((o) => o.match(/[A-Z]/))) {
-                const char = this.system[key];
-                if (char instanceof HeroItemCharacteristic && !char.XMLID) {
-                    actorChanges.system[key] = {};
-                    actorChanges.system[key].XMLID = key;
-                    actorChanges.system[key].xmlTag = key;
-                }
-            }
-
-            actorChanges.system.versionHeroSystem6eCreated = game.system.version;
-            actorChanges.system.is5e = is5e;
-
-            actorChanges.flags = {
-                [game.system.id]: {
-                    file: {
-                        lastModifiedDate: Date.now(),
-                        uploadedBy: user.name,
-                        name: `[FoundryVTT actor]`,
-                    },
-                },
-            };
-
-            // Characteristic defaults (if undefined)
-            for (const charBaseInfo of getCharacteristicInfoArrayForActor(this)) {
-                const base = this.getCharacteristic(charBaseInfo.key.toLowerCase())?.base || 0;
-
-                // FIXME: CHARACTERISTICS AS ITEMS: Needs to be reworked
-                actorChanges.system.characteristics ??= {};
-                if (data.system?.characteristics[charBaseInfo.key.toLowerCase()]?.value == undefined) {
-                    actorChanges.system.characteristics[charBaseInfo.key.toLowerCase()] = {
-                        value: base,
-                        max: base,
-                    };
-                }
-            }
-
-            this.updateSource(actorChanges);
-
-            // Create free stuff unless this is specifically for a quench create
-            if (!options.quenchCreate) {
-                await this.addFreeStuff();
-            }
-
-            // REF: https://foundryvtt.wiki/en/development/api/document _preCreate
-            // Careful: toObject only returns system props that are part of schema
-            // so we merge in the entire system
-            // Also need to use force replace ==items for this to work in v13
-            const items = this.items.map((i) => ({ ...i.toObject(), system: i.system }));
-            if (HeroCompatibility.isV14) {
-                this.updateSource({
-                    items: foundry.data.operators.ForcedReplacement.create(items),
-                });
-            } else {
-                this.updateSource({
-                    [`==items`]: items,
-                });
+    _preparePreCreateCharacteristics(data, actorChanges) {
+        for (const [key, char] of Object.entries(this.system)) {
+            if (key.match(/[A-Z]/) && char instanceof HeroItemCharacteristic && !char.XMLID) {
+                actorChanges.system ??= {};
+                actorChanges.system[key] = { XMLID: key, xmlTag: key };
             }
         }
 
-        // For debugging purposes
-        window.actor = this;
+        actorChanges.system ??= {};
+        actorChanges.system.characteristics ??= {};
+        const payloadChars = data.system?.characteristics ?? {};
+        const characteristicInfo = getCharacteristicInfoArrayForActor(this);
+
+        for (const info of characteristicInfo) {
+            const keyLower = info.key.toLowerCase();
+            if (payloadChars[keyLower]?.value !== undefined) continue;
+
+            const characteristic = this.getCharacteristic(keyLower);
+            const basePoints = characteristic?.base ?? characteristic?.baseInfo?.base ?? 0;
+
+            actorChanges.system.characteristics[keyLower] = { value: basePoints, max: basePoints };
+        }
+
+        this._recalculateCharacteristicsByPriority(actorChanges.system.characteristics);
+    }
+
+    /**
+     * Synchronously processes all 5e Figured and Calculated Characteristic priority matrices.
+     * Operates strictly as a database-staging helper during creation and updates.
+     * @param {object} targetChars - The characteristics data object to mutate inline
+     */
+    _recalculateCharacteristicsByPriority(targetChars) {
+        const characteristicInfo = getCharacteristicInfoArrayForActor(this);
+
+        // High-Utility Lambda to identify both calculated and figured dependent stats
+        const isDependentCharacteristic = (info) => {
+            const keyLower = info.key.toLowerCase();
+            const characteristic = this.getCharacteristic(keyLower);
+
+            const hasCalculatedFormula = !!characteristic?.baseInfo?.calculated5eCharacteristic;
+            const hasFiguredFormula = !!characteristic?.baseInfo?.figured5eCharacteristic;
+            const isCombatOrMovementTrack = ["ocv", "dcv", "leaping", "running", "swimming"].includes(keyLower);
+
+            return this.is5e && (hasCalculatedFormula || hasFiguredFormula || isCombatOrMovementTrack);
+        };
+
+        const executionPasses = [
+            characteristicInfo.filter((info) => !isDependentCharacteristic(info)), // Pass 1: Primaries / Baseline
+            characteristicInfo.filter((info) => isDependentCharacteristic(info)), // Pass 2: Figured & Calculated Dependencies
+        ];
+
+        for (const infoList of executionPasses) {
+            for (const info of infoList) {
+                const keyLower = info.key.toLowerCase();
+                const characteristic = this.getCharacteristic(keyLower);
+                if (!characteristic) continue;
+
+                const currentEntry = targetChars[keyLower] ?? {};
+                const isDependent = isDependentCharacteristic(info);
+                let baseValue = 0;
+
+                if (isDependent) {
+                    const baseInfo = characteristic.baseInfo;
+
+                    try {
+                        let rawCalculatedValue = 0;
+                        if (baseInfo?.figured5eCharacteristic) {
+                            rawCalculatedValue = baseInfo.figured5eCharacteristic(this);
+                        } else if (baseInfo?.calculated5eCharacteristic) {
+                            rawCalculatedValue = baseInfo.calculated5eCharacteristic(this);
+                        } else {
+                            const currentDex = targetChars.dex?.max ?? targetChars.dex?.value ?? 0;
+                            rawCalculatedValue = ["ocv", "dcv"].includes(keyLower)
+                                ? currentDex / 3
+                                : (characteristic.base ?? 0);
+                        }
+
+                        if (keyLower === "spd") {
+                            baseValue = Number(Number(rawCalculatedValue).toFixed(1));
+                        } else {
+                            baseValue = Math.floor(rawCalculatedValue);
+                        }
+                    } catch (err) {
+                        const currentDex = targetChars.dex?.max ?? targetChars.dex?.value ?? 10;
+                        if (keyLower === "ocv" || keyLower === "dcv") {
+                            baseValue = Math.floor(currentDex / 3);
+                        } else if (keyLower === "spd") {
+                            baseValue = Number((1 + currentDex / 10).toFixed(1));
+                        } else {
+                            baseValue = characteristic.base ?? 0;
+                        }
+                    }
+
+                    if (baseValue === 0 && characteristic.base !== undefined && characteristic.base > 0) {
+                        baseValue = characteristic.base;
+                    }
+                } else {
+                    baseValue = currentEntry.value ?? characteristic.base ?? 0;
+                    if (baseValue === 0 && characteristic.base !== undefined && characteristic.base > 0) {
+                        baseValue = characteristic.base;
+                    }
+                }
+
+                targetChars[keyLower] = {
+                    value: baseValue,
+                    max: currentEntry.max && currentEntry.max > baseValue ? currentEntry.max : baseValue,
+                };
+            }
+
+            // Synchronize properties to the transient document context mid-pass
+            this.updateSource({ system: { characteristics: targetChars } });
+        }
     }
 
     // Post-process a creation operation for a single Document instance. Post-operation events occur for all connected clients.
@@ -185,20 +214,42 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     /**
-     * Apply transformations or derivations to the values of the source data object.
-     * Compute data fields whose values are not stored to the database.
-     *
-     * If possible when modifying the `system` object you should use
-     * {@link foundry.abstract.TypeDataModel.prepareDerivedData | TypeDataModel#prepareDerivedData} on your data models
-     * instead of this method directly on the document.
+     * Processes dynamic 5e figured characteristics relationships in real-time.
+     * Operates purely in transient memory over runtime proxies to inherit Active Effects.
      */
     prepareDerivedData() {
         super.prepareDerivedData();
 
+        // 1. Clear functional calculation caches first
         this._clearCachedObjectData();
+
+        if (!this.system || !this.system.characteristics) return;
 
         this.composeMemoizableObjectFunction("analyzeEndurance");
         this.composeMemoizableObjectFunction("getActorCharacterAndActivePoints");
+
+        // 2. LIGHTWEIGHT ACTIVE EFFECTS PROPAGATION
+        // Foundry automatically overlays active effects on core Paths.
+        // We strictly re-evaluate the figured math ratios dynamically in memory.
+        if (this.is5e) {
+            const chars = this.system.characteristics;
+
+            if (chars.dex) {
+                const dexMax = chars.dex.max ?? 10;
+                if (chars.ocv) chars.ocv.max = Math.floor(dexMax / 3);
+                if (chars.dcv) chars.dcv.max = Math.floor(dexMax / 3);
+                if (chars.spd) chars.spd.max = 1 + Math.floor(dexMax / 10);
+            }
+
+            if (chars.str) {
+                const strMax = chars.str.max ?? 10;
+                if (chars.pd) chars.pd.max = Math.floor(strMax / 5);
+                if (chars.rec) {
+                    const conVal = chars.con?.max ?? 10;
+                    chars.rec.max = Math.floor(strMax / 5) + Math.floor(conVal / 5);
+                }
+            }
+        }
     }
 
     /**
@@ -211,18 +262,94 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     /**
+     * Synchronously pools and separates rounding points for characteristic modifiers
+     * purchased via embedded power items to satisfy strict 5e system rules rules.
+     * @param {string} characteristicName - Target layout property key (e.g., 'str', 'dex')
+     * @param {number} [divisor=5] - Base rounding threshold coefficient
+     * @returns {number} Separately rounded integer value contribution from items
+     */
+    baseSumFiguredCharacteristicsFromItems(characteristicName, divisor = 5) {
+        if (!this.items) return 0;
+
+        const keyUpper = characteristicName.toUpperCase();
+
+        // Filter embedded power sheets contributing to this characteristic layout track
+        const contributingPowers = this.items.filter((item) => {
+            const itemXmlid = item?.system?.XMLID ?? item?.XMLID;
+            if (!itemXmlid || typeof itemXmlid !== "string") return false;
+
+            const affectsThisChar =
+                itemXmlid === keyUpper ||
+                item.system?.CHARACTERISTIC === keyUpper ||
+                item.system?.CHARACTERISTIC2 === keyUpper;
+
+            return affectsThisChar && (item.type === "power" || item.system?.AFFECTS_PRIMARY);
+        });
+
+        // Enforce 5e Separate Rounding: Aggregate raw levels before dividing
+        let totalLevelsFromItems = 0;
+        for (const powerItem of contributingPowers) {
+            totalLevelsFromItems += powerItem.system?.LEVELS ?? 0;
+        }
+
+        if (totalLevelsFromItems === 0) return 0;
+
+        // Apply rounding behavior away from zero to favor the player
+        if (typeof roundFavorPlayerAwayFromZero === "function") {
+            return roundFavorPlayerAwayFromZero(totalLevelsFromItems / divisor);
+        }
+        return Math.floor(totalLevelsFromItems / divisor);
+    }
+
+    /**
+     * Retrieves a characteristic node by name, cleanly upscaling uncommitted
+     * plain data object literals into full DataModel class instances.
      * WARNING: This is a method reflecting the old way of doing things. It is being created to funnel all characteristics access away from
-     *          direct property access. This will be turned into a more expensive function. As well, the concepts of value, max, etc may well go away
-     *          when characteristics are items.
+     * direct property access. This will be turned into a more expensive function. As well, the concepts of value, max, etc may well go away
+     * when characteristics are items.
      *
      * Get the characteristic structure.
      *
-     * @param {String} characteristicName
-     *
-     * @returns
+     * @param {string} characteristicName - Target property layout key
+     * @returns {HeroActorCharacteristic|object|null} Fully-hydrated characteristic instance or node
      */
     getCharacteristic(characteristicName) {
-        return this.system.characteristics[characteristicName];
+        const rawNode = this.system?.characteristics?.[characteristicName];
+        if (!rawNode) return null;
+
+        // CORE LIFECYCLE BRIDGE: Only upscale if the incoming tracking node is an un-instantiated, uncommitted raw object literal
+        if (Object.getPrototypeOf(rawNode) === Object.prototype) {
+            try {
+                // 1. Pass the parent schema context safely into the native constructor options payload block.
+                // This allows Foundry to map the structural relationship layout rules internally without throwing errors.
+                const coercedNode = new HeroActorCharacteristic(rawNode, { parent: this.system });
+
+                // 2. LINT-SAFE DESCRIPTOR BINDING: Use Object.defineProperty to bypass read-only proxy blocks.
+                // This injects explicit fallback pointers ensuring getters can find actor embedded item arrays.
+                Object.defineProperty(coercedNode, "parent", {
+                    value: this.system,
+                    writable: true,
+                    configurable: true,
+                    enumerable: false,
+                });
+
+                Object.defineProperty(coercedNode, "actor", {
+                    value: this,
+                    writable: true,
+                    configurable: true,
+                    enumerable: false,
+                });
+
+                return coercedNode;
+            } catch (err) {
+                console.warn(
+                    `[HERO BRIDGE] Failed to upscale raw characteristics data block for: ${characteristicName}`,
+                    err,
+                );
+            }
+        }
+
+        return rawNode;
     }
 
     /**
@@ -537,37 +664,44 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
         // BOTH 5e and 6e vehicles must process size calculations!
         if ((systemData.characteristics && "size" in systemData.characteristics) || this.type === "vehicle") {
-            if (typeof this.applySizeEffect === "function") {
-                await this.applySizeEffect(changed, options, userId);
-            }
+            await this.applySizeEffect(changed, options, userId);
         }
 
         // Keep the dedicated 5e overrides framework running right alongside it
         if (is5e) {
-            if (typeof this._apply5eCalculatedCharacteristics === "function") {
-                await this._apply5eCalculatedCharacteristics(changed, options, userId);
+            const changedChars = changed.system?.characteristics;
+            if (changedChars) {
+                const primaryKeys = ["str", "dex", "con", "int", "ego", "pre", "body"];
+                const containsPrimaryUpdate = Object.keys(changedChars).some((key) =>
+                    primaryKeys.includes(key.toLowerCase()),
+                );
+
+                if (containsPrimaryUpdate) {
+                    const tempState = foundry.utils.deepClone(this.system.characteristics ?? {});
+                    foundry.utils.mergeObject(tempState, changedChars);
+
+                    // Run our pure database-isolated calculator directly over the scratchpad
+                    this._recalculateCharacteristicsByPriority(tempState);
+
+                    // Pack back into the transactional payload accumulator object
+                    changed.system.characteristics = tempState;
+                }
             }
         }
 
         // Inventory weight and carrying capacity corrections
         if ("items" in changed || systemData.characteristics) {
-            if (typeof this.applyEncumbrancePenalty === "function") {
-                await this.applyEncumbrancePenalty(changed, options, userId);
-            }
+            await this.applyEncumbrancePenalty(changed, options, userId);
         }
 
         // Healing processing
         if ("system" in changed) {
-            if (typeof this.setNaturalHealing === "function") {
-                await this.setNaturalHealing(changed, options, userId);
-            }
+            await this.setNaturalHealing(changed, options, userId);
         }
 
         // System Configuration Toggles
         if (systemData.toggles) {
-            if (typeof this._handleSystemToggles === "function") {
-                await this._handleSystemToggles(changed, options, userId);
-            }
+            await this._handleSystemToggles(changed, options, userId);
         }
 
         // =========================================================================
@@ -603,23 +737,13 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 // and shifts the texture tint smoothly between KO_DEFAULT_TINT and KO_COMBAT_TINT
                 await this.toggleStatusEffect("knockedOut", { active: true, overlay: true, changed });
             }
-
-            // RULE D: Toggle Combat Tracker Defeated status if actor drops to or below 0
-            if (typeof this._setCombatTrackerDefeatedStatus === "function") {
-                if (nextStun <= 0) {
-                    await this._setCombatTrackerDefeatedStatus(true);
-                } else if (currentStun <= 0 && nextStun > 0) {
-                    await this._setCombatTrackerDefeatedStatus(false);
-                }
-            }
         }
 
         // =========================================================================
         // 3. SCROLLING METADATA BUS (Packed into options for multi-client broadcast)
         // =========================================================================
         options.displayScrollingChanges = [];
-        let chatContent = "";
-
+        const chatLines = [];
         const showChangesSetting = game.settings.get(game.system.id, "ShowCombatCharacteristicChanges");
         const processScrolling = showChangesSetting === "all" || (showChangesSetting === "pc" && this.type === "pc");
 
@@ -629,7 +753,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 const curStun = this.getCharacteristic("stun")?.value || 0;
                 const targetStun = changed.system.characteristics.stun.value;
                 if (curStun !== targetStun) {
-                    chatContent += `STUN from ${curStun} to ${targetStun}`;
+                    chatLines.push(`STUN from ${curStun} to ${targetStun}`);
                     options.displayScrollingChanges.push({
                         value: targetStun - curStun,
                         options: { max: this.getCharacteristic("stun")?.max || 0, fill: "0x00FF00" },
@@ -642,8 +766,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 const curBody = this.getCharacteristic("body")?.value || 0;
                 const targetBody = changed.system.characteristics.body.value;
                 if (curBody !== targetBody) {
-                    if (chatContent.length > 0) chatContent += "<br>";
-                    chatContent += `BODY from ${curBody} to ${targetBody}`;
+                    chatLines.push(`BODY from ${curBody} to ${targetBody}`);
                     options.displayScrollingChanges.push({
                         value: targetBody - curBody,
                         options: { max: this.getCharacteristic("body")?.max || 0, fill: "0xFF1111" },
@@ -656,6 +779,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         if (options.hideChatMessage || !options.render) return true;
 
         // Post Damage Output Messages
+        const chatContent = chatLines.join("<br>");
         if (!options.quenchCreate && chatContent) {
             ChatMessage.create({
                 author: game.user.id,
@@ -676,7 +800,6 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             const speaker = ChatMessage.getSpeaker({ actor: this, token });
             const tokenName = token?.name || this.name;
             speaker["alias"] = game.user.name;
-
             const identityContent = `<b>${tokenName}</b> ${changed.system.heroicIdentity ? "entered" : "left"} their heroic identity.`;
             ChatMessage.create({
                 style: CONFIG.HERO.CHAT_MESSAGE_DEFAULT_STYLE,
@@ -753,7 +876,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     // Check for any figuredCharacteristic dependencies of the changedCharKey.
-    async updateFiguredCharacteristicDependencies(changedCharKey) {
+    async __depricated_updateFiguredCharacteristicDependencies(changedCharKey) {
         const _getCharacteristicInfoArrayForActor = getCharacteristicInfoArrayForActor(this);
         for (const charPowerInfo of _getCharacteristicInfoArrayForActor.filter((o) =>
             o.behaviors.includes(`figured${changedCharKey.toUpperCase()}`),
@@ -1984,7 +2107,8 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     hasCharacteristic(characteristic) {
         // If the actor has the baseInfo and it shouldn't be ignored for this actor type, we have the characteristic
         // otherwise we don't
-        const doesNotHaveCharacteristic = this.system[characteristic]?.baseInfo?.ignoreForActor(this) ?? true;
+        const doesNotHaveCharacteristic =
+            this.system[characteristic.toUpperCase()]?.baseInfo?.ignoreForActor(this) ?? true;
         return !doesNotHaveCharacteristic;
     }
 
