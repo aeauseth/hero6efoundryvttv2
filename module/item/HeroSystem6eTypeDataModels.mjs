@@ -1787,6 +1787,9 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
     get baseInfo() {
         // cache getPowerInfo
         const key = this.schema.name?.toUpperCase();
+        if (!key) {
+            console.error(`Unable to determine KEY for characteristic in datamodel`);
+        }
         this.#baseInfo ??= getPowerInfo({ XMLID: key, actor: this.actor, xmlTag: key });
         return this.#baseInfo;
     }

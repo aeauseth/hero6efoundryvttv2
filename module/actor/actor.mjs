@@ -21,7 +21,6 @@ import {
     whisperUserTargetsForActor,
 } from "../utility/util.mjs";
 import { HeroSystem6eActorActiveEffects } from "./actor-active-effects.mjs";
-import { HeroActorCharacteristic } from "../item/HeroSystem6eTypeDataModels.mjs";
 
 // v13 compatibility
 const foundryVttRenderTemplate = foundry.applications?.handlebars?.renderTemplate || renderTemplate;
@@ -117,13 +116,13 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
     /**
      * Synchronously processes all 5e Figured and Calculated Characteristic priority matrices.
-     * Safely extracts purchased point LEVELS to establish accurate database max states.
+     * Operates strictly as a database-staging helper during creation and updates.
      * @param {object} targetChars - The characteristics data object to mutate inline
      */
     _recalculateCharacteristicsByPriority(targetChars) {
         const characteristicInfo = getCharacteristicInfoArrayForActor(this);
 
-        // High-Utility Lambda to identify calculated and figured dependent stats cleanly
+        // High-Utility Lambda to identify both calculated and figured dependent stats cleanly
         const isDependentCharacteristic = (info) => {
             const keyLower = info.key.toLowerCase();
             const characteristic = this.getCharacteristic(keyLower);
@@ -135,6 +134,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             return this.is5e && (hasCalculatedFormula || hasFiguredFormula || isCombatOrMovementTrack);
         };
 
+        // Group metrics dynamically based on our single source of truth priority criteria
         const executionPasses = [
             characteristicInfo.filter((info) => !isDependentCharacteristic(info)), // Pass 1: Primaries / Baseline
             characteristicInfo.filter((info) => isDependentCharacteristic(info)), // Pass 2: Figured & Calculated Dependencies
@@ -148,12 +148,13 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
                 const currentEntry = targetChars[keyLower] ?? {};
                 const isDependent = isDependentCharacteristic(info);
-                let calculatedMax;
+                let baseValue;
 
                 if (isDependent) {
                     const baseInfo = characteristic.baseInfo;
-                    let rawCalculatedValue = null;
+                    let rawCalculatedValue;
 
+                    // DYNAMIC DRY PASS: Extract formula results cleanly using our un-initialized variable
                     if (baseInfo?.figured5eCharacteristic) {
                         rawCalculatedValue = baseInfo.figured5eCharacteristic(this);
                     } else if (baseInfo?.calculated5eCharacteristic) {
@@ -165,41 +166,41 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                             : (characteristic.base ?? 0);
                     }
 
-                    if (rawCalculatedValue !== null) {
-                        calculatedMax =
-                            keyLower === "spd"
-                                ? Number(Number(rawCalculatedValue).toFixed(1))
-                                : roundFavorPlayerAwayFromZero(rawCalculatedValue);
+                    // Format the outputs relative to 5e rules ruleset parameters
+                    if (keyLower === "spd") {
+                        baseValue = Number(Number(rawCalculatedValue).toFixed(1));
                     } else {
-                        calculatedMax = characteristic.base ?? baseInfo?.base ?? 0;
+                        baseValue = roundFavorPlayerAwayFromZero(rawCalculatedValue);
                     }
 
-                    if (calculatedMax === 0 && characteristic.base !== undefined && characteristic.base > 0) {
-                        calculatedMax = characteristic.base;
+                    // Seed configuration starting points if uncommitted structures evaluate to 0
+                    if (baseValue === 0 && characteristic.base !== undefined && characteristic.base > 0) {
+                        baseValue = characteristic.base;
                     }
                 } else {
-                    // --- CORE LEVELS ALIGNMENT FIX ---
-                    // Dynamically locate any purchased levels across both raw payloads and the active document state.
-                    // This ensures HDC updates find the levels even when they aren't part of the direct characteristics block.
+                    // Dynamically track purchased levels across both raw update payloads and active document tracks
                     const basePoints = characteristic.base ?? 0;
                     const keyUpper = info.key.toUpperCase();
 
                     const rawSystemNode = this.system?.[info.key] ?? this.system?.[keyUpper];
                     const purchasedLevels = Number(rawSystemNode?.LEVELS ?? currentEntry.LEVELS ?? 0);
 
-                    calculatedMax = basePoints + purchasedLevels;
+                    baseValue = currentEntry.value ?? basePoints + purchasedLevels;
+                    if (baseValue === 0 && basePoints > 0) {
+                        baseValue = basePoints + purchasedLevels;
+                    }
                 }
 
                 // Preserve existing resource pooling states (damage tracking shield)
                 let finalValueState = currentEntry.value;
                 if (finalValueState === undefined) {
-                    finalValueState = calculatedMax;
+                    finalValueState = baseValue;
                 }
 
-                // Modify the target tracker payload inline
+                // Modify the target tracker payload object inline
                 targetChars[keyLower] = {
                     value: finalValueState,
-                    max: calculatedMax,
+                    max: baseValue,
                 };
             }
 
@@ -346,8 +347,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     /**
-     * Retrieves a characteristic node by name, cleanly upscaling uncommitted
-     * plain data object literals into full DataModel class instances.
+     * Retrieves a characteristic node by name from the system characteristics storage layer.
      * WARNING: This is a method reflecting the old way of doing things. It is being created to funnel all characteristics access away from
      * direct property access. This will be turned into a more expensive function. As well, the concepts of value, max, etc may well go away
      * when characteristics are items.
@@ -355,72 +355,11 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
      * Get the characteristic structure.
      *
      * @param {string} characteristicName - Target property layout key
-     * @returns {HeroActorCharacteristic|object|null} Fully-hydrated characteristic instance or node
+     * @returns {object|null} The underlying characteristic node structure
      */
     getCharacteristic(characteristicName) {
-        const rawNode = this.system?.characteristics?.[characteristicName];
-        if (!rawNode) return null;
-
-        // Only upscale if the incoming tracking node is an un-instantiated, uncommitted raw object literal
-        if (Object.getPrototypeOf(rawNode) === Object.prototype) {
-            try {
-                const coercedNode = new HeroActorCharacteristic(rawNode, { parent: this.system });
-
-                Object.defineProperty(coercedNode, "parent", {
-                    value: this.system,
-                    writable: true,
-                    configurable: true,
-                    enumerable: false,
-                });
-
-                // --- CRITICAL HDC UPLOAD LIFE-CYCLE FILTER SHIELD ---
-                // Instead of wrapping the execution inside a try/catch, we dynamically mock an actor wrapper
-                // with a filtered items collection to strip out half-parsed objects before getters execute.
-                const safeActorContext = Object.create(this);
-
-                if (this.items) {
-                    Object.defineProperty(safeActorContext, "items", {
-                        value: {
-                            filter: (callback) => {
-                                return this.items.filter((item) => {
-                                    const xmlid = item?.system?.XMLID ?? item?.XMLID;
-                                    if (!xmlid || typeof xmlid !== "string") return false; // Instantly drop un-hydrated inputs!
-                                    try {
-                                        return callback(item);
-                                    } catch {
-                                        return false;
-                                    }
-                                });
-                            },
-                            // Map standard collection shortcuts to protect underlying iteration paths
-                            [Symbol.iterator]: () => this.items[Symbol.iterator](),
-                            forEach: (cb) => this.items.forEach(cb),
-                            find: (cb) => this.items.find(cb),
-                            map: (cb) => this.items.map(cb),
-                        },
-                        writable: true,
-                        configurable: true,
-                        enumerable: false,
-                    });
-                }
-
-                Object.defineProperty(coercedNode, "actor", {
-                    value: safeActorContext,
-                    writable: true,
-                    configurable: true,
-                    enumerable: false,
-                });
-
-                return coercedNode;
-            } catch (err) {
-                console.warn(
-                    `[HERO BRIDGE] Failed to upscale raw characteristics data block for: ${characteristicName}`,
-                    err,
-                );
-            }
-        }
-
-        return rawNode;
+        if (!characteristicName) return null;
+        return this.system?.characteristics?.[characteristicName.toLowerCase()] ?? null;
     }
 
     /**
