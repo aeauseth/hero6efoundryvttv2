@@ -23,13 +23,12 @@
                     >
                 </td>
 
-                {{!-- max --}}
+                {{!-- max: derived from base + levels + effects, so never editable directly --}}
                 <td data-tooltip="{{{characteristic.maxTitle}}}"
                     class="{{#if characteristic.maxTitle}}characteristic-locked{{/if}}">
-                    <input name="system.characteristics.{{characteristic.key}}.max" type="number"
-                        class="{{#if (gt characteristic.max characteristic.basePlusLevels)}}over-max{{/if}}{{#if (lt characteristic.max characteristic.basePlusLevels)}}under-max{{/if}}"
-                        value="{{characteristic.max}}" data-dtype="Number" {{#if
-                        characteristic.maxTitle}}disabled{{/if}}>
+                    <input type="number"
+                        class="{{#if (gt characteristic.max characteristic.expectedMax)}}over-max{{/if}}{{#if (lt characteristic.max characteristic.expectedMax)}}under-max{{/if}}"
+                        value="{{characteristic.max}}" data-dtype="Number" disabled>
                 </td>
 
                 {{!-- base --}}
@@ -43,8 +42,8 @@
                 <td>
                     {{#unless (eq characteristic.base null)}}
                     <input name="system.{{characteristic.KEY}}.LEVELS" type="number"
-                        value="{{characteristic.levels}}" data-dtype="Number" 
-                        {{#if (and (eq @root/system.is5e true) (includes characteristic.baseInfo.behaviors "calculated"))}}disabled{{/if}}>
+                        value="{{characteristic.levels}}" data-dtype="Number"
+                        {{#if characteristic.levelsLocked}}disabled{{/if}}>
                     {{/unless}}
                 </td>
 

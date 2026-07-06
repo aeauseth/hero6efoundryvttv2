@@ -80,7 +80,7 @@ export async function deleteQuenchActor({ quench, actor }) {
 
 export function registerGlobalSetup(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.a.global-setup",
+        `${game.system.id}.a.global-setup`,
         (context) => {
             const { describe, it } = context;
 
@@ -101,7 +101,7 @@ export function registerGlobalSetup(quench) {
 
 export function registerGlobalTeardown(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.z.global-teardown", // Use a unique key for your module.
+        `${game.system.id}.z.global-teardown`, // Use a unique key for your module.
         (context) => {
             const { describe, it } = context;
 
@@ -150,54 +150,60 @@ export async function waitForTokenDrawn(tokenDoc, timeoutMs = 5000) {
     return tokenDoc.object ?? canvas.tokens?.get(tokenDoc.id) ?? null;
 }
 
+/**
+ * Waits for a specific DOM element to render within a Foundry chat card message.
+ * Prioritizes thread-safe performance by cleaning up background tasks immediately upon settling.
+ *
+ * @param {string} elementSelector - The CSS selector string to query (e.g., ".apply-adjustment-card").
+ * @param {number} [timeoutMs=1000] - Hard fallback constraint before intentional rejection.
+ * @returns {Promise<Object>} Resolves to an object containing the chat message document and the found DOM node.
+ */
 export async function waitForElementInChat(elementSelector, timeoutMs = 1000) {
-    let messageHookId;
+    let messageHookId = null;
+    let executionTimerId = null;
 
-    // During quench test the chat message queue might get long.
-    // Let is clear before starting.
+    // Clear any existing chat rendering backlog to protect Quench execution time limits
     const isQueueActive = () => {
         const queueLength = ui.chat._renderQueue?.length || ui.chat._pending?.length || ui.chat._batch?.length || 0;
         return queueLength > 0;
     };
 
-    let counter = 500; // 500 * 10 = 5 seconds
+    let counter = 500; // 500 * 10ms = 5 seconds maximum backlog buffer clearance
     while (isQueueActive() && counter-- > 0) {
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
-    // 1. Monitored DOM paint tracking
-    const renderChatHookPromise = new Promise((resolve) => {
-        messageHookId = Hooks.on("renderChatMessageHTML", (chatMessage, cardHtmlElement) => {
-            const foundElement = cardHtmlElement.querySelector(elementSelector);
+    // Unified Race Pipeline
+    return Promise.race([
+        // Pipeline Branch A: Monitored DOM paint tracking
+        new Promise((resolve) => {
+            messageHookId = Hooks.on("renderChatMessageHTML", (chatMessage, cardHtmlElement) => {
+                const foundElement = cardHtmlElement.querySelector(elementSelector);
 
-            // Fix: querySelector returns a single node, not an array. Check for existence, not length.
-            if (foundElement) {
-                Hooks.off("renderChatMessageHTML", messageHookId);
+                if (foundElement) {
+                    // Clean up the companion timeout task and the hook listener immediately on success
+                    if (executionTimerId) clearTimeout(executionTimerId);
+                    Hooks.off("renderChatMessageHTML", messageHookId);
 
-                // Frame 1: Yield the current execution thread
-                requestAnimationFrame(() => {
-                    // Frame 2: Execute right before the next screen repaint
+                    // Yield execution thread frames to guarantee the browser has drawn the layout
                     requestAnimationFrame(() => {
-                        resolve({
-                            chatMessage,
-                            foundElement,
+                        requestAnimationFrame(() => {
+                            resolve({ chatMessage, foundElement });
                         });
                     });
-                });
-            }
-        });
-    });
+                }
+            });
+        }),
 
-    // 2. Fallback execution safety net
-    const executionTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-            Hooks.off("renderChatMessageHTML", messageHookId);
-            reject(new Error(`Timeout: Target element "${elementSelector}" did not render within ${timeoutMs}ms.`));
-        }, timeoutMs);
-    });
-
-    // 3. Race conditions
-    return Promise.race([renderChatHookPromise, executionTimeoutPromise]);
+        // Pipeline Branch B: Fallback execution safety net
+        new Promise((_, reject) => {
+            executionTimerId = setTimeout(() => {
+                // CRITICAL PROTECTION: Cleanly prune the listener if the timeout races first
+                Hooks.off("renderChatMessageHTML", messageHookId);
+                reject(new Error(`Timeout: Target element "${elementSelector}" did not render within ${timeoutMs}ms.`));
+            }, timeoutMs);
+        }),
+    ]);
 }
 
 /**

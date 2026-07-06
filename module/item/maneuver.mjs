@@ -376,6 +376,21 @@ export async function activateManeuver(item) {
         foundry.utils.getProperty(activeEffect, HeroCompatibility.isV14 ? `system.changes` : `changes`) ?? [];
 
     if (activeEffect.name && _changes.length > 0) {
+        // There is no need to keep track of OCV/DCV changes when not in combat
+        if (item.actor) {
+            if (item.actor.inCombat === false) {
+                return ui.notifications.info(
+                    `${item.name} effects were not automated because ${item.actor.name} is not in combat.`,
+                );
+            }
+        }
+
+        // TODO: You can only have 1 combat effect applied at any time.
+        // If there is already a combat effect then either the player is trying to cheat
+        // or the previous combat effect did not properly expire.
+        // I don't believe we have a way to tell if there is a current martial or maneuver effect.
+        // Should add something to flags/system so we can check.
+
         // v14 throws error if effect.duration.value is not an integer.
         // Value = Infinity fails SchemaField validation.
         // We can replace Infinity with null and get this to work.
@@ -399,60 +414,85 @@ export async function activateManeuver(item) {
 }
 
 /**
- * For maneuvers that require a hit we may require some status changes in addition or instead of damage.
+ * For maneuvers that require a hit, we apply tactical status effects in addition to or instead of damage.
+ * Prioritizes absolute database parity and simple execution paths by processing documents sequentially.
  *
- * @param {*} item
- * @param {*} action
- * @returns
+ * @param {Item} item - The maneuver item initiating the action.
+ * @param {Object} action - The action payload tracking target and execution metadata.
+ * @returns {Promise<void>}
  */
-export async function doManeuverEffects(item, action) {
-    const newActiveEffects = [];
+export async function doManeuverEffects(item, action, targetToken) {
+    const attackerActor = item.actor;
+
+    // Guard Clause: If there is no initiating actor, notify the console/UI and terminate execution immediately
+    if (!attackerActor) {
+        const errorMsg = `HERO: Cannot process maneuver effects because the item "${item.name}" lacks a valid actor reference.`;
+        ui.notifications?.error(errorMsg);
+        console.error(errorMsg);
+        return;
+    }
+
     const hasAttackerFallsTrait = maneuverHasAttackerFallsTrait(item);
     const hasGrabTrait = maneuverHasGrabTrait(item);
     const hasTargetFallsTrait = maneuverHasTargetFallsTrait(item);
 
-    // Add prone effects (attacker and target)
-    if (hasTargetFallsTrait) {
-        const currentTargets = action.system.currentTargets || [];
-        currentTargets.forEach((targetedToken) => {
-            // NOTE: A targetedToken can be a PrototypeToken or a TokenDocument.
-            const actor = targetedToken.actor;
-            newActiveEffects.push(actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.proneEffect));
+    const currentTargets = action.system.currentTargets || [];
+    if (currentTargets.length === 0 && targetToken) {
+        currentTargets.push(targetToken);
+    }
+    const validTargets = currentTargets.filter((t) => !!t.actor);
 
-            // Offer actor an ACROBATICS skill roll to negate the prone effect
-        });
+    // --- 1. PROCESS ALL TARGETED DEFENDERS SEQUENTIALLY ---
+    if (hasTargetFallsTrait || hasGrabTrait) {
+        for (const targetedToken of validTargets) {
+            const defenderActor = targetedToken.actor;
+
+            if (hasGrabTrait) {
+                await defenderActor.createEmbeddedDocuments("ActiveEffect", [
+                    {
+                        ...HeroSystem6eActorActiveEffects.statusEffectsObj.grabEffect,
+                        name: `Grabbed by ${attackerActor.name}`,
+                        flags: {
+                            [game.system.id]: {
+                                grabberById: attackerActor.id,
+                                grabberByUuid: attackerActor.uuid,
+                            },
+                        },
+                    },
+                ]);
+            }
+
+            if (hasTargetFallsTrait) {
+                await defenderActor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.proneEffect.id, {
+                    active: true,
+                });
+                // TODO: Offer actor an ACROBATICS skill roll to negate the prone effect
+                // Acrobatics allows -3 to negate prone for target, breakfall at -1 per 2d6 to
+                // halve damage but not prevent prone, per UMA p112 and 5ER p400.
+                // They can also make a half roll on acrobatics to retain full DCV but remain prone.
+            }
+        }
+    }
+
+    // --- 2. PROCESS THE ATTACKER ---
+    if (hasGrabTrait && validTargets.length > 0) {
+        await attackerActor.createEmbeddedDocuments("ActiveEffect", [
+            {
+                ...HeroSystem6eActorActiveEffects.statusEffectsObj.grabEffect,
+                name: `Grabbing ${validTargets.map((t) => t.name).join(" + ")}`,
+                flags: {
+                    [game.system.id]: {
+                        targetIds: validTargets.map((t) => t.id),
+                        targetUuids: validTargets.map((t) => t.actor.uuid),
+                    },
+                },
+            },
+        ]);
     }
 
     if (hasAttackerFallsTrait) {
-        newActiveEffects.push(item.actor.addActiveEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.proneEffect));
-    }
-
-    if (hasGrabTrait) {
-        const currentTargets = action.system.currentTargets || [];
-
-        // The attacker gets the grabbed state
-        newActiveEffects.push(
-            item.actor.addActiveEffect({
-                ...HeroSystem6eActorActiveEffects.statusEffectsObj.grabEffect,
-                name: `Grabbing ${currentTargets.map((o) => o.name).join(" + ")}`,
-                flags: { [game.id]: { targetIds: currentTargets.map((o) => o.id) } },
-            }),
-        );
-
-        // The defender/target gets the grabbed state
-
-        currentTargets.forEach((targetedToken) => {
-            // NOTE: A targetedToken can be a PrototypeToken or a TokenDocument.
-            const actor = targetedToken.actor;
-            newActiveEffects.push(
-                actor.addActiveEffect({
-                    ...HeroSystem6eActorActiveEffects.statusEffectsObj.grabEffect,
-                    name: `Grabbed by ${item.actor.name}`,
-                    flags: { [game.system.id]: { grabberById: item.actor.id } },
-                }),
-            );
+        await attackerActor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.proneEffect.id, {
+            active: true,
         });
     }
-
-    return Promise.all(newActiveEffects);
 }

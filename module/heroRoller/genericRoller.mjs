@@ -59,17 +59,14 @@ export class GenericRoller {
             options,
         );
 
-        const userSelection = await Dialog.prompt({
-            title: "Roll ToHit",
-            label: "Roll ToHit",
+        const userSelection = await foundry.applications.api.DialogV2.prompt({
+            window: { title: "Roll ToHit" },
             content: template,
-            callback: async function (html) {
-                const form = html.find("form")[0];
-                return new FoundryVttFormDataExtended(form).object;
+            ok: {
+                label: "Roll ToHit",
+                callback: (event, button) => new FoundryVttFormDataExtended(button.form).object,
             },
-        }).catch(() => {
-            // Promise is rejected most likely from user choosing close
-            return undefined;
+            rejectClose: false,
         });
 
         // No user selection? If so, don't roll.
@@ -147,17 +144,14 @@ export class GenericRoller {
             `systems/${HEROSYS.module}/templates/system/heroRoll-damage.hbs`,
             options,
         );
-        const userSelection = await Dialog.prompt({
-            title: "Roll Damage",
-            label: "Roll Damage",
+        const userSelection = await foundry.applications.api.DialogV2.prompt({
+            window: { title: "Roll Damage" },
             content: template,
-            callback: async function (html) {
-                const form = html.find("form")[0];
-                return new FoundryVttFormDataExtended(form).object;
+            ok: {
+                label: "Roll Damage",
+                callback: (event, button) => new FoundryVttFormDataExtended(button.form).object,
             },
-        }).catch(() => {
-            // Promise is rejected most likely from user choosing close
-            return undefined;
+            rejectClose: false,
         });
 
         // No user selection? If so, don't roll.

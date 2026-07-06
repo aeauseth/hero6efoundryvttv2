@@ -292,7 +292,7 @@ export class HeroSystem6eToken extends FoundryVttToken {
         const overlayEffect = activeEffects.findLast((e) => e.img && e.getFlag("core", "overlay"));
 
         // If dead or knockedOut of combat only show overlayEffect
-        if (this.actor?.statuses.has("dead") || this.actor?.knockedOutOfCombat) {
+        if (this.actor?.statuses.has("dead") || this.actor?.getKnockedOutOfCombat()) {
             activeEffects = [overlayEffect];
         }
 
@@ -306,7 +306,7 @@ export class HeroSystem6eToken extends FoundryVttToken {
                 effect === overlayEffect
                     ? this._drawOverlay(
                           effect.img,
-                          (overlayEffect.statuses.has("knockedOut") && this.actor?.knockedOutOfCombat) ||
+                          (overlayEffect.statuses.has("knockedOut") && this.actor?.getKnockedOutOfCombat()) ||
                               overlayEffect.statuses.has("dead")
                               ? "ff5555"
                               : effect.tint,
@@ -343,7 +343,7 @@ export class HeroSystem6eToken extends FoundryVttToken {
         const overlayEffect = activeEffects.findLast((e) => e.flags.core?.overlay);
 
         // If dead or knockedOut of combat only show overlayEffect
-        if (this.actor?.statuses.has("dead") || this.actor?.knockedOutOfCombat) {
+        if (this.actor?.statuses.has("dead") || this.actor?.getKnockedOutOfCombat()) {
             activeEffects = [overlayEffect];
         }
 
@@ -355,7 +355,7 @@ export class HeroSystem6eToken extends FoundryVttToken {
                 effect === overlayEffect
                     ? this._drawOverlay(
                           effect.img,
-                          (overlayEffect.statuses.has("knockedOut") && this.actor?.knockedOutOfCombat) ||
+                          (overlayEffect.statuses.has("knockedOut") && this.actor?.getKnockedOutOfCombat()) ||
                               overlayEffect.statuses.has("dead")
                               ? "ff5555"
                               : effect.tint,

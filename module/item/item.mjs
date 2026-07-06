@@ -103,8 +103,9 @@ function itemFullDescription(item) {
 // Returns HTML so expects to not be escaped in handlebars (i.e. triple braces)
 function _itemNameHtml(item) {
     try {
-        if (item.system.NAME) {
-            return `<i>${item.system.NAME}</i>`;
+        const name = item.system.NAME || item.system.DISPLAY || item.name;
+        if (name) {
+            return `<i>${name}</i>`;
         }
 
         return item.name;

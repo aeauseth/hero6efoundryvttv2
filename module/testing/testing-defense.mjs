@@ -6,7 +6,7 @@ import { getActorDefensesVsAttack } from "../utility/defense.mjs";
 
 export function registerDefenseTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.utils.defense",
+        `${game.system.id}.utils.defense`,
         (context) => {
             const { afterEach, assert, before, beforeEach, describe, it } = context;
 

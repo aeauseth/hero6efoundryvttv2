@@ -365,10 +365,24 @@
     padding-top: 5px;
 }
 
-.conditional-defense-card div.description {
-    border: 1px dashed rgb(0 0 0 / 50%);
-    margin: 15px 0;
-    padding: 5px;
+.conditional-defense-card {
+    h2 {
+        font-family: inherit;
+        font-size: var(--font-size-16);
+        font-weight: 600;
+        line-height: 1.4;
+        border: none;
+        margin: 0 0 5px;
+    }
+
+    div.description {
+        border: 1px dashed var(--input-border-color);
+        background: var(--input-background-color);
+        color: var(--input-text-color);
+        margin: 15px 0;
+        padding: 5px;
+        overflow-wrap: anywhere;
+    }
 }
 
 td.characteristic-locked > input {
@@ -420,7 +434,7 @@ form.item-sheet h1.charname input {
 .herosystem6e.sheet.item div.description,
 form div.attack-card div.description {
     background-color: rgb(0 0 0 / 10%);
-    border: 1px dashed rgb(0 0 0 / 50%);
+    border: 1px dashed var(--input-border-color);
     margin: 15px 0;
     padding: 5px;
     max-width: 100%;

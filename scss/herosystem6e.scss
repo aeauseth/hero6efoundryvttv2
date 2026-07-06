@@ -36,6 +36,9 @@ body {
     --herosystem-header-background: var(--table-header-bg-color);
     --herosystem-item-row-border: rgb(var(--herosystem-blue) / 20%);
     --herosystem-header-text: var(--table-header-text-color);
+    --input-border-color: var(--color-dark-4, rgb(0 0 0 / 50%));
+    --input-text-color: var(--color-dark-2);
+    --input-background-color: var(--color-light-2);
 }
 
 body.theme-light .herosystem6e,
@@ -51,6 +54,9 @@ body.theme-dark .herosystem6e:not(.themed),
     --background: black;
     --herosystem-search-background: var(--color-dark-3); // 333
     --herosystem-search-text: var(--color-light-1); // #f7f3e8
+    --input-border-color: var(--color-light-4, rgb(255 255 255 / 40%));
+    --input-text-color: var(--color-light-2);
+    --input-background-color: var(--color-dark-3);
 }
 
 // ref: https://venngage.com/tools/accessible-color-palette-generator

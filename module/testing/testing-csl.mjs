@@ -2,7 +2,7 @@ import { createQuenchActor, deleteQuenchActor, setQuenchTimeout } from "./quench
 
 export function registerCslTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.item.csl",
+        `${game.system.id}.item.csl`,
         (context) => {
             const { after, before, describe, expect, it } = context;
 

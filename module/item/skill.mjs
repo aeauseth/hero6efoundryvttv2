@@ -131,33 +131,28 @@ export async function createSkillPopOutFromItem(item, actor) {
     const content = await _renderSkillForm(item, actor, {});
 
     // Attack Card as a Pop Out
-    let options = {
-        width: 500,
-    };
-
-    return new Promise((resolve) => {
-        const data = {
-            title: "Roll Skill",
-            content: content,
-            buttons: {
-                rollSkill: {
-                    label: "Roll Skill",
-                    callback: (target, event) => resolve(skillRoll(item, actor, target, event)),
-                },
+    const result = await foundry.applications.api.DialogV2.wait({
+        window: { title: "Roll Skill" },
+        position: { width: 500 },
+        content,
+        buttons: [
+            {
+                action: "rollSkill",
+                label: "Roll Skill",
+                default: true,
+                callback: (event, button) => skillRoll(item, actor, button.form),
             },
-            default: "rollSkill",
-            close: () => resolve({}),
-        };
-
-        new Dialog(data, options).render(true);
+        ],
     });
+
+    return result ?? {};
 }
 
 // PH: FIXME: Create a chat message for resource consumption.
 
 // PH: FIXME: This will need some split apart into a "do I need to do a roll" and "do the skill roll".
 
-async function skillRoll(item, actor, target) {
+async function skillRoll(item, actor, formElement) {
     const token = actor.token;
     const speaker = ChatMessage.getSpeaker({ actor: actor, token });
 
@@ -178,7 +173,6 @@ async function skillRoll(item, actor, target) {
         return ChatMessage.create(chatData);
     }
 
-    const formElement = target[0].querySelector("form");
     const formData = new FoundryVttFormDataExtended(formElement)?.object;
     const skillRoller = new HeroRoller().addDice(3);
 
@@ -273,8 +267,9 @@ async function skillRoll(item, actor, target) {
     const total = skillRoller.getSuccessTotal();
     const margin = successValue - total;
 
-    const untrainedSkillXmlid = target.find("[name='untrainedSkill']")?.[0]?.value;
-    const untrainedSkillName = target.find("[name='untrainedSkill'] option:selected")?.[0]?.text;
+    const untrainedSkillSelect = formElement.querySelector("[name='untrainedSkill']");
+    const untrainedSkillXmlid = untrainedSkillSelect?.value;
+    const untrainedSkillName = untrainedSkillSelect?.selectedOptions?.[0]?.text;
 
     let disadFlavor = "";
     switch (untrainedSkillXmlid ?? item.system.XMLID) {

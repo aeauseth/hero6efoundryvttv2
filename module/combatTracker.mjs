@@ -3,20 +3,6 @@ import { overrideCanAct } from "./settings/settings-helpers.mjs";
 import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs";
 
 export class HeroSystem6eCombatTracker extends foundry.applications.sidebar.tabs.CombatTracker {
-    // V12 static get defaultOptions is replaced by V13 static DEFAULT_OPTIONS = {}
-    // However I'm currently using static PARTS = {} in V13
-    static get defaultOptions() {
-        // v13 uses PARTS, defaultOptions isn't even called
-        return foundry.utils.mergeObject(super.defaultOptions, {
-            // id: "combat",
-            template: this.singleCombatantTracker
-                ? `systems/${HEROSYS.module}/templates/combat/combat-tracker.hbs`
-                : `systems/${HEROSYS.module}/templates/combat/combat-tracker.hbs`,
-            // title: "COMBAT.SidebarTitle",
-            // scrollY: [".directory-list"],
-        });
-    }
-
     static get singleCombatantTracker() {
         return (
             game.settings.get(game.system.id, "alphaTesting") &&
@@ -25,16 +11,9 @@ export class HeroSystem6eCombatTracker extends foundry.applications.sidebar.tabs
     }
 
     static initializeTemplate() {
-        // v13 uses PARTS, defaultOptions isn't even called
         if (HeroSystem6eCombatTracker.PARTS) {
             HeroSystem6eCombatTracker.PARTS.tracker.template = `systems/${HEROSYS.module}/templates/combat/tracker.hbs`;
         }
-    }
-
-    //v12 uses activateListeners, V13 uses _onRender
-    activateListeners(html) {
-        super.activateListeners(html);
-        this.addHeroListeners.call(this, html);
     }
 
     addHeroListeners(html) {
@@ -59,10 +38,7 @@ export class HeroSystem6eCombatTracker extends foundry.applications.sidebar.tabs
     }
 
     async _prepareTrackerContext(context, options) {
-        // v13 has _prepareTrackerContext
-        if (super._prepareCombatContext) {
-            await super._prepareTrackerContext(context, options);
-        }
+        await super._prepareTrackerContext(context, options);
 
         if (!this.viewed) {
             return;
@@ -275,7 +251,6 @@ export class HeroSystem6eCombatTracker extends foundry.applications.sidebar.tabs
     async _onCombatantControl(event, target) {
         event.preventDefault();
         event.stopPropagation();
-        target ??= event.target; //v12
         const { combatantId } = target.closest("[data-combatant-id]")?.dataset ?? {};
         const { control, effectId } = target.closest("[data-control]")?.dataset ?? {};
         const combat = this.viewed;

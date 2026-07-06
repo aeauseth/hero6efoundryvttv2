@@ -4,7 +4,7 @@ import { getCharacteristicInfoArrayForActor } from "../utility/util.mjs";
 
 export function registerBaseTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.actor.base",
+        `${game.system.id}.actor.base`,
         (context) => {
             const { after, before, describe, expect, it } = context;
 

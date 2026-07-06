@@ -278,7 +278,10 @@ function signedString(value) {
 
 function calculated5eCharacteristic(actor, characteristic) {
     try {
-        return characteristic.baseInfo.calculated5eCharacteristic(actor);
+        // The base getter evaluates the formula against effect-free sources: the displayed base
+        // must not follow an AID/DRAIN on the source primary — the max column carries that number
+        // and its tooltip explains it.
+        return characteristic.base;
     } catch (e) {
         console.error(e);
     }
@@ -288,7 +291,8 @@ function calculated5eCharacteristic(actor, characteristic) {
 function figured5eCharacteristic(actor, characteristic) {
     try {
         // Return the raw unrounded values. It works because SPD is the only non rounded value.
-        return characteristic.baseInfo.figured5eCharacteristic(actor);
+        // Routed through the base getter, which is effect-free for 5e dependents.
+        return characteristic.base;
     } catch (e) {
         console.error(e);
     }

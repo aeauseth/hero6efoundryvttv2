@@ -2,7 +2,7 @@ import { createQuenchActor, deleteQuenchActor, setQuenchTimeout } from "./quench
 
 export function registerEverythingLadLass(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.utils.everything",
+        `${game.system.id}.utils.everything`,
         (context) => {
             const { assert, before, after, describe, it } = context;
 

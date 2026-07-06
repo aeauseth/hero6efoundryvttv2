@@ -22,26 +22,27 @@ export class HeroSystem6eEndToEndTest {
 
     async start() {
         // Close existing dialog window if it exists
-        $(".dialog.end-to-end-testing button[data-button='ok']").click();
+        $(".dialog.end-to-end-testing button[data-action='ok']").click();
 
         // Wait for previous dialog to close
         for (let i = 0; i < 50; i++) {
-            if ($(".dialog.end-to-end-testing button[data-button='ok']").length === 0) break;
+            if ($(".dialog.end-to-end-testing button[data-action='ok']").length === 0) break;
             await this.delay();
         }
 
         // Create new dialog
-        await new Dialog({
-            title: `End To End Testing`,
+        await new foundry.applications.api.DialogV2({
+            window: { title: `End To End Testing` },
             content: `<div style="height:400px; overflow-y:scroll"><ol class="end-to-end-testing">
                 <li>Init</li>
             </ol></div>`,
-            buttons: {
-                ok: {
+            buttons: [
+                {
+                    action: "ok",
                     label: "OK",
                 },
-            },
-        }).render(true);
+            ],
+        }).render({ force: true });
 
         for (let i = 0; i < 50; i++) {
             if ((this.orderedListElement = $(".dialog .end-to-end-testing")).length > 0) break;

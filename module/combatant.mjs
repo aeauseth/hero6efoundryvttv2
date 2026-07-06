@@ -83,6 +83,6 @@ export class HeroSystem6eCombatant extends Combatant {
     }
 
     get isDefeated() {
-        return super.isDefeated || this.actor?.knockedOutOfCombat;
+        return super.isDefeated || this.actor?.getKnockedOutOfCombat();
     }
 }

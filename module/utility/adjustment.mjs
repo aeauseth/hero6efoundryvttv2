@@ -405,7 +405,10 @@ function _createNewAdjustmentEffect(options) {
         // This may cause issues as we may need to use updateSource for modifying values and toObject in the update.
         Object.defineProperty(activeEffect, "changes", {
             get: function () {
-                console.warn("V14: Accessing changes via defineProperty of object.");
+                // TODO: AARON needs to re-enable this after 7/4/2026 (Quench tests)
+                if (!attackItem.actor.name.match(/test/i)) {
+                    console.warn("V14: Accessing changes via defineProperty of object.");
+                }
                 return this.system?.changes ?? [];
             },
             set: function (value) {
@@ -707,21 +710,32 @@ export async function performAdjustment(
         adjustmentDamageThisApplication = parseInt(existingEffect.changes[0].value);
         adjustmentDamageThisApplicationArray = existingEffect.changes.map((ae) => parseInt(ae.value) || 0);
 
+        // Fade against a clone of the source changes. On V14 the document's .changes is prepared
+        // data — mutating it in place never reaches system.changes, so the faded values would not
+        // persist and the effect's max contribution would linger while the value dropped.
+        const changesKey = HeroCompatibility.isV14 ? `system.changes` : `changes`;
+        const fadedChanges = foundry.utils.deepClone(
+            HeroCompatibility.isV14 ? existingEffect.system.changes : existingEffect.changes,
+        );
+
         // Rough estimate of changes (recalc is more accurate and perhaps should be included here)
         let i = 0;
-        for (const change of activeEffect.changes) {
+        for (const change of fadedChanges) {
             const char = change.key.match(/([a-z]+)\.max/)?.[1];
             const costPerActivePoint2 = determineCostPerActivePoint(char, targetPower, targetActor);
+            // The effect grants trunc(AP / cost) points of the characteristic: adjustments move
+            // Active Points, and only whole purchased increments take effect — a partial increment
+            // stays banked in the AP ledger until enough AP accumulates or fades (5ER p. 107).
             change.value = Math.trunc(activeEffect.flags[game.system.id].adjustmentActivePoints / costPerActivePoint2);
-            adjustmentDamageThisApplicationArray[i] =
-                existingEffect.changes[i].value - adjustmentDamageThisApplicationArray[i];
+            // Delta between the pre- and post-fade grant, for the chat card's "faded by N" line.
+            adjustmentDamageThisApplicationArray[i] = change.value - adjustmentDamageThisApplicationArray[i];
             i++;
         }
-        adjustmentDamageThisApplication = existingEffect.changes[0].value - adjustmentDamageThisApplication;
+        adjustmentDamageThisApplication = fadedChanges[0].value - adjustmentDamageThisApplication;
 
         if (activeEffect.flags[game.system.id].adjustmentActivePoints === 0 && !CONFIG.debug.adjustmentFadeKeep) {
             isEffectFinished = true;
-            await existingEffect.update({ changes: existingEffect.changes });
+            await existingEffect.update({ [changesKey]: fadedChanges });
             await updateCharacteristicValue(activeEffect, { targetSystem, previousChanges });
             await existingEffect.delete();
             const chatCard = _generateAdjustmentChatCard({
@@ -743,13 +757,31 @@ export async function performAdjustment(
             });
             return chatCard;
         } else {
-            updateEffectName(existingEffect);
-            await existingEffect.update({
-                name: existingEffect.name,
-                [HeroCompatibility.isV14 ? `system.changes` : `changes`]:
-                    activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`],
+            // Compute the post-fade name from the faded changes without mutating the document.
+            const nameSurrogate = {
+                changes: fadedChanges,
                 flags: existingEffect.flags,
-                "duration.startTime": existingEffect.duration.startTime + existingEffect.duration.seconds,
+                origin: existingEffect.origin,
+            };
+            updateEffectName(nameSurrogate);
+            // Advance the effect's start by one fade interval so the next fade lands a turn later.
+            // V14 tracks this as start.time + duration.value; duration.startTime is undefined on live
+            // V14 documents, and writing it fails schema validation ("start.time must be a number"),
+            // which rejects the ENTIRE update — including the faded changes — leaving the boosted max
+            // stuck at its full value.
+            const startTimeUpdate = HeroCompatibility.isV14
+                ? {
+                      "start.time":
+                          (existingEffect.start?.time ?? game.time.worldTime) + (existingEffect.duration.value ?? 0),
+                  }
+                : {
+                      "duration.startTime": existingEffect.duration.startTime + existingEffect.duration.seconds,
+                  };
+            await existingEffect.update({
+                name: nameSurrogate.name,
+                [changesKey]: fadedChanges,
+                flags: existingEffect.flags,
+                ...startTimeUpdate,
             });
         }
     }
@@ -873,9 +905,17 @@ export async function performAdjustment(
         updateEffectName(activeEffect);
         const createdEffects = await targetActor.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
 
-        if (createdEffects[0].duration.startTime == null) {
+        if (attackItem.actor.name.match(/test/i)) {
+            console.log(`Created ActiveEffect id=${createdEffects[0].id} name=${createdEffects[0].name}`);
+        }
+
+        // V14 tracks the effect start under start.time; duration.startTime only exists on V13.
+        const effectStartTime = HeroCompatibility.isV14
+            ? createdEffects[0].start?.time
+            : createdEffects[0].duration.startTime;
+        if (effectStartTime == null) {
             console.warn(
-                `${targetSystem?.name}: ${createdEffects[0].name} has no duration.startTime and will likely never expire.`,
+                `${targetSystem?.name}: ${createdEffects[0].name} has no start time and will likely never expire.`,
                 createdEffects[0],
             );
         }
@@ -1016,7 +1056,7 @@ async function recalcEffectBasedOnTotalApForXmlid(activeEffect, isFade) {
             const _targetValue = Math.trunc(_ap / costPerActivePoint) - _value;
 
             if (parseInt(ae.changes[0].value) !== _targetValue) {
-                const msg = `updating AE change value from ${ae.changes[0].value} to ${_targetValue} because sumAP=${_ap} and costPerActivePoint=${costPerActivePoint}.  ${_ap}/${costPerActivePoint} = ${_ap / costPerActivePoint}.  There is already a ${_value} value from other effects.`;
+                const msg = `${ae.actor.name}: ${ae.name} ${ae.changes[0].key} from ${ae.changes[0].value} to ${_targetValue}. sumAP=${_ap} and costPerActivePoint=${costPerActivePoint}.  ${_ap}/${costPerActivePoint} = ${_ap / costPerActivePoint}.  There is already a ${_value} value from other effects.`;
                 if (isFade) {
                     console.warn(msg);
                 } else {
@@ -1024,12 +1064,19 @@ async function recalcEffectBasedOnTotalApForXmlid(activeEffect, isFade) {
                 }
 
                 const previousChanges = foundry.utils.deepClone(ae.changes);
-                ae.changes[0].value = _targetValue;
-                const char = ae.changes[0].key.match(/([a-z]+)\.max/)?.[1];
+                // Mutate a clone of the source changes (on V14 document.changes is prepared data;
+                // an in-place edit would never reach system.changes and would not persist).
+                const changesKey = HeroCompatibility.isV14 ? `system.changes` : `changes`;
+                const updatedChanges = foundry.utils.deepClone(
+                    HeroCompatibility.isV14 ? ae.system.changes : ae.changes,
+                );
+                updatedChanges[0].value = _targetValue;
+                const char = updatedChanges[0].key.match(/([a-z]+)\.max/)?.[1];
                 const startingActorMax = foundry.utils.getProperty(targetActor, `system.characteristics.${char}.max`);
 
-                updateEffectName(ae);
-                await ae.update({ name: ae.name, changes: ae.changes });
+                const nameSurrogate = { changes: updatedChanges, flags: ae.flags, origin: ae.origin };
+                updateEffectName(nameSurrogate);
+                await ae.update({ name: nameSurrogate.name, [changesKey]: updatedChanges });
 
                 // Apparently we sometimes need to delay to let all the async's catch up
                 const delay = (ms) => new Promise((res) => setTimeout(res, ms || 100));
@@ -1064,17 +1111,36 @@ async function updateCharacteristicValue(activeEffect, { targetSystem, previousC
         for (const change of activeEffect.changes ?? activeEffect.system.changes) {
             const char = change.key.match(/([a-z]+)\.max/)?.[1];
             if (char) {
-                const targetStartingValue = foundry.utils.getProperty(
-                    targetSystem,
-                    `system.characteristics.${char}.value`,
-                );
+                // Read the stored (source) value: derived data caps value to the recomputed max
+                // during prepareDerivedData, so reading the derived value here would apply the fade
+                // delta on top of an already-capped number and double-subtract.
+                const targetStartingValue =
+                    foundry.utils.getProperty(targetSystem._source, `system.characteristics.${char}.value`) ??
+                    foundry.utils.getProperty(targetSystem, `system.characteristics.${char}.value`);
                 const targetStartingMax = foundry.utils.getProperty(targetSystem, `system.characteristics.${char}.max`);
-                const prevChangeValue = previousChanges.find((c) => c.key === change.key)?.value || 0;
+                // Move the stored value by the DELTA of this effect's grant (new change minus the
+                // pre-tick change), never to an absolute: damage or spent points unrelated to this
+                // adjustment live in the stored value and must ride along untouched. Everything is
+                // clamped to max because the current value can never exceed the (already
+                // effect-adjusted) maximum.
+                const prevChangeValue = parseInt(previousChanges.find((c) => c.key === change.key)?.value) || 0;
                 const totalPointsDifference = change.value - prevChangeValue;
-                const newValue = Math.min(
-                    targetStartingValue + totalPointsDifference,
-                    targetStartingMax, // + totalPointsDifference,
-                );
+
+                // 5ER p. 105-106 ("Increasing Expendable Abilities" + the AID Gigawatt example):
+                // points consumed from a boosted expendable (STUN/END spent while AIDed) come out of
+                // the boosted points first, and when the AID fades the character does not lose any of
+                // his own points. So a fading positive boost only clamps the current value down to the
+                // shrinking max — subtracting the fade delta as well would charge the consumption
+                // against the character twice. DRAINs (negative change values) genuinely remove
+                // current points on application and give them back on return, so they keep the
+                // signed delta (still clamped to max).
+                let newValue;
+                const isFadingPositiveBoost = totalPointsDifference < 0 && prevChangeValue > 0;
+                if (isFadingPositiveBoost) {
+                    newValue = Math.min(targetStartingValue, targetStartingMax);
+                } else {
+                    newValue = Math.min(targetStartingValue + totalPointsDifference, targetStartingMax);
+                }
                 await targetSystem.update({ [`system.characteristics.${char}.value`]: newValue });
 
                 if (CONFIG.debug.adjustmentFadeKeep) {
@@ -1199,7 +1265,7 @@ function _generateAdjustmentChatCard(
         isFade,
         //isEffectFinished,
         targetActor,
-        targetToken,
+        targetToken: targetToken || targetActor?.getActiveTokens()?.[0],
         attackerToken,
         startRound: game.combat?.round,
         startSegment: game.combat?.current?.segment,

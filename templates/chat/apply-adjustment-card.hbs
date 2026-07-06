@@ -1,5 +1,5 @@
-{{ log 'HEROSYS apply-adjustment-card' this }}
-<div class="hero chat-card item-card to-hit-card" data-actor-id="{{actor._id}}" data-item-id="{{item._id}}" {{#if
+{{!-- {{ log 'HEROSYS apply-adjustment-card' this }} --}}
+<div class="hero chat-card item-card apply-adjustment-card" data-actor-id="{{actor._id}}" data-item-id="{{item._id}}" {{#if
   tokenId}}data-token-id="{{tokenId}}" {{/if}}>
 
     <header class="card-header">
@@ -8,7 +8,7 @@
         {{/if}}
         <div class="flexrow">
             <img src="{{item.img}}" title="{{item.name}}" width="36" height="36" />
-            <h3>vs {{targetActor.name}}</h3>
+            <h3>vs {{#if targetToken}}{{targetToken.name}}{{else}}{{targetActor.name}}{{/if}}</h3>
         </div>
     </header>
 

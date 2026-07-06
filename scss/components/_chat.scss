@@ -18,7 +18,7 @@
             line-height: 36px;
             font-size: 20px;
             font-weight: 700;
-            color: #4b4a44;
+            color: var(--color-text-primary);
             display: inline-block;
         }
 
@@ -37,7 +37,7 @@
             line-height: 36px;
             font-size: 20px;
             font-weight: 700;
-            color: #4b4a44;
+            color: var(--color-text-primary);
             text-align: center;
         }
 
@@ -47,7 +47,7 @@
             line-height: 30px;
             font-size: 15px;
             font-weight: 700;
-            color: #4b4a44;
+            color: var(--color-text-primary);
             text-align: center;
         }
 
@@ -61,7 +61,7 @@
             line-height: 24px;
             font-size: 16px;
             font-weight: 500;
-            color: #4b4a44;
+            color: var(--color-text-primary);
             text-align: center;
         }
 
@@ -71,7 +71,7 @@
             line-height: 20px;
             font-size: 14px;
             font-weight: 500;
-            color: #4b4a44;
+            color: var(--color-text-primary);
             text-align: center;
         }
     }

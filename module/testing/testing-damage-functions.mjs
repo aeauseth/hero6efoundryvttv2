@@ -8,7 +8,7 @@ import { addDiceParts, calculateDicePartsFromDcForItem, characteristicValueToDic
 
 export function registerDamageFunctionTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.damageFunctions",
+        `${game.system.id}.damageFunctions`,
         (context) => {
             const { after, assert, before, describe, expect, it } = context;
 

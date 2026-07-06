@@ -45,6 +45,7 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
             createActiveEffect: HeroSystemActorSheetV2.#onCreateActiveEffect,
             deleteAllActiveEffects: HeroSystemActorSheetV2.#onDeleteAllActiveEffects,
             deleteAllTemporaryEffects: HeroSystemActorSheetV2.#onDeleteAllTemporaryEffects,
+            downloadUploadError: HeroSystemActorSheetV2.#onDownloadUploadError,
             fullHealth: HeroSystemActorSheetV2.#onFullHealth,
             presenceAttack: HeroSystemActorSheetV2.#onPresenceAttack,
             recovery: HeroSystemActorSheetV2.#onRecovery,
@@ -133,6 +134,32 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         await this.actor.actorDescriptionToChat({ token: this.token });
     }
 
+    static async #onDownloadUploadError() {
+        const error = this.actor.getFlag(game.system.id, "uploadingError");
+        if (!error) return;
+
+        const context = this.actor.getFlag(game.system.id, "uploadingErrorContext") ?? {};
+        const foundryBuild = context.foundryBuild ?? game.release?.build ?? null;
+        const report = [
+            `Actor: ${this.actor.name}`,
+            `Foundry: ${context.foundry ?? game.release?.display ?? game.version}${foundryBuild != null ? ` (build ${foundryBuild})` : ``}`,
+            `System: ${game.system.id} ${context.system ?? game.system.version}`,
+            ``,
+            `Error:`,
+            error,
+        ];
+        if (context.actorBase64) {
+            report.push(``, `Original actor state (base64):`, context.actorBase64);
+        }
+        if (context.hdcBase64) {
+            report.push(``, `New HDC (base64):`, context.hdcBase64);
+        }
+
+        const filename = `${this.actor.name.slugify({ strict: true }) || "actor"}-upload-error.txt`;
+        foundry.utils.saveDataToFile(report.join("\n"), "text/plain", filename);
+        ui.notifications.info(`Downloaded upload error report for ${this.actor.name}.`);
+    }
+
     static async #onFullHealth() {
         const resetRebuildDisabled = this.actor.token || !this.actor.system._hdcXml;
         const contentFullHealth = `
@@ -212,12 +239,6 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
             ],
         });
 
-        // const confirmed = await Dialog.confirm({
-        //     title: game.i18n.localize("HERO6EFOUNDRYVTTV2.confirms.fullHealthConfirm.Title") + ` [${this.actor.name}]`,
-        //     content: game.i18n.localize("HERO6EFOUNDRYVTTV2.confirms.fullHealthConfirm.Content"),
-        // });
-        // if (!confirmed) return;
-
         switch (action) {
             case "fullHealth":
                 return this.actor.fullHealth();
@@ -257,8 +278,8 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
     }
 
     static async #onDeleteAllTemporaryEffects() {
-        const confirm = await Dialog.confirm({
-            title: "Delete all Temporary Effects",
+        const confirm = await foundry.applications.api.DialogV2.confirm({
+            window: { title: "Delete all Temporary Effects" },
             content:
                 `<h4>Are you sure?</h4><p>This will permanently delete all ${this.actor.temporaryEffects.length} ` +
                 `temporary effects.</p>`,
@@ -273,8 +294,8 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
     }
 
     static async #onDeleteAllActiveEffects() {
-        const confirm = await Dialog.confirm({
-            title: "Delete all activeEffects",
+        const confirm = await foundry.applications.api.DialogV2.confirm({
+            window: { title: "Delete all activeEffects" },
             content:
                 `<h4>Are you sure?</h4><p>This will attempt to permanently delete all ${Array.from(this.actor.allApplicableEffects()).length} ` +
                 `active effects.  Some effects will get re-applied.  This may break some powers and/or automation, requiring a re-upload of HDC or FullHealth+Rebuild to fix.</p>`,
@@ -415,6 +436,10 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
     }
 
     #token;
+
+    // Fixed-position context menus are appended to document.body (via the popover API), not to this
+    // sheet's element, so ApplicationV2 teardown does not remove them. Track them to close on _onClose.
+    #contextMenus = [];
 
     get token() {
         return this.document.token ?? this.#token ?? tokenEducatedGuess({ actor: this.actor });
@@ -826,20 +851,31 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         // Keep track of token; needed for linked actors
         this.#token = options.token ?? tokenEducatedGuess({ actor: this.actor });
 
-        // General right click on row
-        this._createContextMenu(this._getDocumentListContextOptions, "[data-document-uuid]", {
-            hookName: "getDocumentListContextOptions",
-            parentClassHooks: false,
-            fixed: true,
-        });
+        this.#contextMenus = [
+            // General right click on row
+            this._createContextMenu(this._getDocumentListContextOptions, "[data-document-uuid]", {
+                hookName: "getDocumentListContextOptions",
+                parentClassHooks: false,
+                fixed: true,
+            }),
 
-        // Same menu but for the specific vertical ellipsis control
-        this._createContextMenu(this._getDocumentListContextOptions, '[data-action="documentListContext"]', {
-            hookName: "getDocumentListContextOptions",
-            parentClassHooks: false,
-            fixed: true,
-            eventName: "click",
-        });
+            // Same menu but for the specific vertical ellipsis control
+            this._createContextMenu(this._getDocumentListContextOptions, '[data-action="documentListContext"]', {
+                hookName: "getDocumentListContextOptions",
+                parentClassHooks: false,
+                fixed: true,
+                eventName: "click",
+            }),
+        ];
+    }
+
+    _onClose(options) {
+        super._onClose(options);
+
+        // Fixed context menus live on document.body and survive sheet teardown; close them explicitly.
+        for (const menu of this.#contextMenus) {
+            if (menu?.element) menu.close({ animate: false });
+        }
     }
 
     _onRender(context, options) {
@@ -956,6 +992,31 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         if (!this.actor.isOwner) {
             this.element.querySelectorAll(`input[data-action="search"]`).forEach((el) => (el.disabled = false));
         }
+    }
+
+    /**
+     * AppV2 form submission serializes every named input on the sheet, so any submit (Enter key,
+     * ClientDocument#sortRelative, ...) would re-write dozens of fields the user never touched.
+     * Those writes are not no-ops: an unchanged system.<KEY>.LEVELS in the payload makes
+     * _apply5eCalculatedCharacteristics resync that characteristic to base+LEVELS, silently
+     * reverting adjustment (AID/DRAIN) results on value/max. Every editable input on this sheet
+     * already persists itself through the per-input change listeners in _onRender, so form-level
+     * submits contribute no form data. Programmatic submit({updateData}) calls still work:
+     * updateData is merged in _prepareSubmitData after this returns.
+     */
+    _processFormData() {
+        return {};
+    }
+
+    /**
+     * Core _prepareSubmitData validates with clean:{addTypes:true, copy:false}, which injects
+     * `type` even into an empty payload. Writing that lone `type` is not harmless: the actor's
+     * _preUpdate runs its KO/stun-threshold logic whenever changed.type is present. Skip the
+     * update entirely when there is nothing real to write.
+     */
+    async _processSubmitData(event, form, submitData, options) {
+        if (Object.keys(submitData ?? {}).every((k) => k === "type")) return;
+        return super._processSubmitData(event, form, submitData, options);
     }
 
     /**

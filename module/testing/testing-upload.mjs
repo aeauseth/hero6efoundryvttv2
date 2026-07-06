@@ -8,7 +8,7 @@ import { getCharacteristicInfoArrayForActor } from "../utility/util.mjs";
 
 export function registerUploadTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.utils.upload",
+        `${game.system.id}.utils.upload`,
         (context) => {
             const { assert, before, after, describe, expect, it } = context;
 
@@ -8434,8 +8434,13 @@ export function registerUploadTests(quench) {
                     });
 
                     it("description", function () {
+                        // Normalize typography minus signs (U+2212) to standard hyphens (U+002D)
+                        // Issue with FoundryVTT V13 and signedString() returning a unicode minus sign
+                        // The signedString() is only for UI, so shouldn't impact anything.
+                        const actualDescription = item.system.description.replace(/\u2212/g, "-");
+
                         assert.equal(
-                            item.system.description,
+                            actualDescription,
                             "Blast 11d6 (PD; Custom Adder -55 Points), Area Of Effect (16m Long, 2m Tall, 2m Wide Line; +1/4)",
                         );
                     });
@@ -11316,7 +11321,9 @@ export function registerUploadTests(quench) {
                                     .filter((o) => o.behaviors.includes(`calculated`))
                                     .map((o) => o.key)
                                     .join(", "),
-                                "OCV, DCV, OMCV, DMCV",
+                                // LEAPING is a Strength Table ability, not a Figured Characteristic
+                                // (5ER p. 33), so it is calculated from STR like the CVs (5ER p. 105).
+                                "OCV, DCV, OMCV, DMCV, LEAPING",
                             );
                         });
 

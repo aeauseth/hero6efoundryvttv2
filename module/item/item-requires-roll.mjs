@@ -6,13 +6,13 @@ import { roundFavorPlayerTowardsZero } from "../utility/round.mjs";
 import { doSuccessRoll, emphasizeSuccessFailureFlavour, generateSuccessChatCard } from "../utility/success-card.mjs";
 import { tokenEducatedGuess } from "../utility/util.mjs";
 
-const backgroundSkillKeys = Object.freeze({
-    KS: "KNOWLEDGE_SKILL",
-    PS: "PROFESSIONAL_SKILL",
-    SS: "SCIENCE_SKILL",
+const BACKGROUND_SKILL_XMLID_TO_KEY = Object.freeze({
+    KNOWLEDGE_SKILL: "KS",
+    PROFESSIONAL_SKILL: "PS",
+    SCIENCE_SKILL: "SS",
 });
 
-export const RSR_ROLL_TYPE = Object.freeze({
+const RSR_ROLL_TYPE = Object.freeze({
     ACTIVATION_ROLL: "activation roll",
     ATTACK_ROLL: "attack roll",
     CHARACTERISTIC_ROLL: "characteristic roll",
@@ -48,15 +48,108 @@ function filterOutNonSkillRollItems(item) {
     );
 }
 
-function matchSkillRoll(item, rollAlias) {
-    return item.name.includes(rollAlias);
+/**
+ * Narrow down an array of skills to the one chosen skill.
+ * If there is just one skill in the array (a non variable RSR) then it's simple and you shouldn't call this function.
+ * If there are more than one skill, then prompt the user and have them decide.
+ *
+ * @param {Array<Object>} skillArray
+ *
+ * @returns {Object | null} - returns the info about the item that is selected or null if the user has chosen to cancel the operation at this point by closing the dialog.
+ */
+async function userSelectsASkill(skillArray) {
+    const radios = skillArray
+        .map(
+            (skillObject, i) => `
+                <label style="display:flex; align-items:center; gap:0.5em; margin-bottom:4px;">
+                <input type="radio" name="skill" value="${i}" ${i === 0 ? "checked" : ""}>
+                ${skillObject.name}${skillObject.activeItems.length === 0 ? ` (has no active items)` : ""}
+                </label>
+            `,
+        )
+        .join("");
+
+    const arrayIndex = await foundry.applications.api.DialogV2.wait({
+        window: { title: "Choose Your Variable Skill" },
+        content: `<fieldset><legend>Skills</legend>${radios}</fieldset>`,
+        buttons: [
+            {
+                action: "choose",
+                label: "Confirm",
+                default: true,
+                callback: (event, button) => button.form.elements.skill.value,
+            },
+        ],
+        rejectClose: false, // returns null instead of throwing if the user closes the dialog
+    });
+
+    // null is returned if the user is closing the dialog.
+    return arrayIndex == null ? null : skillArray[arrayIndex];
 }
 
-function findSkillRoll(actor, rollAlias) {
+/**
+ * Test Only version of userSelectsASkill: Narrow down an array of skills to the one chosen skill.
+ * If there is just one skill in the array (a non variable RSR) then it's simple.
+ * If there are more than one skill, then prompt the user and have them decide.
+ *
+ * @param {Array<Object>} skillArray
+ * @param {Number | null} selectedIndex
+ *
+ * @returns {Object | null} - returns the info about the item that is selected or null if the user has chosen to cancel the operation at this point by closing the dialog.
+ */
+async function testOnlyUserSelectsASkill(skillArray, arrayIndex) {
+    // null is returned if the user is closing the dialog.
+    return arrayIndex == null ? null : skillArray[arrayIndex];
+}
+
+/**
+ * Extract skill items from the actor for a given roll alias. There can be multiple skills in the case of 5e variable skills but typically will be only 1.
+ *
+ * @param {HeroSystem6eActor} actor
+ * @param {String} rollAlias
+ * @param {Boolean} wantBackgroundSkill
+ *
+ * @returns {Array<Object>} - Array of skill objects
+ */
+function extractSkills(actor, rollAlias, wantBackgroundSkill) {
+    const variableSkillsAliasMatch = rollAlias.match(/^([\S\s]+?)((?:\s+or\s+)([\S\s]+))?$/i);
+    if (variableSkillsAliasMatch == null) {
+        console.error(`RSR extractSkills: ${rollAlias} didn't match regex`);
+        return [
+            {
+                name: rollAlias,
+                wantBackgroundSkill: wantBackgroundSkill,
+                activeItems: [],
+                items: [],
+            },
+        ];
+    }
+
+    const requiredSkillNames = [variableSkillsAliasMatch[1]];
+
+    // Is this a variable roll alias with 2 skills separated by " or ".
+    if (variableSkillsAliasMatch[3] != null) {
+        requiredSkillNames.push(variableSkillsAliasMatch[3]);
+    }
+
+    return requiredSkillNames.map((requiredSkillName) => {
+        const skillItems = findSkills(actor, requiredSkillName);
+
+        return {
+            name: requiredSkillName,
+            wantBackgroundSkill: wantBackgroundSkill,
+            activeItems: skillItems.filter((skill) => skill.isActive),
+            items: skillItems,
+        };
+    });
+}
+
+function findSkills(actor, skillName) {
     const skillsToMatchAgainst = actor.items.filter(filterOutNonSkillRollItems);
 
-    return skillsToMatchAgainst.find((potentialMatchingSkillItem) =>
-        matchSkillRoll(potentialMatchingSkillItem, rollAlias),
+    // Case insensitive comparison
+    return skillsToMatchAgainst.filter(
+        (potentialMatchingSkillItem) => potentialMatchingSkillItem.name.toLowerCase() === skillName.toLowerCase(),
     );
 }
 
@@ -69,7 +162,7 @@ function findSkillRoll(actor, rollAlias) {
  *
  * @returns {number}
  */
-export function findRollDivisor(rar) {
+function findRollDivisor(rar) {
     // modifiers are different based on 5e or 6e
     if (rar.parent.is5e) {
         const divisorOption = rar.adders.find((adder) => {
@@ -113,10 +206,10 @@ function calculateRollApPenalty(item, rar) {
     return roundFavorPlayerTowardsZero(item.activePoints / divisor);
 }
 
-function normalizeTypeAndRollTarget(type, skillOrCharacteristic) {
+function normalize5eTypeAndRollTarget(type, skillOrCharacteristic) {
     return {
         type: TYPE_TO_ROLL_TYPE[type] ?? `type ${type} not translated properly`,
-        target: skillOrCharacteristic,
+        target: skillOrCharacteristic.trim(),
     };
 }
 
@@ -128,9 +221,9 @@ function normalizeTypeAndRollTarget(type, skillOrCharacteristic) {
  * @param {HeroSystem6eItem} item
  * @param {HeroModifierModel} rar
  *
- * @returns {Object[]}
+ * @returns {Object[]} - rolls required to fulfill the RAR in an intermediate format
  */
-export function getRollsForRar(item, rar) {
+function getRollsForRar(item, rar) {
     const rollsToGenerate = [];
 
     if (item.is5e) {
@@ -143,6 +236,7 @@ export function getRollsForRar(item, rar) {
                 },
             ];
         }
+
         // 5e Luck roll?
         else if (rar.OPTIONID === "ONELUCK" || rar.OPTIONID === "TWOLUCK" || rar.OPTIONID === "THREELUCK") {
             const numSuccessesRequired = rar.OPTIONID === "ONELUCK" ? 1 : rar.OPTIONID === "TWOLUCK" ? 2 : 3;
@@ -158,18 +252,20 @@ export function getRollsForRar(item, rar) {
 
         // 5e 2 rolls
         else if (rar.OPTIONID === "TWOROLLS") {
-            // PH: FIXME: This does not handle variable roll where the user gets to decide between 2 provided rolls. See rar.adder.XMLID === "VARIABLERSR".
-            rollsToGenerate.push(normalizeTypeAndRollTarget(rar.TYPE, rar.ROLLALIAS || rar.CHARACTERISTIC));
-            rollsToGenerate.push(normalizeTypeAndRollTarget(rar.TYPE2, rar.ROLLALIAS2 || rar.CHARACTERISTIC2));
+            // This can be a variable roll where the user gets to decide between 2 provided rolls - potentially for each of the rolls.
+            // If this is the case, it will have rar.adder[].XMLID === "VARIABLERSR" somewhere. All options, however, are jammed into the rar.
+            rollsToGenerate.push(normalize5eTypeAndRollTarget(rar.TYPE, rar.ROLLALIAS || rar.CHARACTERISTIC));
+            rollsToGenerate.push(normalize5eTypeAndRollTarget(rar.TYPE2, rar.ROLLALIAS2 || rar.CHARACTERISTIC2));
         }
 
         // 5e 1 roll
         else if (rar.OPTIONID === "BASICRSR") {
-            // PH: FIXME: This does not handle variable roll where the user gets to decide between 2 provided rolls. See rar.adder.XMLID === "VARIABLERSR".
-            rollsToGenerate.push(normalizeTypeAndRollTarget(rar.TYPE, rar.ROLLALIAS || rar.CHARACTERISTIC));
+            // This can be a variable roll where the user gets to decide between 2 provided rolls.
+            // If this is the case, it will have rar.adder[].XMLID === "VARIABLERSR" somewhere. All options, however, are jammed into the rar.
+            rollsToGenerate.push(normalize5eTypeAndRollTarget(rar.TYPE, rar.ROLLALIAS || rar.CHARACTERISTIC));
         }
 
-        // PH: FIXME: OPTIONID= attack roll?
+        // FIXME: OPTIONID= attack roll doesn't seem to exist in HDC but does in the 5e rules (although it's not well defined). It does exist in 6e
 
         // 5e Unknown OPTIONID
         else {
@@ -204,11 +300,8 @@ export function getRollsForRar(item, rar) {
             rar.OPTIONID === "SS1PER5" ||
             rar.OPTIONID === "SS1PER20"
         ) {
-            const backgroundSkillSubtype = backgroundSkillKeys[rar.OPTIONID.substring(0, 2)];
-
             rollsToGenerate.push({
                 type: RSR_ROLL_CATEGORY.BACKGROUNDSKILL,
-                subType: backgroundSkillSubtype,
                 target: rar.COMMENTS,
             });
         }
@@ -245,20 +338,15 @@ export function getRollsForRar(item, rar) {
 
             case RSR_ROLL_CATEGORY.BACKGROUNDSKILL:
             case RSR_ROLL_CATEGORY.SKILL: {
-                const skill = findSkillRoll(item.actor, rollToGenerate.target);
-
-                // Make sure background skill type matches the proclaimed background skill type (i.e. they asked for a PS but specified KS: xxx)
-                const skillItemsOfCorrectSubType = skill
-                    ? [skill].filter(
-                          (skill) => !rollToGenerate.subType || skill.system.XMLID === rollToGenerate.subType,
-                      )
-                    : [];
+                const requiredSkills = extractSkills(
+                    item.actor,
+                    rollToGenerate.target,
+                    rollToGenerate.type === RSR_ROLL_CATEGORY.BACKGROUNDSKILL,
+                );
 
                 return {
                     type: RSR_ROLL_TYPE.ITEM_ROLL,
-                    name: rollToGenerate.target,
-                    activeItems: skillItemsOfCorrectSubType.filter((skill) => skill.isActive),
-                    items: skillItemsOfCorrectSubType,
+                    requiredSkills: requiredSkills,
                 };
             }
 
@@ -271,9 +359,16 @@ export function getRollsForRar(item, rar) {
             case RSR_ROLL_CATEGORY.PER: {
                 return {
                     type: RSR_ROLL_TYPE.ITEM_ROLL,
-                    name: "PERCEPTION",
-                    activeItems: item.actor.items.filter((item) => item.system.XMLID === "PERCEPTION" && item.isActive),
-                    items: item.actor.items.filter((item) => item.system.XMLID === "PERCEPTION"),
+                    requiredSkills: [
+                        {
+                            name: "PERCEPTION",
+                            wantBackgroundSkill: false,
+                            activeItems: item.actor.items.filter(
+                                (item) => item.system.XMLID === "PERCEPTION" && item.isActive,
+                            ),
+                            items: item.actor.items.filter((item) => item.system.XMLID === "PERCEPTION"),
+                        },
+                    ],
                 };
             }
 
@@ -282,16 +377,21 @@ export function getRollsForRar(item, rar) {
                 console.error(error);
                 return {
                     type: RSR_ROLL_TYPE.ITEM_ROLL,
-                    name: error,
-                    activeItems: [],
-                    items: [],
+                    requiredSkills: [
+                        {
+                            name: error,
+                            wantBackgroundSkill: false,
+                            activeItems: [],
+                            items: [],
+                        },
+                    ],
                 };
             }
         }
     });
 }
 
-export const VALIDATE_SECTION_DEFENSE_ERROR_REASON = Object.freeze({
+const VALIDATE_SECTION_DEFENSE_ERROR_REASON = Object.freeze({
     NO_COMMENT: "no comment",
     NOT_DECLARATION: "not sectional defense declaration",
     INVALID_RANGE: "sectional defense declaration range invalid",
@@ -304,7 +404,7 @@ export const VALIDATE_SECTION_DEFENSE_ERROR_REASON = Object.freeze({
  *
  * @returns {{ valid: boolean, reason?: string, sectionalDefenseLocationsSet?: Set }} - returns validation result with location Set on success or error reason on failure
  */
-export function validateSectionalComments(item, potentialSectionalComment) {
+function validateSectionalComments(item, potentialSectionalComment) {
     // Are there comments that could be sectional instructions?
     if (!potentialSectionalComment) {
         return { valid: false, reason: VALIDATE_SECTION_DEFENSE_ERROR_REASON.NO_COMMENT };
@@ -410,13 +510,29 @@ async function isActivatedForThisUseInternal(item, rollClass, options) {
     // Make sure all skill items require for the activation roll(s) exist on this character and are active before attempting
     // any rolls.
     for (const activationRoll of activationRolls) {
+        // If this is a variable skill roll (i.e. user choosing between two skills depending on the situation), have the user select the chosen skill before the resources are paid.
+        if (activationRoll.type === RSR_ROLL_TYPE.ITEM_ROLL && activationRoll.requiredSkills.length > 1) {
+            const requiredSkill =
+                options?.test?.variableSelectIndex === undefined
+                    ? await userSelectsASkill(activationRoll.requiredSkills)
+                    : await testOnlyUserSelectsASkill(activationRoll.requiredSkills, options.test.variableSelectIndex);
+
+            // Has the user cancelled the action at this point?
+            if (requiredSkill == null) {
+                ui.notifications.info(`${item.name} roll aborted during variable skill selection.`);
+                return false;
+            }
+
+            activationRoll.requiredSkills = [requiredSkill];
+        }
+
         // PH: FIXME: ATTACK_ROLL needs to be considered
 
-        // Only ACTIVATION_ROLL and CHARACTERISTIC_ROLL can be without active skills
+        // LUCK_ROLL and ITEM_ROLL must have at least 1 active skill
         if (
-            activationRoll.type !== RSR_ROLL_TYPE.ACTIVATION_ROLL &&
-            activationRoll.type !== RSR_ROLL_TYPE.CHARACTERISTIC_ROLL &&
-            activationRoll.activeItems.length === 0
+            (activationRoll.type === RSR_ROLL_TYPE.LUCK_ROLL && activationRoll.activeItems.length === 0) ||
+            (activationRoll.type === RSR_ROLL_TYPE.ITEM_ROLL &&
+                activationRoll.requiredSkills[0].activeItems.length === 0)
         ) {
             const flavor = `${item.name} activation ${emphasizeSuccessFailureFlavour(false, `failed as there is no matching active item for the ${activationRoll.type}.`)}`;
             await generateSuccessChatCard(actor, speaker, flavor, null, null);
@@ -430,10 +546,12 @@ async function isActivatedForThisUseInternal(item, rollClass, options) {
             await generateSuccessChatCard(actor, speaker, flavor, null, null);
 
             return false;
+        } else if (activationRoll.type === RSR_ROLL_TYPE.ACTIVATION_ROLL) {
+            // PH: FIXME: Should probably sanity here for sectional defenses
         }
     }
 
-    // PH: FIXME: Need to pay the resource cost of this skill/etc
+    // PH: FIXME: Need to pay the activation resource cost of the RAR skills/char/etc
 
     // Perform the rolls. Because a roll might consume resources we must perform all rolls (i.e. invoke all skills etc)
     // and then evaluate if there was success.
@@ -477,7 +595,7 @@ async function isActivatedForThisUseInternal(item, rollClass, options) {
             succeeded = succeed;
             flavor = updatedFlavor;
         } else if (activationRoll.type === RSR_ROLL_TYPE.LUCK_ROLL) {
-            const luckPower = activationRoll.activeItems[0]; // PH: FIXME: Kludge
+            const luckPower = activationRoll.activeItems[0]; // PH: FIXME: Kludge. How do we best handle multiple luck powers?
             const { diceParts } = calculateDicePartsForItem(luckPower, {});
 
             roller.makeLuckRoll().addDice(diceParts.d6Count >= 1 ? diceParts.d6Count : 0);
@@ -527,7 +645,8 @@ async function isActivatedForThisUseInternal(item, rollClass, options) {
             succeeded = succeed;
             flavor = updatedFlavor;
         } else if (activationRoll.type === RSR_ROLL_TYPE.ITEM_ROLL) {
-            const skill = activationRoll.activeItems[0]; // PH: FIXME: Kludge
+            // At this point there should be only 1 requiredSkills entry
+            const skill = activationRoll.requiredSkills[0].activeItems[0]; // PH: FIXME: Kludge. How do we best handle multiple powers of the same type?
             const baseRequiredRoll = parseInt(skill.system.roll);
             const apPenalty = calculateRollApPenalty(item, rar);
             const divisor = findRollDivisor(rar);
@@ -672,25 +791,53 @@ export function requiresRollHeroValidation(modifier, item) {
     const validations = [];
     const activationRolls = getRollsForRar(item, modifier);
 
+    // 5e 2 rolls requires GM permission
+    if (activationRolls.length >= 2) {
+        validations.push({
+            message: `2 required skill rolls requires GM permission.`,
+            severity: CONFIG.HERO.VALIDATION_SEVERITY.INFO,
+            modifierID: modifier.ID,
+        });
+    }
+
     // Does the actor have the required powers/skills for the roll?
     for (const activationRoll of activationRolls) {
         // Only naked success rolls can be without a skill
         if (activationRoll.type === RSR_ROLL_TYPE.ITEM_ROLL) {
             // Do we have items that match?
-            if (activationRoll.items.length === 0) {
-                validations.push({
-                    message: `Actor does not have ${activationRoll.name} skill to make the activation roll.`,
-                    severity: CONFIG.HERO.VALIDATION_SEVERITY.ERROR,
-                    modifierID: modifier.ID,
-                });
-            }
-
-            // PH: FIXME: Check that they don't have skills as background skills (warn: cheaper than supposed to be)
-            // PH: FIXME: Check that they don't have background skills as skills (warn: more expensive than supposed to be)
+            activationRoll.requiredSkills.forEach((requiredSkill) => {
+                if (requiredSkill.items.length === 0) {
+                    validations.push({
+                        message: `Actor does not have the ${requiredSkill.name} skill to make the activation roll.`,
+                        severity: CONFIG.HERO.VALIDATION_SEVERITY.ERROR,
+                        modifierID: modifier.ID,
+                    });
+                } else {
+                    // Do we have a cost mismatch between how the power was built and how it should have been built?
+                    // PH: FIXME: has the same logic as evaluation that we only look at the first activeItem
+                    const activeItemXmlid = requiredSkill.activeItems[0].system.XMLID;
+                    const isActiveItemBackgroundSkill = !!BACKGROUND_SKILL_XMLID_TO_KEY[activeItemXmlid];
+                    if (requiredSkill.wantBackgroundSkill !== isActiveItemBackgroundSkill) {
+                        if (!requiredSkill.wantBackgroundSkill) {
+                            validations.push({
+                                message: `The requires a skill roll limitation was not bought using the background skill adder but ${requiredSkill.name} is a background skill and you have overpaid for ${activationRoll.name}.`,
+                                severity: CONFIG.HERO.VALIDATION_SEVERITY.INFO,
+                                modifierID: modifier.ID,
+                            });
+                        } else {
+                            validations.push({
+                                message: `The requires a skill roll limtiation was bought using the background skill adder but the ${requiredSkill.name} is not a background skill and you have underpaid for ${activationRoll.name}.`,
+                                severity: CONFIG.HERO.VALIDATION_SEVERITY.WARNING,
+                                modifierID: modifier.ID,
+                            });
+                        }
+                    }
+                }
+            });
         } else if (activationRoll.type === RSR_ROLL_TYPE.LUCK_ROLL) {
             if (activationRoll.items.length === 0) {
                 validations.push({
-                    message: `Actor does not have any luck powers to make the activation roll.`,
+                    message: `Actor does not have a luck power to make the activation roll.`,
                     severity: CONFIG.HERO.VALIDATION_SEVERITY.ERROR,
                     modifierID: modifier.ID,
                 });
@@ -726,7 +873,7 @@ export function requiresRollHeroValidation(modifier, item) {
         } else if (activationRoll.type === RSR_ROLL_TYPE.ACTIVATION_ROLL) {
             validations.push(...activationRollHeroValidation(modifier, item));
         } else {
-            console.error(`Unknown activation roll type ${activationRoll.type} for heroValidation`);
+            console.error(`Unknown activation roll type ${activationRoll.type} for heroValidation.`);
         }
     }
 

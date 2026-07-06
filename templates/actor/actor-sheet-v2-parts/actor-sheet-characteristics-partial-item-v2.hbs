@@ -8,13 +8,13 @@
             >
         </div>
 
+        {{!-- max: derived from base + levels + effects, so never editable directly --}}
         <div class="item-column item-max {{#if this.maxTitle}}characteristic-locked{{/if}}"
             data-tooltip="{{{this.maxTitle}}}"
         >
-            <input name="system.characteristics.{{this.key}}.max" type="number"
-                class="{{#if (gt this.max this.basePlusLevels)}}over-max{{/if}} {{#if (lt this.max this.basePlusLevels)}}under-max{{/if}}"
-                value="{{this.max}}" data-dtype="Number" {{#if
-                this.maxTitle}}disabled{{/if}}
+            <input type="number"
+                class="{{#if (gt this.max this.expectedMax)}}over-max{{/if}} {{#if (lt this.max this.expectedMax)}}under-max{{/if}}"
+                value="{{this.max}}" data-dtype="Number" disabled
             >
         </div>
 
@@ -27,8 +27,8 @@
         <div class="item-column item-levels">
             {{#unless (eq characteristic.base null)}}
                 <input name="system.{{this.KEY}}.LEVELS" type="number"
-                value="{{this.levels}}" data-dtype="Number" 
-                {{#if (and (eq @root/actor.is5e true) (includes this.baseInfo.behaviors "calculated"))}}disabled{{/if}}
+                value="{{this.levels}}" data-dtype="Number"
+                {{#if this.levelsLocked}}disabled{{/if}}
                 >
             {{/unless}}
         </div>

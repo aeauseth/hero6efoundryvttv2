@@ -10,7 +10,7 @@ import {
 
 export function registerFullTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.utils.full",
+        `${game.system.id}.utils.full`,
         (context) => {
             const { after, afterEach, assert, before, beforeEach, describe, expect, it } = context;
 

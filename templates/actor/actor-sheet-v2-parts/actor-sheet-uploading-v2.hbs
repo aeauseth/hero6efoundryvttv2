@@ -1,15 +1,34 @@
 {{#if (getScopedFlagValue actor @root/gameSystemId "uploading")}}
     <div class="uploading">
-        <div>
-            {{#if (getScopedFlagValue actor @root/gameSystemId "uploadingError")}}
-                <span style="color:red;font-size:48px">Upload failed, please Report</span>
-                <span style="color:red;">
-                    <pre>{{{getScopedFlagValue actor @root/gameSystemId "uploadingError"}}}</pre>
+        {{#if (getScopedFlagValue actor @root/gameSystemId "uploadingError")}}
+            <div class="uploading-error">
+                <span class="uploading-error-title">Upload failed, please Report</span>
+                <span class="uploading-error-versions">
+                    Foundry {{getScopedFlagValue actor @root/gameSystemId "uploadingErrorContext" "foundry"}}
+                    {{#if (getScopedFlagValue actor @root/gameSystemId "uploadingErrorContext" "foundryBuild")}}(build {{getScopedFlagValue actor @root/gameSystemId "uploadingErrorContext" "foundryBuild"}}){{/if}}
+                    &bull; {{@root/gameSystemId}} {{getScopedFlagValue actor @root/gameSystemId "uploadingErrorContext" "system"}}
                 </span>
-            {{else}}
+                <pre class="uploading-error-message">{{{getScopedFlagValue actor @root/gameSystemId "uploadingError"}}}</pre>
+                <p class="uploading-error-report">
+                    Please download the report below and attach it to a
+                    <a href="https://github.com/dmdorman/hero6e-foundryvtt/issues" target="_blank" rel="noopener">GitHub issue</a>
+                    or share it on the
+                    <a href="https://discord.gg/HcUJvJH" target="_blank" rel="noopener">Discord channel</a>.
+                </p>
+                <div class="uploading-error-actions">
+                    <button type="button" data-action="downloadUploadError">
+                        <i class="fas fa-download"></i> Download Report
+                    </button>
+                    <button type="button" data-action="fullHealth">
+                        <i class="fas fa-hammer"></i> Attempt Rebuild/Reset…
+                    </button>
+                </div>
+            </div>
+        {{else}}
+            <div class="uploading-loading">
                 <span style="padding:20px;font-size:48px">Upload in progress</span>
-            {{/if}}
-        </div>
+            </div>
+        {{/if}}
     </div>
 {{else}}
     <div></div>

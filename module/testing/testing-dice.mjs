@@ -14,7 +14,7 @@ import {
 
 export function registerDiceTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.utils.dice",
+        `${game.system.id}.utils.dice`,
         (context) => {
             const { describe, expect, it } = context;
             describe("HeroRoller Tests", function () {

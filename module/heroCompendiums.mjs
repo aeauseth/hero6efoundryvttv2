@@ -48,17 +48,16 @@ async function CreateHeroMacros() {
         name: "Full Health all owned tokens in scene",
         type: "script",
         command: `
-        Dialog.confirm({
-  title: "Full Health",
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+  window: { title: "Full Health" },
   content: '<p>You are about to heal ' + game.scenes.current.tokens.filter(o=>o.isOwner).length + ' tokens in this scene. This is the same as clicking "Full Health" on each actor sheet. This includes setting all characteristics to max, removing status effects and removing temporary effects.  Do you want to continue?</p>',
-  label: "Full Health",
-  yes: () => {
-      for(const token of game.scenes.current.tokens.filter(o=>o.isOwner)) {
-        console.log(token);
-      token.actor?.fullHealth();
-      }
-    }
 });
+if (confirmed) {
+  for(const token of game.scenes.current.tokens.filter(o=>o.isOwner)) {
+    console.log(token);
+    token.actor?.fullHealth();
+  }
+}
         `,
         flags: {
             [`${game.system.id}.versionHeroSystem6eManuallyCreated`]: game.system.version,

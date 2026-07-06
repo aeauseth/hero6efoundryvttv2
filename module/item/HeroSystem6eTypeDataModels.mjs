@@ -1535,7 +1535,14 @@ export class HeroItemCharacteristic extends foundry.abstract.DataModel {
 
     get baseInfo() {
         // cache getPowerInfo
-        this.#baseInfo ??= getPowerInfo({ item: this, xmlTag: this.xmlTag ?? this.XMLID });
+        // this.schema.name is used for characteristics
+        const xmlTag = this.XMLID ?? this.schema.name;
+        if (!xmlTag) {
+            if (!squelch(`${this.id}-xmlTag`)) {
+                console.error(`Unknown xmlTag for ${this.name}`);
+            }
+        }
+        this.#baseInfo ??= getPowerInfo({ item: this, xmlTag });
         // if (!this.#baseInfo) {
         //     debugger;
         // }
@@ -1616,15 +1623,25 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
 
     /**
      * base is the starting points you get for free
+     *
+     * For 5e dependents (calculated/figured) this is the formula result WITHOUT active effects on
+     * the source primaries: an AID DEX must not move the displayed OCV base — the max column
+     * carries the adjusted number and the tooltip explains it. Item-granted primaries
+     * (characteristic-bought-as-a-power, e.g. an active +10 DEX item) are real purchases per
+     * 5ER p. 139-40 and DO stay in the base.
      */
     get base() {
         // Some 5e characteristics are calculated or figured
-        if (this.actor.is5e) {
+        if (this.actor.is5e === true) {
             if (this.baseInfo?.behaviors.includes("calculated")) {
                 if (this.#baseInfo.calculated5eCharacteristic) {
-                    return this.#baseInfo.calculated5eCharacteristic(this.actor);
+                    // Calculated formulas read the source's current *value*, which non-item effects
+                    // (adjustments included) inflate; evaluate against effect-free sources instead.
+                    return this.#evaluateFormulaAgainstEffectFreeSources(this.#baseInfo.calculated5eCharacteristic);
                 }
             } else if (this.baseInfo?.behaviors.includes("figured")) {
+                // Figured formulas read base + LEVELS (and per-item sums), which effects never
+                // touch, so a direct evaluation is already effect-free.
                 return this.baseInfo.figured5eCharacteristic(this.actor);
             }
         }
@@ -1635,11 +1652,71 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
         return this.baseInfo?.base?.(this.actor) ?? null;
     }
 
-    get basePlusLevels() {
-        // Need to add in LEVELS
-        return (this.base ?? 0) + (this.item?.LEVELS ?? 0);
+    /**
+     * Evaluates a 5e dependent formula with each source primary's current value transiently reset
+     * to its effect-free amount: base + purchased LEVELS + item-granted amounts (the fromItem
+     * entries of the effect collection — item boosts are purchases, not effects, per 5ER p. 139-40).
+     */
+    #evaluateFormulaAgainstEffectFreeSources(formula) {
+        const actor = this.actor;
+        const { patch, restore } = actor._createTransientPatcher();
+        try {
+            const maxChangesByKey = actor._collectActiveEffectMaxChanges();
+            for (const behavior of this.baseInfo?.behaviors ?? []) {
+                const sourceKey = behavior.match(/^(?:figured|calculated)([A-Z]+)$/)?.[1]?.toLowerCase();
+                if (!sourceKey) continue;
+
+                const source = actor.getCharacteristic(sourceKey);
+                if (!source) continue;
+
+                const itemEntries = (maxChangesByKey.get(sourceKey) ?? []).filter((entry) => entry.fromItem);
+                const effectFreeValue = actor._applyActiveEffectChangeEntries(
+                    Number(source.basePlusLevels ?? 0),
+                    itemEntries,
+                );
+                patch(`system.characteristics.${sourceKey}.value`, effectFreeValue);
+            }
+            return formula(actor);
+        } finally {
+            restore();
+        }
     }
 
+    get basePlusLevels() {
+        // Need to add in LEVELS
+        return (this.base ?? 0) + this.levels;
+    }
+
+    /**
+     * Whether the sheet should lock this characteristic's LEVELS input. 5e calculated combat values
+     * (OCV/DCV/OMCV/DMCV) derive entirely from DEX/EGO and cannot be purchased (cost per level 0);
+     * purchasable calculated abilities (LEAPING at 1 CP per inch) keep an editable input.
+     */
+    get levelsLocked() {
+        if (this.actor.is5e !== true) return false;
+        if (!this.baseInfo?.behaviors.includes("calculated")) return false;
+        return !(this.baseInfo?.costPerLevel?.(this) > 0);
+    }
+
+    /**
+     * The max this characteristic would have absent all (non-item) active effects — the sheet
+     * compares the live max against this for over/under-max coloring, so an AID lights the box up
+     * while a plain purchase does not. The base getter already evaluates 5e dependent formulas
+     * against effect-free sources, so base + purchased LEVELS is the natural expectation. 5e SPD
+     * keeps a fractional base (1 + DEX/10) but its stored max floors, so compare against the
+     * floored value to avoid false coloring.
+     */
+    get expectedMax() {
+        const raw = this.basePlusLevels;
+        if (this.actor?.is5e === true && this.KEY === "SPD") return Math.floor(raw);
+        return roundFavorPlayerAwayFromZero(raw);
+    }
+
+    /**
+     * Active items granting this primary characteristic as a Power (e.g. a magic ring's +35 STR).
+     * Per 5ER p. 139-40 these add to figured characteristics unless bought with the No Figured
+     * Characteristics limitation (or in a Multipower slot, which HD exports as NOFIGURED).
+     */
     get baseItemsContributingToFiguredCharacteristics() {
         return this.actor.items.filter(
             (item) =>
@@ -1649,8 +1726,14 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
         );
     }
 
+    /**
+     * Sum of this primary's item-granted contributions to a figured characteristic, each item
+     * divided and rounded SEPARATELY. 5ER p. 140: "calculate the Figured Characteristics deriving
+     * from that Primary Characteristic from each 'part' of the Primary Characteristic separately"
+     * (15 STR + 45 STR bought as a Power gives +8 and +23 STUN, not round(60/2) = 30).
+     * @param {number} divisor - The figured formula's ratio (e.g. 5 for PD = STR/5).
+     */
     baseSumFiguredCharacteristicsFromItems(divisor) {
-        // Each item is rounded seperately
         try {
             const powersWithThisCharacteristic = this.baseItemsContributingToFiguredCharacteristics;
             return powersWithThisCharacteristic.reduce((accumulator, currentItem) => {
@@ -1662,8 +1745,14 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
         return 0;
     }
 
+    /**
+     * As baseSumFiguredCharacteristicsFromItems but without per-part rounding. Used for SPD, whose
+     * fractional remainders are real (5ER p. 33-35: DEX 18 gives SPD 2.8; the fraction is kept and
+     * only the final total is floored), so rounding each part would destroy the fraction the
+     * character may have paid to top up.
+     * @param {number} divisor - The figured formula's ratio (10 for SPD = 1 + DEX/10).
+     */
     baseSumFiguredCharacteristicsNoRoundingFromItems(divisor) {
-        // Each item is rounded seperately
         try {
             const powersWithThisCharacteristic = this.baseItemsContributingToFiguredCharacteristics;
             return powersWithThisCharacteristic.reduce((accumulator, currentItem) => {
@@ -1718,31 +1807,72 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
         return _valueTitle;
     }
 
+    /**
+     * Tooltip content for the (locked) max box: lists every active effect responsible for the max
+     * differing from its natural value, so the sheet can explain a changed number instead of
+     * changing it silently.
+     */
     get maxTitle() {
-        // Active Effects may be blocking updates
         const ary = [];
-        const activeEffects = Array.from(this.actor.allApplicableEffects()).filter(
-            (ae) => ae.changes.find((p) => p.key === `system.characteristics.${this.key}.max`) && !ae.disabled,
-        );
+        const effectChangesOf = (ae) => (ae.changes?.length ? ae.changes : (ae.system?.changes ?? []));
 
-        for (const ae of activeEffects) {
-            ary.push(`<li>${ae.name}</li>`);
-            // if (ae._prepareDuration().duration) {
-            //     const change = ae.changes.find((o) => o.key === `system.characteristics.${this.key}.max`);
-            //     if (change.mode === CONST.ACTIVE_EFFECT_MODES.ADD) {
-            //         characteristic.delta += parseInt(change.value);
-            //     }
-            //     if (change.mode === CONST.ACTIVE_EFFECT_MODES.MULTIPLY) {
-            //         characteristic.delta += parseInt(this.max) * parseInt(change.value) - parseInt(this.max);
-            //     }
-            // }
+        // One tooltip line per effect: name, the same "Attacker: Item" origin string the effect
+        // config sheet shows as HERO.Origin, and the seconds left before it fades/expires.
+        const describeEffect = (ae, viaKey) => {
+            const parts = [`${ae.name}${viaKey ? ` (via ${viaKey.toUpperCase()})` : ""}`];
+
+            const originItem = ae.origin ? fromUuidSync(ae.origin) : null;
+            const originToken = ae.origin ? fromUuidSync(ae.origin.match(/(.*).Actor/)?.[1]) : null;
+            if (originItem) {
+                parts.push(`${originToken?.name || originItem.actor?.name}: ${originItem.name}`);
+            }
+
+            // Durationless effects (statuses like Prone) report an Infinity/null remaining — only a
+            // real countdown is worth showing.
+            const remaining = ae._prepareDuration?.().remaining;
+            if (Number.isFinite(remaining) && remaining > 0) {
+                parts.push(`${Math.ceil(remaining)}s remaining`);
+            }
+
+            return `<li>${parts.join(" — ")}</li>`;
+        };
+
+        // Effects that directly target this characteristic's max.
+        for (const ae of this.actor.allApplicableEffects()) {
+            if (ae.disabled || ae.isSuppressed) continue;
+            if (effectChangesOf(ae).find((p) => p.key === `system.characteristics.${this.key}.max`)) {
+                ary.push(describeEffect(ae));
+            }
         }
+
+        // 5e dependents also recompute when a source primary is adjusted (5ER p. 105), so surface
+        // those effects too — an AID DEX should explain why the OCV max moved. Figured
+        // characteristics ignore adjustment powers (they only move for actual changes or generic
+        // effects), and item-held effects feed through the item-sum path, so both are skipped.
+        if (this.actor.is5e === true && this.baseInfo) {
+            const isCalculatedDependent = !!this.baseInfo.calculated5eCharacteristic;
+            const listed = new Set();
+            for (const behavior of this.baseInfo.behaviors ?? []) {
+                const sourceKey = behavior.match(/^(?:figured|calculated)([A-Z]+)$/)?.[1]?.toLowerCase();
+                if (!sourceKey) continue;
+
+                for (const ae of this.actor.allApplicableEffects()) {
+                    if (ae.disabled || ae.isSuppressed || listed.has(ae.id ?? ae.name)) continue;
+                    if (ae.parent !== this.actor) continue;
+                    if (!isCalculatedDependent && ae.flags?.[game.system.id]?.type === "adjustment") continue;
+                    if (effectChangesOf(ae).find((p) => p.key === `system.characteristics.${sourceKey}.max`)) {
+                        listed.add(ae.id ?? ae.name);
+                        ary.push(describeEffect(ae, sourceKey));
+                    }
+                }
+            }
+        }
+
         let _maxTitle = "";
         if (ary.length > 0) {
-            _maxTitle = "<b>PREVENTING CHANGES</b>\n<ul class='left'>";
+            _maxTitle = "<b>CHANGES</b>\n<ul class='left'>";
             _maxTitle += ary.join("\n ");
             _maxTitle += "</ul>";
-            _maxTitle += "<small><i>Click to unblock</i></small>";
         }
         return _maxTitle;
     }
@@ -1780,7 +1910,14 @@ export class HeroActorCharacteristic extends foundry.abstract.DataModel {
     get baseInfo() {
         // cache getPowerInfo
         const key = this.schema.name?.toUpperCase();
-        this.#baseInfo ??= getPowerInfo({ XMLID: key, actor: this.actor, xmlTag: key });
+        if (!key) {
+            console.error(`Unable to determine KEY for characteristic in datamodel`);
+        }
+
+        // FTL is a POWER and an ADDER (not sure how to properly fix, but this kluge seems to work)
+        const xmlTag = key.replace("FTL", "POWER");
+
+        this.#baseInfo ??= getPowerInfo({ XMLID: key, actor: this.actor, xmlTag });
         return this.#baseInfo;
     }
 

@@ -680,13 +680,12 @@ export class HeroSystem6eCombatSingle extends Combat {
             turn: null,
         };
 
-        // 3. Purge dynamic system flags safely using a structured object block
-        // This format ensures inner key macros handle deletions smoothly across database iterations
-        resetData[`flags.${game.system.id}`] = {
-            "-=currentSegment": null,
-            "-=segmentRolls": null,
-            "-=recoveredRounds": null,
-        };
+        // 3. Purge dynamic system flags safely across V13/V14 via the compatibility bridge
+        resetData[`flags.${game.system.id}`] = HeroCompatibility.forceDelete([
+            "currentSegment",
+            "segmentRolls",
+            "recoveredRounds",
+        ]);
 
         // 4. Update parent properties and children simultaneously through your compatibility bridge
         return HeroCompatibility.updateEmbedded(this, "combatants", combatantUpdates, resetData);

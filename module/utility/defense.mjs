@@ -560,35 +560,25 @@ export async function getConditionalDefenses(token, item, avad) {
         const conditionalDefenseCardTemplate = `systems/${HEROSYS.module}/templates/attack/item-conditional-defense-card.hbs`;
         const html = await foundryVttRenderTemplate(conditionalDefenseCardTemplate, data);
 
-        async function getDialogOutput() {
-            return new Promise((resolve) => {
-                const dataConditionalDefenses = {
-                    title: token.name + " conditional defenses",
-                    content: html,
-                    buttons: {
-                        normal: {
-                            label: "Apply Damage",
-                            callback: (html) => {
-                                resolve(html.find("form input"));
-                            },
-                        },
-                        cancel: {
-                            label: "Cancel",
-                            callback: () => {
-                                resolve(null);
-                            },
-                        },
-                    },
-                    default: "normal",
-                    close: () => {
-                        resolve(null);
-                    },
-                };
-                new Dialog(dataConditionalDefenses).render(true);
-            });
-        }
-
-        const inputs = await getDialogOutput();
+        const inputs = await foundry.applications.api.DialogV2.wait({
+            classes: ["herosystem6e"],
+            position: { width: 400 },
+            window: { title: token.name + " conditional defenses" },
+            content: html,
+            buttons: [
+                {
+                    action: "normal",
+                    label: "Apply Damage",
+                    default: true,
+                    callback: (event, button) => Array.from(button.form.querySelectorAll("input")),
+                },
+                {
+                    action: "cancel",
+                    label: "Cancel",
+                    callback: () => null,
+                },
+            ],
+        });
         if (inputs === null) {
             return { ignoreDefenseIds: null, conditionalDefenses: null };
         }

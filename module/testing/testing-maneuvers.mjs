@@ -2,7 +2,7 @@ import { createQuenchActor, deleteQuenchActor, setQuenchTimeout } from "./quench
 
 export function registerManeuverTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.item.maneuver",
+        `${game.system.id}.item.maneuver`,
         (context) => {
             const { after, before, describe, expect, it } = context;
 

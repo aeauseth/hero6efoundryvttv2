@@ -8,7 +8,7 @@ import {
 
 export function registerHeroMathTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.hero.rounding",
+        `${game.system.id}.hero.rounding`,
         (context) => {
             const { describe, expect, it } = context;
 

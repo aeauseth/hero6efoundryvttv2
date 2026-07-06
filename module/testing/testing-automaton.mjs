@@ -2,7 +2,7 @@ import { createQuenchActor, deleteQuenchActor, setQuenchTimeout } from "./quench
 
 export function registerAutomatonTests(quench) {
     quench.registerBatch(
-        "hero6efoundryvttv2.actor.automaton",
+        `${game.system.id}.actor.automaton`,
         (context) => {
             const { after, before, describe, expect, it } = context;
 

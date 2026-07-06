@@ -11,7 +11,8 @@ export function getPowerInfo(options) {
         options.item?.XMLID ||
         options.item?.system?.XMLID ||
         options.item?.system?.xmlid ||
-        options.item?.system?.id;
+        options.item?.system?.id ||
+        options.xmlTag;
 
     const actor = options?.actor || options?.item?.actor;
 
@@ -347,7 +348,7 @@ export async function expireEffects(actor, expiresOn) {
                 // May need to revisit and make exception for statuses (like prone/recovery)
 
                 if (ae.parent instanceof HeroSystem6eActor) {
-                    const cardHtml = `${ae.name.replace(/\d+ segments remaining/, "")} from ${ae.flags.hero6efoundryvttv2.source} has expired.`;
+                    const cardHtml = `${ae.name.replace(/\d+ segments remaining/, "")} from ${ae.flags[game.system.id].source} has expired.`;
                     const chatData = {
                         //author: game.user._id,
                         content: cardHtml,
@@ -420,22 +421,24 @@ export async function expireEffects(actor, expiresOn) {
                                 break;
                         }
                     } else {
-                        switch (validationEntry.severity) {
-                            case CONFIG.HERO.VALIDATION_SEVERITY.INFO:
-                                console.log(message, ae);
-                                break;
+                        if (!squelch(`expireEffects-herovalidation-${actor.id}`)) {
+                            switch (validationEntry.severity) {
+                                case CONFIG.HERO.VALIDATION_SEVERITY.INFO:
+                                    console.log(message);
+                                    break;
 
-                            case CONFIG.HERO.VALIDATION_SEVERITY.WARNING:
-                                console.warn(message, ae);
-                                break;
+                                case CONFIG.HERO.VALIDATION_SEVERITY.WARNING:
+                                    console.warn(message);
+                                    break;
 
-                            case CONFIG.HERO.VALIDATION_SEVERITY.ERROR:
-                                console.error(message, ae);
-                                break;
+                                case CONFIG.HERO.VALIDATION_SEVERITY.ERROR:
+                                    console.error(message);
+                                    break;
 
-                            default:
-                                console.error("Invalid validation severity", validationEntry.severity);
-                                break;
+                                default:
+                                    console.error("Invalid validation severity", validationEntry.severity);
+                                    break;
+                            }
                         }
                     }
                 }
@@ -631,6 +634,15 @@ export function tokenEducatedGuess(options = {}) {
 
 export function gmActive() {
     return !!game.users.filter((u) => u.active && u.isGM).length;
+}
+
+// btoa only accepts latin1, so route UTF-8 text through its percent-encoded byte string first.
+export function utf8ToBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+}
+
+export function base64ToUtf8(base64) {
+    return decodeURIComponent(escape(atob(base64)));
 }
 
 export function squelch(id, options = { timeout: 1000 }) {
