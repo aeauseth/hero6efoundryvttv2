@@ -2117,39 +2117,10 @@ export class HeroActorModel extends HeroObjectCacheMixin(foundry.abstract.TypeDa
     static defineSchema() {
         return {
             CHARACTER: new EmbeddedDataField(HeroActorCharacterModel),
-
-            // Plan is to eventually use the Actor.Item version of these
-            STR: new EmbeddedDataField(HeroItemCharacteristic),
-            DEX: new EmbeddedDataField(HeroItemCharacteristic),
-            CON: new EmbeddedDataField(HeroItemCharacteristic),
-            INT: new EmbeddedDataField(HeroItemCharacteristic),
-            EGO: new EmbeddedDataField(HeroItemCharacteristic),
-            PRE: new EmbeddedDataField(HeroItemCharacteristic),
-            COM: new EmbeddedDataField(HeroItemCharacteristic),
-            OCV: new EmbeddedDataField(HeroItemCharacteristic),
-            DCV: new EmbeddedDataField(HeroItemCharacteristic),
-            OMCV: new EmbeddedDataField(HeroItemCharacteristic),
-            DMCV: new EmbeddedDataField(HeroItemCharacteristic),
-            SPD: new EmbeddedDataField(HeroItemCharacteristic),
-            PD: new EmbeddedDataField(HeroItemCharacteristic),
-            ED: new EmbeddedDataField(HeroItemCharacteristic),
-            REC: new EmbeddedDataField(HeroItemCharacteristic),
-            END: new EmbeddedDataField(HeroItemCharacteristic),
-            BODY: new EmbeddedDataField(HeroItemCharacteristic),
-            STUN: new EmbeddedDataField(HeroItemCharacteristic),
-
-            RUNNING: new EmbeddedDataField(HeroItemCharacteristic),
-            SWIMMING: new EmbeddedDataField(HeroItemCharacteristic),
-            LEAPING: new EmbeddedDataField(HeroItemCharacteristic),
-
-            BASESIZE: new EmbeddedDataField(HeroItemCharacteristic),
-            DEF: new EmbeddedDataField(HeroItemCharacteristic), // 5e Base and Vehicle
-            SIZE: new EmbeddedDataField(HeroItemCharacteristic), // vehicle
             hap: new SchemaField({
                 value: new HeroNumberField({ integer: true, nullable: true }),
             }),
 
-            characteristics: new EmbeddedDataField(HeroCharacteristicsModel),
             versionHeroSystem6eUpload: new StringField(),
             versionHeroSystem6eCreated: new StringField(),
             is5e: new BooleanField({ initial: null, nullable: true }),

@@ -2215,7 +2215,16 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         return false;
     }
 
-    static ItemXmlTags = ["SKILLS", "PERKS", "TALENTS", "MARTIALARTS", "POWERS", "DISADVANTAGES", "EQUIPMENT"];
+    static ItemXmlTags = [
+        "CHARACTERISTICS",
+        "SKILLS",
+        "PERKS",
+        "TALENTS",
+        "MARTIALARTS",
+        "POWERS",
+        "DISADVANTAGES",
+        "EQUIPMENT",
+    ];
     static ItemXmlChildTags = ["ADDER", "MODIFIER", "POWER"];
 
     static ItemXmlChildTagsUpload = ["ADDER", "MODIFIER", "POWER", "SKILL", "PERK", "TALENT"];

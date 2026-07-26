@@ -150,7 +150,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 continue;
             }
 
-            const characteristic = this.getCharacteristic(keyLower);
+            const characteristic = this.getCharacteristicSynthetic(keyLower);
 
             const basePoints = characteristic?.base ?? characteristic?.baseInfo?.base ?? 0;
 
@@ -221,7 +221,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                     const keyLower = info.key.toLowerCase();
                     if (preserveCharacteristicKeys.has(keyLower)) continue;
 
-                    const characteristic = this.getCharacteristic(keyLower);
+                    const characteristic = this.getCharacteristicSynthetic(keyLower);
                     if (!characteristic) continue;
 
                     const currentEntry = targetChars[keyLower] ?? {};
@@ -335,72 +335,6 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         this.composeMemoizableObjectFunction("getActorCharacterAndActivePoints");
         this.composeMemoizableObjectFunction("getAutomatonItems");
         this.composeMemoizableObjectFunction("getAutomatonSpecialPowers");
-
-        // The 5e recompute below reads characteristic nodes, which may not exist yet mid-construction.
-        if (!this.system?.characteristics) return;
-
-        if (this.is5e === true) {
-            const characteristicInfo = getCharacteristicInfoArrayForActor(this);
-
-            // One effect-collection pass shared by the override + per-characteristic passes below;
-            // allApplicableEffects() walks actor and item effects and prepareData runs on every
-            // update/render.
-            const maxChangesByKey = this._collectActiveEffectMaxChanges();
-            const restoreFormulaSources = this._apply5eActiveEffectFormulaSourceOverrides(
-                characteristicInfo,
-                maxChangesByKey,
-            );
-            try {
-                for (const info of characteristicInfo) {
-                    const keyLower = info.key.toLowerCase();
-                    const characteristic = this.getCharacteristic(keyLower);
-                    if (!characteristic) continue;
-
-                    const baseInfo = characteristic.baseInfo;
-                    let calculatedValue = null;
-
-                    // Both kinds add the characteristic's own purchased LEVELS on top of the formula
-                    // base: bought SPD or extra LEAPING inches stack with the derived amount. 5e CVs
-                    // (OCV/DCV/OMCV/DMCV) cannot be purchased directly, so their LEVELS are always 0
-                    // and this is a no-op for them.
-                    if (baseInfo?.figured5eCharacteristic) {
-                        calculatedValue = baseInfo.figured5eCharacteristic(this) + (this.system[info.key]?.LEVELS ?? 0);
-                    } else if (baseInfo?.calculated5eCharacteristic) {
-                        calculatedValue =
-                            baseInfo.calculated5eCharacteristic(this) + (this.system[info.key]?.LEVELS ?? 0);
-                    }
-
-                    if (calculatedValue !== null) {
-                        let calculatedMax;
-
-                        // 5ER p. 33: "SPD is the only Figured Characteristic that doesn't round in
-                        // favor of the character" — a SPD of 2.9 is still SPD 2, so floor it; every
-                        // other figured/calculated value uses player-favorable rounding. This matches
-                        // the persistence path (_computeFiguredCharacteristicChanges) so a live
-                        // recompute never disagrees with what an update would commit.
-                        if (keyLower === "spd") {
-                            calculatedMax = Math.floor(calculatedValue);
-                        } else {
-                            calculatedMax = roundFavorPlayerAwayFromZero(calculatedValue);
-                        }
-
-                        const node = this.system.characteristics[keyLower];
-                        node.max = this._applyDirectActiveEffectChangesToDerivedMax(keyLower, calculatedMax, {
-                            maxChangesByKey,
-                        });
-                    }
-                }
-            } finally {
-                restoreFormulaSources();
-            }
-        }
-
-        // Effects that alter a characteristic max must move the current value with it on every
-        // edition (this pass replaced the deleted AE-lifecycle value→max sync); it runs after the
-        // 5e recompute above so recomputed maxima are final.
-        for (const keyLower of Object.keys(this.system.characteristics)) {
-            this._syncCharacteristicValueWithMax(keyLower);
-        }
     }
 
     /**
@@ -481,7 +415,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             const nonItemEntries = (maxChangesByKey.get(key) ?? []).filter((entry) => !entry.fromItem);
             if (nonItemEntries.length === 0) continue;
 
-            const characteristic = this.getCharacteristic(key);
+            const characteristic = this.getCharacteristicSynthetic(key);
             const characteristicData = this.system.characteristics?.[key];
             if (!characteristic || !characteristicData) continue;
 
@@ -665,14 +599,39 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
      * direct property access. This will be turned into a more expensive function. As well, the concepts of value, max, etc may well go away
      * when characteristics are items.
      *
+     * AARON is refactoring everything to use this function
+     *
      * Get the characteristic structure.
      *
      * @param {string} characteristicName - Target property layout key
      * @returns {object|null} The underlying characteristic node structure
      */
-    getCharacteristic(characteristicName) {
+    getCharacteristicSynthetic(characteristicName) {
         if (!characteristicName) return null;
-        return this.system?.characteristics?.[characteristicName.toLowerCase()] ?? null;
+        const keyUpper = characteristicName.toUpperCase();
+        const keyLower = characteristicName.toLowerCase();
+
+        if (!this.hasCharacteristic(keyUpper)) return null;
+
+        // Find the boughtLevels from characteristic item
+        const coreCharItem = this.items.find((i) => i.type === "characteristic" && i.system.XMLID === keyUpper);
+        if (!coreCharItem) {
+            return this.system?.characteristics?.[characteristicName.toLowerCase()] ?? null;
+        }
+
+        const baseForActorType = coreCharItem.baseInfo.base(this);
+        const boughtLevels = parseInt(coreCharItem.system.LEVELS) || 0;
+        const activeEffectModifiers = parseInt(this.system.characteristics?.[keyLower]?.value) || 0;
+        const figured5eModifiers = 0;
+
+        const syntheticNode = {
+            value: finalValue, // Represents active current tracking resource counts
+            max: finalMax, // Represents the dynamic, active adjustment-modified ceiling
+            base: baseForActorType,
+            levels: boughtLevels,
+        };
+
+        return baseForActorType + boughtLevels + activeEffectModifiers;
     }
 
     /**
@@ -862,7 +821,10 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             if (activeEffect.id == "knockedOut") {
                 // When they wakes up, their END equals their
                 // current STUN total.
-                const newEnd = Math.min(this.getCharacteristic("stun").value, this.getCharacteristic("end").max);
+                const newEnd = Math.min(
+                    this.getCharacteristicSynthetic("stun").value,
+                    this.getCharacteristicSynthetic("end").max,
+                );
 
                 await this.updateCharacteristics([["end", { value: newEnd }]], {});
             }
@@ -1043,8 +1005,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const actorTypeSupportsStun = getCharacteristicInfoArrayForActor(this).some((info) => info.key === "STUN");
         if ((stunValueChanged || typeChanged) && actorTypeSupportsStun) {
             // Grab the incoming STUN value payload, or fall back to the actor's current value
-            const nextStun = changed.system?.characteristics?.stun?.value ?? this.getCharacteristic("stun")?.value ?? 0;
-            const currentStun = this.getCharacteristic("stun")?.value || 0;
+            const nextStun =
+                changed.system?.characteristics?.stun?.value ?? this.getCharacteristicSynthetic("stun")?.value ?? 0;
+            const currentStun = this.getCharacteristicSynthetic("stun")?.value || 0;
 
             // Calculate dynamic threshold parameters based on the incoming type target frame
             const currentThreshold = this.stunThreshold;
@@ -1081,9 +1044,11 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
         // BODY-based death automation: pc/npc die at BODY <= -BODY.max, automatons at BODY <= 0;
         // the dead mark clears when BODY recovers above the threshold.
-        if (changed?.system?.characteristics?.body?.value !== undefined && this.getCharacteristic("body")) {
-            const nextBody = changed.system.characteristics.body.value ?? this.getCharacteristic("body").value ?? 0;
-            const nextBodyMax = changed.system.characteristics.body.max ?? this.getCharacteristic("body").max ?? 0;
+        if (changed?.system?.characteristics?.body?.value !== undefined && this.getCharacteristicSynthetic("body")) {
+            const nextBody =
+                changed.system.characteristics.body.value ?? this.getCharacteristicSynthetic("body").value ?? 0;
+            const nextBodyMax =
+                changed.system.characteristics.body.max ?? this.getCharacteristicSynthetic("body").max ?? 0;
             const isAutomaton = this.type === "automaton" || this.getAutomatonItems().length > 0;
 
             if (isAutomaton || ["pc", "npc"].includes(this.type)) {
@@ -1116,26 +1081,26 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         if (processScrolling) {
             // Evaluate STUN text changes
             if (changed?.system?.characteristics?.stun?.value !== undefined) {
-                const curStun = this.getCharacteristic("stun")?.value || 0;
+                const curStun = this.getCharacteristicSynthetic("stun")?.value || 0;
                 const targetStun = changed.system.characteristics.stun.value;
                 if (curStun !== targetStun) {
                     chatLines.push(`STUN from ${curStun} to ${targetStun}`);
                     options.displayScrollingChanges.push({
                         value: targetStun - curStun,
-                        options: { max: this.getCharacteristic("stun")?.max || 0, fill: "0x00FF00" },
+                        options: { max: this.getCharacteristicSynthetic("stun")?.max || 0, fill: "0x00FF00" },
                     });
                 }
             }
 
             // Evaluate BODY text changes
             if (changed?.system?.characteristics?.body?.value !== undefined) {
-                const curBody = this.getCharacteristic("body")?.value || 0;
+                const curBody = this.getCharacteristicSynthetic("body")?.value || 0;
                 const targetBody = changed.system.characteristics.body.value;
                 if (curBody !== targetBody) {
                     chatLines.push(`BODY from ${curBody} to ${targetBody}`);
                     options.displayScrollingChanges.push({
                         value: targetBody - curBody,
-                        options: { max: this.getCharacteristic("body")?.max || 0, fill: "0xFF1111" },
+                        options: { max: this.getCharacteristicSynthetic("body")?.max || 0, fill: "0xFF1111" },
                     });
                 }
             }
@@ -1200,7 +1165,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const overrideSize = parseInt(size);
         let _size = Math.max(
             0,
-            Number.isNaN(overrideSize) ? parseInt(this.getCharacteristic("size")?.value || 0) : overrideSize,
+            Number.isNaN(overrideSize) ? parseInt(this.getCharacteristicSynthetic("size")?.value || 0) : overrideSize,
         );
         if (this.type === "base2") {
             _size =
@@ -1208,7 +1173,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 Math.max(
                     0,
                     Number.isNaN(overrideSize)
-                        ? parseInt(this.getCharacteristic("basesize")?.value || 0)
+                        ? parseInt(this.getCharacteristicSynthetic("basesize")?.value || 0)
                         : overrideSize,
                 );
         }
@@ -1347,7 +1312,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             // DEX/10) and the stored field is an integer that would otherwise round 7.5 up to 8 instead
             // of down to 7 (matches fullHealth()'s parseInt and the figured helper's Math.floor).
             for (const { key } of levelsChanged) {
-                const primaryValue = Math.floor(this.getCharacteristic(key).basePlusLevels);
+                const primaryValue = Math.floor(this.getCharacteristicSynthetic(key).basePlusLevels);
                 results[key] = primaryValue;
                 // Reflect the primary's new value so calculated formulas (which read .value) see it.
                 patch(`system.characteristics.${key}.value`, primaryValue);
@@ -1430,9 +1395,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const tokenName = token?.name || this.name;
 
         if (!asAction && this.statuses.has("knockedOut")) {
-            if (this.getCharacteristic("stun")?.value <= -31) {
+            if (this.getCharacteristicSynthetic("stun")?.value <= -31) {
                 return `${tokenName} is knockedOut for "a long time" and does not get a recovery (untracked).`;
-            } else if (this.getCharacteristic("stun")?.value <= -21) {
+            } else if (this.getCharacteristicSynthetic("stun")?.value <= -21) {
                 return `${tokenName} is knockedOut and only gets a recovery once per minute (untracked).`;
             }
             // stun.value <= -11 (Post-Segment 12 only)
@@ -1452,7 +1417,10 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
         // PH: FIXME: If this is not required, then we should get rid of it.
         // Catchall for no stun or end (shouldn't be needed as base type check above should be sufficient)
-        if ((this.getCharacteristic("end")?.max || 0) === 0 && (this.getCharacteristic("stun")?.max || 0) === 0) {
+        if (
+            (this.getCharacteristicSynthetic("end")?.max || 0) === 0 &&
+            (this.getCharacteristicSynthetic("stun")?.max || 0) === 0
+        ) {
             console.log(`${token?.name || this.name} has no STUN or END thus does not get/need a recovery.`);
             if (asAction) {
                 ui.notifications.warn(
@@ -3199,19 +3167,30 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 const changesFiguredOrCalculated = {};
                 uploadProgressBar.advance(`${this.name}: CHARACTERISTICS`, 0);
 
+                // const characteristicItemsToCreate = [];
+                // for (const [key, value] of Object.entries(root.CHARACTERISTICS)) {
+                //     characteristicItemsToCreate.push({
+                //         type: "characteristic",
+                //         system: {
+
+                //         }
+                //     });
+                // }
+                // await this.createEmbeddedDocuments("Item", characteristicItemsToCreate);
+
                 // Legacy (well current)
-                for (const [key, value] of Object.entries(root.CHARACTERISTICS)) {
-                    const _baseInfo = getPowerInfo({ XMLID: key, actor: this, xmlTag: key });
+                // for (const [key, value] of Object.entries(root.CHARACTERISTICS)) {
+                //     const _baseInfo = getPowerInfo({ XMLID: key, actor: this, xmlTag: key });
 
-                    this.system[key] = new HeroItemCharacteristic(value, { parent: this });
+                //     this.system[key] = new HeroItemCharacteristic(value, { parent: this });
 
-                    if (_baseInfo?.behaviors.includes("calculated") || _baseInfo?.behaviors.includes("figured")) {
-                        changesFiguredOrCalculated[`system.${key}`] = this.system[key];
-                    } else {
-                        changesNormal[`system.${key}`] = this.system[key];
-                    }
-                }
-                delete root.CHARACTERISTICS;
+                //     if (_baseInfo?.behaviors.includes("calculated") || _baseInfo?.behaviors.includes("figured")) {
+                //         changesFiguredOrCalculated[`system.${key}`] = this.system[key];
+                //     } else {
+                //         changesNormal[`system.${key}`] = this.system[key];
+                //     }
+                // }
+                //delete root.CHARACTERISTICS;
 
                 if (this.id) {
                     // Update normal values first
@@ -4760,188 +4739,33 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         return stunVal < this.stunThreshold;
     }
 
-    // V13 and V14 have different ways of applying active effects
-    applyActiveEffects(phase) {
-        if (HeroCompatibility.isV14) {
-            return this.applyActiveEffects14(phase);
-        }
-        return this.applyActiveEffects13();
-    }
-
-    // HeroSystem is unique in that we only
-    // apply only one multiplier (whichever one reduces the most).
     /**
      * Apply any transformations to the Actor data which are caused by ActiveEffects.
-     */
-    applyActiveEffects13() {
-        const overrides = {};
-        this.statuses.clear();
-
-        // Organize non-disabled effects by their application priority
-        let changes = [];
-        for (const effect of this.allApplicableEffects()) {
-            if (!effect.active) continue;
-            changes.push(
-                ...effect.changes.map((change) => {
-                    const c = foundry.utils.deepClone(change);
-                    c.effect = effect;
-                    c.priority = c.priority ?? c.mode * 10;
-                    return c;
-                }),
-            );
-            for (const statusId of effect.statuses) this.statuses.add(statusId);
-        }
-
-        // Filter out redundant multiplies, keeping lowest value
-        // const mults = changes.filter((c) => c.mode === CONST.ACTIVE_EFFECT_MODES.MULTIPLY);
-        // if (mults.length > 1) {
-        //     const uniqueKeys = new Set();
-        //     mults.forEach((obj) => {
-        //         uniqueKeys.add(obj.key);
-        //     });
-
-        //     for (const key of uniqueKeys) {
-        //         const multsUniqueKey = mults.filter((c) => c.key === key);
-        //         if (multsUniqueKey.length > 1) {
-        //             const minValue = Math.min(...multsUniqueKey.map((c) => parseFloat(c.value)));
-        //             const keepMult = multsUniqueKey.find((c) => parseFloat(c.value) === minValue);
-        //             // remove all multsUniqueKey and add back in the keepMult
-        //             changes = changes.filter((c) => c.key !== key || c.mode !== CONST.ACTIVE_EFFECT_MODES.MULTIPLY);
-        //             changes.push(keepMult);
-        //         }
-        //     }
-        // }
-        HeroSystem6eActorActiveEffects._removeRedundantHalvingActiveEffects(changes);
-        changes.sort((a, b) => a.priority - b.priority);
-
-        // Apply all changes
-        for (const change of changes) {
-            if (!change.key) continue;
-            const changes = change.effect.apply(this, change);
-            Object.assign(overrides, changes);
-        }
-
-        // Expand the set of final overrides
-        this.overrides = foundry.utils.expandObject(overrides);
-    }
-
-    /**
-     * Apply any transformations to the Actor data which are caused by ActiveEffects.
+     * Targets Foundry V14 exclusively.
+     * @override
      * @param {string} phase The application phase under which changes are to be applied.
      */
-    applyActiveEffects14(phase) {
-        const ActiveEffect = foundry.documents.ActiveEffect.implementation;
-        if (typeof phase !== "string") {
-            phase = this._completedActiveEffectPhases.has("initial") ? "final" : "initial";
-            const message =
-                'Actor#applyActiveEffects must be called with a string phase identifier, with "initial"' +
-                " as the first phase.";
-            foundry.utils.logCompatibilityWarning(message, { since: 14, until: 16, once: true });
-        } else if (!(phase in ActiveEffect.CHANGE_PHASES)) {
-            const error = new Error(`"${phase}" is not a registered ActiveEffect application phase.`);
-            Hooks$1.onError("Actor#applyActiveEffects", error, { log: "error" });
-        }
-        if (this._completedActiveEffectPhases.has(phase)) {
-            const error = new Error(
-                `ActiveEffect application phase "${phase}" has already completed and cannot be run again` +
-                    " in this Actor's data-preparation cycle.",
-            );
-            Hooks$1.onError("Actor#applyActiveEffects", error, { log: "error" });
-            return;
-        }
-        this._completedActiveEffectPhases.add(phase);
+    applyActiveEffects(phase) {
+        // 1. Run Foundry VTT's native core change routing pipeline first
+        super.applyActiveEffects(phase);
 
-        // Organize non-disabled effects by their application priority
-        /** @type {ActiveEffectChangeData[]} */
-        const changes = [];
-        /** @type {ActiveEffectChangeData[]} */
-        const tokenChanges = [];
-        for (const effect of this.allApplicableEffects()) {
-            if (!effect.active) continue;
-            for (const change of effect.system.changes) {
-                if (change.key === "" || change.phase !== phase) continue;
-                const copy = foundry.utils.deepClone(change);
-                copy.effect = effect;
-                if (copy.key?.startsWith("token.")) {
-                    // Keep Token changes separate for later application
-                    copy.key = copy.key.slice(6);
-                    tokenChanges.push(copy);
-                } else changes.push(copy);
-            }
-            if (phase === "initial") {
-                for (const statusId of effect.statuses) this.statuses.add(statusId);
+        // 2. Initialize our clean temporary tracking object on the actor instance context
+        this._heroChanges ??= {};
+
+        // 3. Harvest calculated modifications at the boundary edge of the initial phase pass
+        if (phase === "initial" && this.system?.characteristics) {
+            for (const keyUpper of Object.keys(this.system.characteristics)) {
+                const keyLower = keyUpper.toLowerCase();
+
+                // Safely extract the active effect bonus accumulated in your final overrides object
+                const activeBonus =
+                    foundry.utils.getProperty(this.overrides, `system.characteristics.${keyLower}.value`) || 0;
+
+                // Cache it securely so your upcoming prepareDerivedData loop can reference it safely
+                this._heroChanges[`${keyLower}Bonus`] = activeBonus;
             }
         }
-        changes.sort((a, b) => a.priority - b.priority);
-        ActiveEffect._shimChanges(changes);
-        HeroSystem6eActorActiveEffects._removeRedundantHalvingActiveEffects(changes);
-        this.tokenActiveEffectChanges[phase] = tokenChanges;
-
-        // Apply all changes
-        const overrides = {};
-        const replacementData = this.getRollData();
-        for (const change of changes) {
-            const result = ActiveEffect.applyChange(this, change, { replacementData });
-            if (foundry.utils.isPlainObject(result)) Object.assign(overrides, result);
-        }
-
-        // Expand the set of final overrides
-        foundry.utils.mergeObject(this.overrides, foundry.utils.expandObject(overrides));
     }
-
-    /**
-     * Create a new Token document, not yet saved to the database, which represents the Actor.
-     * @param {object} [data={}]            Additional data, such as x, y, rotation, etc. for the created token data
-     * @param {object} [options={}]         The options passed to the TokenDocument constructor
-     * @returns {Promise<TokenDocument>}    The created TokenDocument instance
-     */
-    // async getTokenDocument(data = {}, options = {}) {
-    //     const tokenData = this.prototypeToken.toObject();
-    //     tokenData.actorId = this.id;
-
-    //     if (tokenData.randomImg && !data.texture?.src) {
-    //         let images = await this.getTokenImages();
-    //         if (images.length > 1 && this._lastWildcard) {
-    //             images = images.filter((i) => i !== this._lastWildcard);
-    //         }
-    //         const image = images[Math.floor(Math.random() * images.length)];
-    //         tokenData.texture.src = this._lastWildcard = image;
-    //     }
-
-    //     if (!tokenData.actorLink) {
-    //         if (tokenData.appendNumber) {
-    //             // Count how many tokens are already linked to this actor
-    //             const tokens = canvas.scene.tokens.filter((t) => t.actorId === this.id);
-    //             // let n = tokens.length + 1;
-    //             // tokenData.name = `${tokenData.name} (${n})`;
-
-    //             // And make sure we don't already have this token name in this scene
-    //             for (let n = tokens.length + 1; n < 100; n++) {
-    //                 const sisterToken = canvas.scene.tokens.find(
-    //                     (t) => t.actorId === this.id && t.name === `${tokenData.name} (${n})`,
-    //                 );
-    //                 if (!sisterToken) {
-    //                     tokenData.name = `${tokenData.name} (${n})`;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-
-    //         if (tokenData.prependAdjective) {
-    //             const adjectives = Object.values(
-    //                 foundry.utils.getProperty(game.i18n.translations, CONFIG.Token.adjectivesPrefix) ||
-    //                     foundry.utils.getProperty(game.i18n._fallback, CONFIG.Token.adjectivesPrefix) ||
-    //                     {},
-    //             );
-    //             const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    //             tokenData.name = `${adjective} ${tokenData.name}`;
-    //         }
-    //     }
-
-    //     foundry.utils.mergeObject(tokenData, data);
-    //     const cls = getDocumentClass("Token");
-    //     return new cls(tokenData, options);
-    // }
 
     hasPhase(segmentNumber) {
         let index = Math.min(Math.max(this.system.characteristics.spd.value, 1), 12); // Security bounds
