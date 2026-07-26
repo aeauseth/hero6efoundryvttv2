@@ -691,18 +691,21 @@ export class HeroSystem6eCombat extends Combat {
         // Stop BRACE
         const BRACE = combatant.actor.items.find((i) => i.system.XMLID === "BRACE");
         if (BRACE?.system.active === true) {
-            await BRACE.toggle();
+            console.warn("SKIPPING BRACE.toggle() Aaron is working on V14 expiry.");
+            //await BRACE.toggle();
         }
 
         // Stop HAYMAKER
         const HAYMAKER = combatant.actor.items.find((i) => i.system.XMLID === "HAYMAKER");
         if (HAYMAKER?.system.active === true) {
-            await HAYMAKER.toggle();
+            console.warn("SKIPPING HAYMAKER.toggle() Aaron is working on V14 expiry.");
+            //await HAYMAKER.toggle();
         }
 
         // Stop ABORT
         if (combatant.actor.statuses.has("aborted")) {
-            await combatant.actor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.abortEffect.id);
+            console.warn("SKIPPING ABORT.toggle() Aaron is working on V14 expiry.");
+            //await combatant.actor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.abortEffect.id);
         }
 
         // Stop dodges and other maneuvers' active effects that expire automatically
@@ -733,7 +736,8 @@ export class HeroSystem6eCombat extends Combat {
                         fromUuidSync(toggleAes.flags[game.system.id]?.dehydratedManeuverActorUuid),
                     ).item;
 
-                return maneuver.toggle();
+                console.warn("SKIPPING MANEUVER.toggle() Aaron is working on V14 expiry.");
+                // return maneuver.toggle();
             });
         const maneuverNextPhaseNonTogglePromises = maneuverNextPhaseAes
             .filter((ae) => !ae.flags[game.system.id].toggle)

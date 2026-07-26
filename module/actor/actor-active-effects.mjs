@@ -2,42 +2,31 @@ import { HEROSYS } from "../herosystem6e.mjs";
 import { roundFavorPlayerAwayFromZero } from "../utility/round.mjs";
 import { HeroCompatibility } from "../utility/compatibility.mjs";
 
-// Compatibility V14
-const _ActiveEffectTypeDataModel = foundry.data?.ActiveEffectTypeDataModel ?? foundry.abstract.TypeDataModel;
-
-export class HeroSystem6eActorActiveEffectsSystemData extends _ActiveEffectTypeDataModel {
+/**
+ * System-specific data model extensions for HERO System 6e Active Effects.
+ * Targets Foundry V14 exclusively.
+ */
+export class HeroSystem6eActorActiveEffectsSystemData extends foundry.data.ActiveEffectTypeDataModel {
     static defineSchema() {
-        const fields = foundry.data.fields;
-        // Compatibility V14
-        const _schema = foundry.data?.ActiveEffectTypeDataModel == undefined ? {} : super.defineSchema();
+        const { StringField, BooleanField, NumberField } = foundry.data.fields;
+
         return {
-            ..._schema,
-            // Make sure active-effect-config.hbs has all these fields so they don't get lost during editing
-            XMLID: new fields.StringField(),
+            ...super.defineSchema(),
+            // Ensures fields survive template round-trips in active-effect-config.hbs
+            XMLID: new StringField(),
+
+            // Core Soft-Expiry Context Elements
+            type: new StringField({ required: false, initial: "maneuver" }),
+            subType: new StringField({ required: false }),
+            originCombatantId: new StringField({ required: false }),
+            createdRound: new NumberField(),
+            createdTurn: new NumberField(),
+            createdSegment: new NumberField(),
         };
     }
 }
 
 export class HeroSystem6eActorActiveEffects extends ActiveEffect {
-    // static defineSchema() {
-    //     const schema2 = this.schema; // foundry.deepClone(super.defineSchema());
-    //     schema2.changes = new foundry.data.fields.ArrayField(
-    //         new foundry.data.fields.SchemaField({
-    //             key: new foundry.data.fields.StringField({ required: true, label: "EFFECT.ChangeKey" }),
-    //             value: new foundry.data.fields.StringField({ required: true, label: "EFFECT.ChangeValue" }),
-    //             mode: new foundry.data.fields.NumberField({
-    //                 integer: true,
-    //                 initial: CONST.ACTIVE_EFFECT_MODES.ADD,
-    //                 label: "EFFECT.ChangeMode",
-    //             }),
-    //             priority: new foundry.data.fields.NumberField(),
-    //             seconds: new foundry.data.fields.NumberField({ integer: true, label: "EFFECT.Seconds" }),
-    //         }),
-    //     );
-    //     return schema2;
-    // }
-    //ActiveEffect.schema.fields.changes.element.fields
-
     // All status effects
     static statusEffectsObj;
 
@@ -512,15 +501,15 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
         changes[change.key] = update;
     }
 
-    _onCreate(data, options, userId) {
-        super._onCreate(data, options, userId);
-        game[HEROSYS.module].effectPanel.refresh();
-    }
+    // _onCreate(data, options, userId) {
+    //     super._onCreate(data, options, userId);
+    //     game[HEROSYS.module].effectPanel.refresh();
+    // }
 
-    _onUpdate(changed, options, userId) {
-        super._onUpdate(changed, options, userId);
-        game[HEROSYS.module].effectPanel.refresh();
-    }
+    // _onUpdate(changed, options, userId) {
+    //     super._onUpdate(changed, options, userId);
+    //     game[HEROSYS.module].effectPanel.refresh();
+    // }
 
     _onDelete(options, userId) {
         super._onDelete(options, userId);
@@ -723,6 +712,77 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                     changes.push(keepMult);
                 }
             }
+        }
+    }
+
+    /**
+     * Evaluates if a custom HERO system string event triggers an effect expiration.
+     * Targets Foundry V14 exclusively.
+     * @override
+     * @param {string} event - The engine event string token currently driving the refresh (e.g., 'updateWorldTime')
+     * @param {object} [context] - Contextual data passed during the expiration tick refresh
+     * @returns {boolean} True if the custom string criteria legally triggers expiration
+     */
+    isExpiryEvent(event, context = {}) {
+        const expiryEvent = this.duration?.expiry;
+
+        // Fall back to native V14 core handlers if it isn't an explicit HERO string token
+        if (!expiryEvent || typeof expiryEvent !== "string" || !expiryEvent.startsWith("hero.")) {
+            return super.isExpiryEvent(event, context);
+        }
+
+        const currentCombatant = game.combat?.combatant;
+        const originCombatant = game.combat?.combatants.get(this.system?.originCombatantId);
+
+        // Corrected to switch on the configured expiryEvent string token
+        switch (expiryEvent) {
+            case "hero.nextTurnStart": {
+                if (!game.combat?.started || currentCombatant?.id !== originCombatant?.id) {
+                    return false;
+                }
+
+                const currentRound = game.combat.round;
+                const currentTurn = game.combat.turn;
+                const currentSegment = game.combat.segment ?? 0;
+                const { createdRound, createdTurn, createdSegment } = this.system || {};
+
+                // Unified Matrix Guard: Prevent immediate deletion on the initialization frame.
+                if (currentRound === createdRound && currentTurn === createdTurn && currentSegment === createdSegment) {
+                    return false;
+                }
+
+                // Strict HERO ruleset rule: If the actor is holding their action ("holding" status), stretch the effect
+                const isHolding = originCombatant?.actor?.statuses?.has("holding") || false;
+                if (isHolding) return false;
+
+                return true;
+            }
+
+            case "hero.nextPhaseEnd": {
+                if (!game.combat?.started || currentCombatant?.id !== originCombatant?.id) {
+                    return false;
+                }
+
+                const currentRound = game.combat.round;
+                const currentTurn = game.combat.turn;
+                const currentSegment = game.combat.segment ?? 0;
+                const { createdRound, createdTurn, createdSegment } = this.system || {};
+
+                // Keep the lock active if we are on the exact same round, turn, and segment milestone
+                if (currentRound === createdRound && currentTurn === createdTurn && currentSegment === createdSegment) {
+                    return false;
+                }
+
+                // Once the combat clock advances past the creation segment milestone,
+                // the aborted phase lock has legally completed its duration.
+                return true;
+            }
+
+            default:
+                console.warn(
+                    `Unhandled custom HERO system expiryEvent token encountered during evaluation: "${expiryEvent}" on ActiveEffect: "${this.name}" (${this.id})`,
+                );
+                return false;
         }
     }
 

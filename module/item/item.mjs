@@ -1485,6 +1485,18 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             //return;
         }
 
+        const behaviors = this.baseInfo?.behaviors || [];
+
+        // Intercept items designed strictly to instantiate active effects directly on the actor
+        if (behaviors.includes("ae-only")) {
+            if (this.type === "maneuver") {
+                await activateManeuver(this, options);
+                return; // Early return prevents the attack/dice dialog layout from loading
+            } else {
+                console.error(`"ae-only" is only supported with maneuvers`);
+            }
+        }
+
         if (this.baseInfo.behaviors.includes("to-hit")) {
             // FIXME: Martial maneuvers all share the MANEUVER XMLID. Need to extract out things from that (and fix the broken things).
             switch (this.system.XMLID) {
@@ -2507,9 +2519,12 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
 
         // NOTE: item._id can be null in the case of a temporary/effective item.
         if (this.actor) {
-            const actorEffects = this.actor.effects.find((o) => o.origin === this.actor.items.get(this._id)?.uuid);
-            if (actorEffects) {
-                return true;
+            // AARON WAS HERE: Reworking DODGE to be a roll not a toggle
+            if (this.type !== "maneuver") {
+                const actorEffects = this.actor.effects.find((o) => o.origin === this.actor.items.get(this._id)?.uuid);
+                if (actorEffects) {
+                    return true;
+                }
             }
         } else {
             console.error(`${this.name} has no actor`);

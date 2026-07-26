@@ -279,180 +279,146 @@ export function maneuverHasVelocityTrait(item) {
 }
 
 /**
- * Activate a combat or martial maneuver
+ * Activates a combat or martial maneuver using 100% native V14 string-based expiry events.
+ * @param {Item} item - The embedded maneuver item document instance
+ * @param {object} [options={}] - Destructured options parameters configuration frame
+ * @param {TokenDocument} [options.token] - The specific targeted Canvas Token instance context
+ * @returns {Promise<ChatMessage|void>} The created ChatMessage document transaction or void
  */
-export async function activateManeuver(item) {
-    const effect = item.system.EFFECT?.toLowerCase();
-    if (!effect) {
+export async function activateManeuver(item, { token } = {}) {
+    const _effect = item.system.EFFECT?.toLowerCase() || "";
+    const actor = item.actor;
+    if (!actor) return;
+
+    // 1. In-Combat Safety Check Guard
+    if (actor.inCombat === false) {
+        return ui.notifications.info(`${item.name} effects were not automated because ${actor.name} is not in combat.`);
+    }
+
+    // 2. Fetch configured expiry event token from item.baseInfo mapping
+    const expiryEvent = item.baseInfo?.expiryEvent;
+    if (!expiryEvent) {
+        console.error(
+            `Unsupported maneuver signature block or missing expiryEvent configuration for ${item.name || item.system.XMLID}`,
+        );
         return;
     }
 
-    // FIXME: These are supposed to be for HTH or ranged combat only except for dodge.
-    const dcvTrait = parseInt(item.system.DCV === "--" ? 0 : item.system.DCV || 0);
-    let ocvTrait = parseInt(item.system.OCV === "--" ? 0 : item.system.OCV || 0);
+    const currentWorldTime = game.time.worldTime;
+    const dcvBonus = parseInt(item.system.DCV?.replace("+", ""), 10) || 0;
+    const ocvBonus = parseInt(item.system.OCV?.replace("+", ""), 10) || 0;
 
-    // Velocity calc?
-    if (isNaN(ocvTrait) && item.system.OCV.includes("v/")) {
-        const match = item.system.OCV.match(/([-+]*)v\/(\d+)/);
-        const v = calculateVelocityInSystemUnits(item.actor);
-        const sign = match[1];
-        const divisor = parseInt(match[2]);
-        ocvTrait = roundFavorPlayerTowardsZero(v / divisor) * (sign === "-" ? -1 : 1);
+    const modifierChanges = [];
+    if (dcvBonus !== 0) {
+        modifierChanges.push({
+            key: "system.characteristics.dcv.value",
+            value: dcvBonus,
+            mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.ADD,
+        });
+    }
+    if (ocvBonus !== 0) {
+        modifierChanges.push({
+            key: "system.characteristics.ocv.value",
+            value: ocvBonus,
+            mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.ADD,
+        });
     }
 
-    // Catch All
-    if (isNaN(ocvTrait)) {
-        console.error(`unhandled item.system.OCV`, item.system.OCV);
-        ocvTrait = 0;
-    }
+    const originCombatantId = game.combat?.combatants.find((c) => c.actor?.id === actor.id)?.id || null;
+    const isAbortManeuver = _effect.includes("abort");
+    const isDodgeManeuver = _effect.includes("dodge");
 
-    // Types of effects for this maneuver?
-    const hasDodgeTrait = maneuverHasDodgeTrait(item);
-    const hasBlockTrait = maneuverHasBlockTrait(item);
+    // Dynamically assemble native V14 statuses array frame
+    const effectStatuses = [];
+    if (isAbortManeuver) effectStatuses.push("aborted");
+    if (isDodgeManeuver) effectStatuses.push("dodge");
 
-    // Make sure we have original Item
-    const originalItem = item.id ? item : fromUuidSync(item.system._active.__originalUuid);
-
-    let activeEffect = originalItem.effects.contents[0] || {
-        flags: [],
+    // 3a. Abstract Shared Core Blueprint Parameters for V14 DataModel Parity
+    const baseEffectBlueprint = {
+        disabled: false,
+        origin: item.uuid,
+        duration: {
+            type: "seconds",
+            units: "seconds",
+            _worldTime: currentWorldTime,
+        },
+        system: {
+            XMLID: item.system.XMLID || "MANEUVER",
+            createdRound: game.combat?.round ?? 0,
+            createdTurn: game.combat?.turn ?? 0,
+            createdSegment: game.combat?.segment ?? 0,
+            originCombatantId: originCombatantId,
+        },
     };
 
-    // Dodge effect
-    if (hasDodgeTrait) {
-        activeEffect.name = item.name
-            ? `${item.name} (${item.system.XMLID} +${dcvTrait})`
-            : `${item.system.XMLID} +${dcvTrait}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
+    const effectsToCreate = [];
+
+    // 3b. Compile Specific Statistic Modifier Layout (Dodge/Core Maneuver)
+    effectsToCreate.push(
+        foundry.utils.mergeObject(foundry.utils.deepClone(baseEffectBlueprint), {
+            name: item.name,
+            img: item.img || "icons/svg/shield.svg",
+            statuses: isDodgeManeuver ? ["dodge"] : [],
+            duration: { expiry: expiryEvent }, // "hero.nextTurnStart"
+            system: {
+                type: "maneuver",
+                subType: item.name.toLowerCase(),
+                changes: modifierChanges,
+            },
+        }),
+    );
+
+    // 3c. Compile Specific Action-Lock Layout (Abort)
+    if (isAbortManeuver) {
+        const abortIconPath =
+            HeroSystem6eActorActiveEffects?.statusEffectsObj?.abortEffect?.img || "icons/svg/clockwork.svg";
+
+        effectsToCreate.push(
+            foundry.utils.mergeObject(foundry.utils.deepClone(baseEffectBlueprint), {
+                name: "Aborted Stance Lock",
+                img: abortIconPath,
+                statuses: ["aborted"],
+                duration: { expiry: "hero.nextPhaseEnd" },
+                system: {
+                    type: "status-lock",
+                    subType: "aborted",
+                    changes: [], // No stat adjustments, pure state tracking lock
+                },
+            }),
+        );
     }
 
-    // Block effect
-    else if (hasBlockTrait) {
-        activeEffect.name = item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.blockEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.blockEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
+    // 4. Aggressive Maneuver Monopoly Guard: Find ALL older structures to sweep out
+    const staleIds = actor.effects.contents
+        .filter((ae) => ae.system?.type === "maneuver" || ae.system?.type === "status-lock")
+        .map((ae) => ae.id);
+
+    // 5. Complete Database Wipe
+    if (staleIds.length > 0) {
+        await actor.deleteEmbeddedDocuments("ActiveEffect", staleIds);
     }
 
-    // Other maneuvers with effects
-    // Turn on any status effects that we have implemented
-    else if (item.system.XMLID === "BRACE") {
-        // NOTE: This effect is special and doesn't come off as the start of the next phase
-        activeEffect.name = item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = foundry.utils.deepClone(HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect.changes);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    } else if (item.system.XMLID === "HAYMAKER") {
-        activeEffect.name = HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.name;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = foundry.utils.deepClone(HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.changes);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    } else if (item.system.XMLID === "CLUBWEAPON") {
-        activeEffect.name = HeroSystem6eActorActiveEffects.statusEffectsObj.clubWeaponEffect.name;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.clubWeaponEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.clubWeaponEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    } else if (
-        item.system.XMLID === "COVER" ||
-        item.system.XMLID === "HIPSHOT" ||
-        item.system.XMLID === "HURRY" ||
-        item.system.XMLID === "SET" ||
-        item.system.XMLID === "SETANDBRACE" ||
-        item.system.XMLID === "PULLINGAPUNCH"
-    ) {
-        console.error(`Unsupported maneuver ${item.detailedName()}`);
-    } else {
-        // PH: FIXME: Assume this is a martial maneuver and give it a default effect
-        activeEffect.name = item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.strikeEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.strikeEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    }
+    // 6. Direct Multi-Document Transaction Commit
+    await actor.createEmbeddedDocuments("ActiveEffect", effectsToCreate);
 
-    // Handy reference to current V13/V14 AE changes
-    const _changes =
-        foundry.utils.getProperty(activeEffect, HeroCompatibility.isV14 ? `system.changes` : `changes`) ?? [];
+    // 7. Generate Chat Roll Notification Card using your extracted token parameter
+    const chatTemplateData = {
+        user: game.user.id,
+        speaker: ChatMessage.getSpeaker({ actor: actor, token: token ?? actor.token }),
+        style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+        flavor: `<h3>Activates ${item.name}</h3>`,
+        content: `
+      <div class="hero-maneuver-card">
+        <p><strong>Maneuver:</strong> ${item.system.XMLID || "Custom"}</p>
+        <p><strong>Phase cost:</strong> ${item.system.PHASE || "1/2"}</p>
+        ${ocvBonus !== 0 ? `<p><strong>OCV Modifier:</strong> ${item.system.OCV}</p>` : ""}
+        ${dcvBonus !== 0 ? `<p><strong>DCV Modifier:</strong> ${item.system.DCV}</p>` : ""}
+        <p><strong>Effects:</strong> <em>${item.system.EFFECT || "None"}</em></p>
+      </div>
+    `,
+    };
 
-    if (activeEffect.name && _changes.length > 0) {
-        // There is no need to keep track of OCV/DCV changes when not in combat
-        if (item.actor) {
-            if (item.actor.inCombat === false) {
-                return ui.notifications.info(
-                    `${item.name} effects were not automated because ${item.actor.name} is not in combat.`,
-                );
-            }
-        }
-
-        // TODO: You can only have 1 combat effect applied at any time.
-        // If there is already a combat effect then either the player is trying to cheat
-        // or the previous combat effect did not properly expire.
-        // I don't believe we have a way to tell if there is a current martial or maneuver effect.
-        // Should add something to flags/system so we can check.
-
-        // v14 throws error if effect.duration.value is not an integer.
-        // Value = Infinity fails SchemaField validation.
-        // We can replace Infinity with null and get this to work.
-        // Appears to be a FoundryVTT V14 build 363 bug.
-        if (HeroCompatibility.isV14) {
-            if (activeEffect.duration?.value === Infinity) {
-                activeEffect.duration.value = null;
-            }
-            // V14 moved the start time to the top-level start field; core migrates it
-            // on create but not on the re-activation update of a reused template AE
-            if (activeEffect.duration?.startTime !== undefined) {
-                activeEffect.start = { time: activeEffect.duration.startTime };
-            }
-        }
-
-        if (activeEffect.update) {
-            await activeEffect.update({ ...activeEffect, _id: undefined });
-        } else {
-            if (originalItem.id) {
-                await originalItem.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
-            } else {
-                console.error(`originalItem has no id, something is very wrong here`, originalItem);
-            }
-        }
-    }
+    return ChatMessage.create(chatTemplateData);
 }
 
 /**

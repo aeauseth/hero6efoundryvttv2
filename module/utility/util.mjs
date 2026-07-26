@@ -230,6 +230,9 @@ export async function getTemporaryEffectsOwnedByActorInCombat(actor) {
 
 /// Check the actor for any effects that should expire, and expire them.
 export async function expireEffects(actor, expiresOn) {
+    console.warn("SKIPPING ExpireEffects.  Aaron is working on V14 expiry");
+    return;
+
     // V14: temporaryEffects does not include suppressed AEs, which we want so we can delete them.
     const temporaryEffects = actor.getTemporaryEffects(); //temporaryEffects;
 

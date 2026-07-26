@@ -1597,12 +1597,13 @@ export class HeroSystem6eCombatSingle extends Combat {
             const abortedEffect = actor.effects.find((e) => e.statuses.has("aborted"));
             if (!abortedEffect) continue;
 
-            await abortedEffect.delete();
+            console.warn("SKIPPING abortedEffect.  Aaron is working on V14 expiry");
+            //await abortedEffect.delete();
 
-            await this._combatCard(
-                combatant,
-                `${actor.name}'s aborted Phase has passed; they may act again on their next Phase.`,
-            );
+            // await this._combatCard(
+            //     combatant,
+            //     `${actor.name}'s aborted Phase has passed; they may act again on their next Phase.`,
+            // );
         }
     }
 

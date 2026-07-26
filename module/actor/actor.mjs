@@ -4046,7 +4046,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const itemData = {
             name,
             type: "maneuver",
-            img: itemDataAsIfMartialArt ? `systems/${game.system.id}/icons/fist.svg` : undefined,
+            img: itemDataAsIfMartialArt ? (maneuver.img ?? `systems/${game.system.id}/icons/fist.svg`) : undefined,
             system: {
                 active: false, // TODO: This is probably not always true. It should, however, be generated in other means.
                 description: EFFECT,
