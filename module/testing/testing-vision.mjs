@@ -1,3 +1,10 @@
+import {
+    setQuenchTimeout,
+    createQuenchScene,
+    deleteQuenchScenes,
+    deleteQuenchActor,
+    waitForNotificationQueueToClear,
+} from "./quench-helper.mjs";
 import { calculateDistanceBetween } from "../utility/range.mjs";
 
 /**
@@ -12,9 +19,11 @@ export function registerVisionTests(quench) {
             const { describe, it, assert, before, after } = context;
 
             // Targeted Iteration Isolation: Focus execution entirely on the Vision module
-            describe("Vision", () => {
+            describe("Vision", function () {
+                setQuenchTimeout(this);
+
                 // --- UNIT TESTS LEVEL ---
-                describe("Unit tests", () => {
+                describe("Unit tests", function () {
                     it("Should resolve true via SIGHT FRINGE math if adjacent despite active invisibility", () => {
                         const detectionMode = CONFIG.Canvas.detectionModes["heroTargetingV14"];
 
@@ -56,48 +65,21 @@ export function registerVisionTests(quench) {
                 });
 
                 // --- WORKFLOW / SCENE WORKFLOW TESTS LEVEL ---
-                describe("Integration", () => {
-                    let testScene;
+                describe("Integration", function () {
+                    let quenchScene;
                     let pcActor;
                     let invisibleActor;
                     let tokenDocA;
                     let tokenDocB;
-                    let originalScene;
-                    const sceneName = "Quench Vision Test Arena";
 
                     before(async () => {
-                        originalScene = game.scenes.viewed;
-                        testScene = await Scene.create({
-                            name: sceneName,
-                            tokenVision: true,
+                        // Recommended when doing integration test with the UI
+                        await waitForNotificationQueueToClear();
+                        quenchScene = await createQuenchScene({
+                            quench: this,
                             width: 1000,
                             height: 750,
-                            environment: {
-                                globalLight: {
-                                    enabled: true,
-                                },
-                            },
-                            grid: {
-                                type: CONST.GRID_TYPES.SQUARE,
-                                size: 100, // 100 pixels per cell block
-                                distance: 2, // 100px grid block = 2 meters metrics scaling
-                                units: "m",
-                            },
-                            active: true,
                         });
-
-                        // Deterministic Canvas View Switch Guard
-                        if (canvas.scene?.id !== testScene.id) {
-                            console.warn("Quench Vision: Requesting secure canvas switch.");
-                            // Fire the view update transaction natively
-                            await testScene.view();
-                        }
-
-                        // Comprehensive Hook-Driven Synchronization Check
-                        if (!canvas.ready || canvas.loading) {
-                            console.warn("Quench Vision: Halting execution thread until canvasReady resolves.");
-                            await new Promise((resolve) => Hooks.once("canvasReady", resolve));
-                        }
 
                         pcActor = await foundry.documents.Actor.create({
                             name: "Breeze 5e",
@@ -113,7 +95,7 @@ export function registerVisionTests(quench) {
                             img: "icons/svg/shield.svg",
                         });
 
-                        const createdTokens = await testScene.createEmbeddedDocuments("Token", [
+                        const createdTokens = await quenchScene.createEmbeddedDocuments("Token", [
                             { name: pcActor.name, actorId: pcActor.id, x: 0, y: 0, actorLink: true },
                             { name: invisibleActor.name, actorId: invisibleActor.id, x: 500, y: 0, actorLink: true },
                         ]);
@@ -123,29 +105,9 @@ export function registerVisionTests(quench) {
                     });
 
                     after(async () => {
-                        // Lifecycle Disposal Guards: Prevent stale data rows from leaking to other user clients
-                        if (pcActor) await pcActor.delete();
-                        if (invisibleActor) await invisibleActor.delete();
-
-                        const fallbackScene = originalScene ?? game.scenes.contents.find((s) => s.id !== testScene?.id);
-
-                        if (fallbackScene && canvas.scene?.id !== fallbackScene.id) {
-                            // Passing loading: false tells the V14 engine to break stale asset resource holds instantly
-                            await fallbackScene.view({ loading: false });
-
-                            if (!canvas.ready) {
-                                await new Promise((resolve) => Hooks.once("canvasReady", resolve));
-                            }
-                        }
-
-                        // Introduce a micro-task pause delay to clear out active token rendering ticks safely
-                        await new Promise((resolve) => setTimeout(resolve, 1));
-
-                        // Clear database entities
-                        if (testScene) {
-                            await testScene.delete();
-                            testScene = null;
-                        }
+                        await deleteQuenchScenes();
+                        await deleteQuenchActor({ quench: this, actor: pcActor });
+                        await deleteQuenchActor({ quench: this, actor: invisibleActor });
                     });
 
                     it("Should accurately track canvas distance separation parameters via live scene token metrics", () => {

@@ -391,6 +391,15 @@ HERO.ACTIVE_EFFECT_PRIORITY = Object.freeze({
     UPGRADE: 40,
 });
 
+HERO.ACTIVE_EFFECT_MODES = Object.freeze({
+    CUSTOM: 0,
+    MULTIPLY: 1,
+    ADD: 2,
+    DOWNGRADE: 3,
+    UPGRADE: 4,
+    OVERRIDE: 5,
+});
+
 HERO.RANGE_TYPES = Object.freeze({
     LIMITED_RANGE: "Limited Range",
     LINE_OF_SIGHT: "Line of Sight",
@@ -2187,8 +2196,9 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         {
             key: "DODGE",
             type: ["maneuver"],
-            behaviors: ["non-hd", "activatable"],
+            behaviors: ["non-hd", "dice", "ae-only"],
             name: "Dodge",
+            img: `systems/hero6efoundryvttv2/icons/dodge.svg`,
             costPerLevel: fixedValueFunction(0),
             perceivability: "obvious",
             duration: HERO.DURATION_TYPES.INSTANT,
@@ -2196,6 +2206,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: true, // Maneuvers that don't use strength cost 1 END
             target: "target's dcv",
             ignoreForActor: staticIgnoreForActorFunction(["base2", "computer", "ai"]),
+            expiryEvent: "hero.nextTurnStart",
             maneuverDesc: {
                 phase: "1/2",
                 ocv: "--",
@@ -2207,6 +2218,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
                 useWeapon: false,
             },
             baseEffectDicePartsBundle: maneuverBaseEffectDicePartsBundle,
+            xml: `<MANEUVER XMLID="MANEUVER" ID="1785019798542" BASECOST="1.0" LEVELS="0" ALIAS="Dodge" POSITION="10" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" CUSTOM="Yes" CATEGORY="Hand to Hand" DISPLAY="Custom Maneuver" OCV="+0" DCV="+3" DC="2" PHASE="1/2" EFFECT="Dodge, Affects All Attacks, Abort" ADDSTR="Yes" ACTIVECOST="0" DAMAGETYPE="0" MAXSTR="0" STRMULT="1" USEWEAPON="No" WEAPONEFFECT="Dodge, Affects All Attacks, Abort"></MANEUVER>`,
         },
         {},
     );

@@ -26,7 +26,7 @@ import {
 import { HeroSystem6eActorActiveEffects } from "./actor-active-effects.mjs";
 
 const { renderTemplate } = foundry.applications.handlebars;
-const { FilePicker } = foundry.applications.ux;
+const { FilePicker } = foundry.applications.apps;
 const { Actor, Item } = foundry.documents;
 const { ItemSheet } = foundry.appv1.sheets;
 
@@ -851,7 +851,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     // Assumes ActiveEffect is a statusEffects.
     // TODO: Allow for a non-statusEffects ActiveEffect (like from a power)
     async addActiveEffect(activeEffect) {
-        console.warn("Consider using 'toggleStatusEffect'", activeEffect);
+        console.warn(`Consider using 'toggleStatusEffect' for ${activeEffect.name}`);
         const newEffect = foundry.utils.deepClone(activeEffect);
 
         // Check for standard StatusEffects

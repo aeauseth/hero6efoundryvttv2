@@ -11,7 +11,7 @@ import {
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 const { DragDrop } = foundry.applications.ux;
-const { FilePicker } = foundry.applications.ux;
+const { FilePicker } = foundry.applications.apps;
 
 // REF: https://foundryvtt.wiki/en/development/guides/converting-to-appv2
 // REF: https://foundryvtt.wiki/en/development/guides/applicationV2-conversion-guide
@@ -850,7 +850,7 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         await super._onFirstRender(context, options);
 
         // Keep track of token; needed for linked actors
-        this.#token = options.token ?? tokenEducatedGuess({ actor: this.actor });
+        this.#token = options.token ?? this.document.token ?? tokenEducatedGuess({ actor: this.actor });
 
         this.#contextMenus = [
             // General right click on row

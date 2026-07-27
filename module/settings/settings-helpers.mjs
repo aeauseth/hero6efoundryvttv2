@@ -622,3 +622,9 @@ export async function getAndSetGameSetting(settingKey, newValue) {
     await game.settings.set(game.system.id, settingKey, newValue);
     return presentValue;
 }
+
+export async function getAndSetGameSettingCore(settingKey, newValue) {
+    const presentValue = game.settings.get("core", settingKey);
+    await game.settings.set("core", settingKey, newValue);
+    return presentValue;
+}

@@ -60,21 +60,25 @@ export async function createQuenchActor({ quench, contents, is5e, actorType = "p
 
 export async function deleteQuenchActor({ quench, actor }) {
     if (actor == null) {
-        throw "missing actor";
+        throw new Error("missing actor");
     } else if (quench == null) {
-        throw "missing quench";
+        throw new Error("missing quench");
     }
 
     // Careful undefined comparisons are tricky
-    if (
-        quench.tests?.find((t) => t?.state !== "passed") ||
-        quench.currentTest?.state === "failed" ||
-        quench.suites?.find((s) => s.tests.find((t) => t.state !== "passed")) ||
-        quench.test.parent.suites?.find((s) => s.tests.find((t) => t.state === "failed")) ||
-        quench.test.parent.tests?.find((t) => t.state === "failed")
-    ) {
-        console.error("skipping deletion of actor because tests failed");
-        return;
+    try {
+        if (
+            quench.tests?.find((t) => t?.state !== "passed") ||
+            quench.currentTest?.state === "failed" ||
+            quench.suites?.find((s) => s.tests.find((t) => t.state !== "passed")) ||
+            quench.test?.parent.suites?.find((s) => s.tests.find((t) => t.state === "failed")) ||
+            quench.test?.parent.tests?.find((t) => t.state === "failed")
+        ) {
+            console.error("skipping deletion of actor because tests failed");
+            return;
+        }
+    } catch (e) {
+        console.error(e);
     }
 
     await actor.delete();
@@ -123,6 +127,10 @@ export function registerGlobalTeardown(quench) {
                         game.actors.filter((a) => a.name.startsWith("_Quench")).map((o) => o.id),
                     );
                 });
+
+                it("Delete '_Quench' scenes", async () => {
+                    await deleteQuenchScenes();
+                });
             });
         },
         {
@@ -152,28 +160,130 @@ export async function waitForTokenDrawn(tokenDoc, timeoutMs = 5000) {
     return tokenDoc.object ?? canvas.tokens?.get(tokenDoc.id) ?? null;
 }
 
-/**
- * Waits for a specific DOM element to render within a Foundry chat card message.
- * Prioritizes thread-safe performance by cleaning up background tasks immediately upon settling.
- *
- * @param {string} elementSelector - The CSS selector string to query (e.g., ".apply-adjustment-card").
- * @param {number} [timeoutMs=1000] - Hard fallback constraint before intentional rejection.
- * @returns {Promise<Object>} Resolves to an object containing the chat message document and the found DOM node.
- */
-export async function waitForElementInChat(elementSelector, timeoutMs = 1000) {
-    let messageHookId = null;
-    let executionTimerId = null;
-
+export async function waitForNotificationQueueToClear(timeout = 5000) {
     // Clear any existing chat rendering backlog to protect Quench execution time limits
     const isQueueActive = () => {
         const queueLength = ui.chat._renderQueue?.length || ui.chat._pending?.length || ui.chat._batch?.length || 0;
         return queueLength > 0;
     };
 
-    let counter = 500; // 500 * 10ms = 5 seconds maximum backlog buffer clearance
+    let counter = Math.floor(timeout / 10); // 500 * 10ms = 5 seconds maximum backlog buffer clearance
     while (isQueueActive() && counter-- > 0) {
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
+
+    if (isQueueActive()) {
+        console.error(`waitForNotificationQueueToClear did not clear during time alloted`);
+    }
+}
+
+export async function createQuenchScene(options = {}) {
+    // 1. Extract and delete the quench context from options so it doesn't pollute the scene database data
+    const quench = options.quench;
+    delete options.quench;
+
+    // 2. Determine a unique suffix based on the test name
+    let testSuffix = "Generic";
+    if (quench?.test) {
+        // Collect full test title path (Suite Name -> Test Title) and replace spaces/special characters
+        const fullTitle = quench.test?.fullTitle() || quench.fullTitle();
+        testSuffix = fullTitle.replace(/[^a-z0-9]/gi, "_").substring(0, 40);
+    }
+
+    const quenchTestSceneName = `_Quench_${testSuffix}`;
+    console.log(`createQuenchScene ${quenchTestSceneName}`);
+
+    const quenchScene = await Scene.create(
+        foundry.utils.mergeObject(
+            {
+                name: quenchTestSceneName,
+                tokenVision: true,
+                width: 1000,
+                height: 750,
+                environment: {
+                    globalLight: {
+                        enabled: true,
+                    },
+                },
+                levels: [
+                    {
+                        name: "defaultLevel0000",
+                        elevation: { bottom: 0, top: 20 },
+                        background: { color: "#9c7bdc" },
+                    },
+                ],
+                background: {
+                    color: "#7804f4", // Make sure to include the '#' symbol here
+                },
+                grid: {
+                    type: CONST.GRID_TYPES.SQUARE,
+                    size: 100, // 100 pixels per cell block
+                    distance: 2, // 100px grid block = 2 meters metrics scaling
+                    units: "m",
+                },
+            },
+            options,
+        ),
+    );
+
+    // Deterministic Canvas View Switch Guard
+    if (canvas.scene?.id !== quenchScene.id) {
+        // Fire the view update transaction natively
+        await quenchScene.view();
+    }
+
+    // Comprehensive Hook-Driven Synchronization Check
+    if (!canvas.ready || canvas.loading) {
+        console.warn("Halting execution thread until canvasReady resolves.");
+        await new Promise((resolve) => Hooks.once("canvasReady", resolve));
+    }
+
+    // Comprehensive Hook-Driven Synchronization Check
+    if (!canvas.ready || canvas.loading) {
+        console.warn(`Quench Vision: Halting execution thread until canvasReady resolves for ${quenchScene.name}.`);
+        await new Promise((resolve) => Hooks.once("canvasReady", resolve));
+    }
+
+    return quenchScene;
+}
+
+export async function deleteQuenchScenes() {
+    console.log("deleteQuenchScenes");
+
+    // 1. Explicitly await any pending UI notification cleanups
+    await waitForNotificationQueueToClear();
+
+    // 2. Safely return the GM view to the active scene if they are looking at a test scene
+    if (game.scenes.active && game.scenes.active !== game.scenes.viewed) {
+        const canvasIsSettled = new Promise((resolve) => Hooks.once("canvasReady", resolve));
+        await game.scenes.active.view();
+        await canvasIsSettled; // Wait for the new canvas geometry layout to completely load
+    }
+
+    // 3. Purge the database records cleanly
+    const quenchScenes = game.scenes.filter((s) => s.name.startsWith("_Quench"));
+    const quenchIds = quenchScenes.map((s) => s.id);
+
+    if (quenchIds.length > 0) {
+        console.log(`Deleting scenes: ${quenchScenes.map((s) => `${s.name} (${s.id})`).join(", ")}`);
+        await Scene.deleteDocuments(quenchIds);
+    }
+}
+
+/**
+ * Waits for a specific DOM element to render within a Foundry chat card message.
+ * Prioritizes thread-safe performance by cleaning up background tasks immediately upon settling.
+ *
+ * @param {string} elementSelector - The CSS selector string to query (e.g., ".apply-adjustment-card").
+ * @param {number} [timeoutMs=5000] - Hard fallback constraint before intentional rejection.
+ * @returns {Promise<Object>} Resolves to an object containing the chat message document and the found DOM node.
+ */
+export async function waitForElementInChat(elementSelector, timeoutMs = 5000) {
+    let messageHookId = null;
+    let executionTimerId = null;
+
+    // Clear any existing chat rendering backlog to protect Quench execution time limits
+    await waitForNotificationQueueToClear();
 
     // Unified Race Pipeline
     return Promise.race([

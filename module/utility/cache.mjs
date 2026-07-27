@@ -1,5 +1,3 @@
-import { foundryVttDeleteProperty } from "./util.mjs";
-
 /**
  * A simple in memory cache using objects.
  */
@@ -182,14 +180,14 @@ export const HeroObjectCacheMixin = (Base) =>
          * @param {String} funcName
          */
         invalidateComposedMemoizableObjectFunction(funcName) {
-            foundryVttDeleteProperty(this._cache, `cmofd.${funcName}`);
+            foundry.utils.deleteProperty(this._cache, `cmofd.${funcName}`);
         }
 
         /**
          * Reset all the memoized information for this object but continue to keep any functions composed.
          */
         invalidateAllComposedObjectFunctions() {
-            foundryVttDeleteProperty(this._cache, `cmofd`);
+            foundry.utils.deleteProperty(this._cache, `cmofd`);
         }
 
         /**
@@ -212,8 +210,8 @@ export const HeroObjectCacheMixin = (Base) =>
                 Object.defineProperty(this, funcName, descriptor);
             }
 
-            foundryVttDeleteProperty(this._cache, `cmofs.${funcName}`);
-            foundryVttDeleteProperty(this._cache, `cmofd.${funcName}`);
+            foundry.utils.deleteProperty(this._cache, `cmofs.${funcName}`);
+            foundry.utils.deleteProperty(this._cache, `cmofd.${funcName}`);
         }
 
         /**
@@ -224,7 +222,7 @@ export const HeroObjectCacheMixin = (Base) =>
                 this.restoreComposedMemoizableObjectFunction(funcName);
             }
 
-            foundryVttDeleteProperty(this._cache, `cmofd`);
+            foundry.utils.deleteProperty(this._cache, `cmofd`);
         }
     };
 
