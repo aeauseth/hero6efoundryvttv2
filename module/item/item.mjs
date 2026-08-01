@@ -332,13 +332,21 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             data.name = newName;
         }
 
-        this.updateSource({
-            name: data.name,
-            system: {
-                versionHeroSystem6eCreated: game.system.version,
-                is5e,
-            },
-        });
+        const unifiedDynamicEffects = this.buildDynamicActiveEffects() ?? [];
+
+        try {
+            this.updateSource({
+                effects: unifiedDynamicEffects,
+                name: data.name,
+                system: {
+                    versionHeroSystem6eCreated: game.system.version,
+                    is5e: !!is5e,
+                },
+            });
+        } catch (e) {
+            // Use technical terms only when logging low-level DataModel schema failures
+            console.error(`${game.system.id.toUpperCase()} | Failed schema initialization inside updateSource:`, e);
+        }
     }
 
     // Assign a custom img based on XMLID, SFX, and in the future OPTIONID.
@@ -527,389 +535,552 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         this.composeMemoizableObjectFunction("_realCost");
     }
 
-    async setActiveEffects(options = {}) {
-        try {
-            const _abstractItem = options.futureItem ?? this;
+    /**
+     * Universal factory method compiling dynamic ActiveEffect configurations.
+     * Completely realigned for pure Foundry V14 DataModel parameters.
+     *
+     * @returns {object[]} Combined clean database payload arrays.
+     */
+    buildDynamicActiveEffects() {
+        const effects = [];
 
-            // If there is no actor for this item, then this item is most likely in the Items collection and we can ignore active effects for it.
-            if (!this.actor) {
-                console.warn(`Skipping setActiveEffects because there is no actor`, this);
-                return;
-            } else if (!this.id) {
-                console.warn(`Skipping setActiveEffects because there is no item.id`, this);
-                return;
-            }
+        // 1. Unroll singular base-info effect payloads if present
+        if (this.baseInfo?.activeEffect) {
+            effects.push(this.baseInfo.activeEffect(this));
+        }
 
-            // Generic activeEffect from CONFIG.MJS (preferred)
-            if (this.baseInfo?.activeEffect) {
-                const effectData = this.baseInfo?.activeEffect(_abstractItem);
-                if (effectData) {
-                    // Ensure v14 is using system.changes
-                    if (HeroCompatibility.isV14) {
-                        console.warn(`${effectData.name} v14 changes moved to system.changes`);
-                        effectData.system.changes ??= effectData.changes;
-                        delete effectData.changes;
+        // 2. Unroll multiple base-info structural effects using optimized array spread syntax
+        if (this.baseInfo?.activeEffects) {
+            effects.push(...this.baseInfo.activeEffects(this));
+        }
 
-                        // V14 appears to use "type" instead of "mode"
-                        for (const change of effectData.system.changes) {
-                            change.type ??= change.mode;
+        // 3. Cascade down structural rules modifiers by reference matching system boundaries
+        this._applyCharacteristicsDynamicActiveEffects(effects);
+        this._applyMovementDynamicActiveEffects(effects);
+        this._applyBulkyActiveEffectsModifiers(effects);
 
-                            // V14 no longer uses numeric change.type instead it uses a string
-                            // TODO: Rework change.type into HERO.CONFIG constants and perhaps a "fix" function
-                            if (Number.isNumeric(change.type)) {
-                                switch (change.type) {
-                                    case 1:
-                                        change.type = "multiply"; //CONST.ACTIVE_EFFECT_MODES.MULTIPLY
-                                        break;
+        return effects;
+    }
 
-                                    case 2:
-                                        change.type = "add"; //CONST.ACTIVE_EFFECT_MODES.ADD
-                                        break;
+    /**
+     * Evaluates and injects core characteristic modifiers directly into the running reference array.
+     * @param {object[]} effects - The active reference compilation payload array.
+     * @private
+     */
+    _applyCharacteristicsDynamicActiveEffects(effects) {
+        if (!this.baseInfo?.type?.includes("characteristic")) return;
 
-                                    case 3:
-                                        change.type = "downgrade"; //CONST.ACTIVE_EFFECT_MODES.DOWNGRADE
-                                        break;
+        const value = parseInt(this.system.LEVELS, 10) || 0;
+        if (value <= 0) return;
 
-                                    case 4:
-                                        change.type = "upgrade"; //CONST.ACTIVE_EFFECT_MODES.UPGRADE
-                                        break;
+        const charKey = this.system.XMLID?.toLowerCase();
+        if (!charKey) return;
 
-                                    case 5:
-                                        change.type = "override"; //CONST.ACTIVE_EFFECT_MODES.OVERRIDE
-                                        break;
-
-                                    default:
-                                        // Assume V14 change.type is correct
-                                        break;
-                                }
-                            }
-                        }
-                    }
-
-                    // Some items will have more than one AE, for example a BULKY +X CON item, the BULKY AE has no system.XMLID
-                    const currentAE =
-                        this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
-                        this.effects.find((ae) => !ae.system.XMLID);
-
-                    if (currentAE?.update) {
-                        // TODO: Should we check if an update is really needed, potentially improving performance
-                        await currentAE.update(effectData);
-                    } else {
-                        const ae = await ActiveEffect.implementation.create(effectData, {
-                            parent: this,
-                        });
-
-                        if (!ae) {
-                            console.error(`Failed to setActiveEffects on ${this.name}`, this);
-                        }
-                    }
-
-                    // TODO: Update characteristic VALUE when changes includes a MAX?  DENSITYINCREASE for example.
-                    // Perhaps could be incorporated into the AE create/change/delete?
-
-                    // We can't simply return as this item could be a BUKLY FOCUS, requiring another AE (below).
-                    // TODO: Perhaps an opportunity to combine into a single AE.
-                } else {
-                    console.error(`missing AE`);
-                }
-            }
-
-            // Generic MOVEMENT activeEffect
-            if (this.id && this.baseInfo && this.baseInfo.type?.includes("movement")) {
-                try {
-                    let activeEffect =
-                        this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
-                        this.effects.find((ae) => !ae.system.XMLID) ??
-                        {};
-                    activeEffect.name =
-                        (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} +${this.system.LEVELS}`;
-                    activeEffect.img = this.baseInfo?.img ?? "icons/svg/upgrade.svg";
-                    activeEffect.description = this.system.description;
-                    activeEffect.origin = this.uuid;
-                    const changes = [
-                        {
-                            key: `system.characteristics.${this.system.XMLID.toLowerCase()}.max`,
-                            value: parseInt(this.system.LEVELS),
-                            mode: CONST.ACTIVE_EFFECT_MODES.ADD,
-                            priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
-                        },
-                    ];
-                    for (const usableas of this.modifiers.filter((o) => o.XMLID === "USABLEAS")) {
-                        let foundMatch = false;
-                        for (const movementKey of Object.keys(CONFIG.HERO.movementPowers)) {
-                            if (
-                                usableas.ALIAS?.match(new RegExp(movementKey, "i")) ||
-                                usableas.COMMENTS?.match(new RegExp(movementKey, "i"))
-                            ) {
-                                changes.push({
-                                    key: `system.characteristics.${movementKey.toLowerCase()}.max`,
-                                    value: parseInt(this.system.LEVELS),
-                                    mode: CONST.ACTIVE_EFFECT_MODES.ADD,
-                                    priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
-                                });
-                                foundMatch = true;
-                            }
-                        }
-                        if (!foundMatch) {
-                            ui.notifications.warn(
-                                `${this.name} has unknown USABLE AS "${usableas.ALIAS}. Expected format is "Usable as Swimming"`,
-                            );
-                            console.warn(`${this.name} has unknown USABLE AS "${usableas.ALIAS}"`, usableas);
-                        }
-                    }
-                    activeEffect.transfer = true;
-                    activeEffect.disabled ??= !this.system.active;
-                    activeEffect.system ??= { XMLID: this.system.XMLID };
-                    activeEffect = foundry.utils.mergeObject(activeEffect, {
-                        [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-                    });
-
-                    if (activeEffect.update) {
-                        // Need to be careful because changes is an array
-                        await activeEffect.update({ name: activeEffect.name, changes }, options);
-                    } else {
-                        await this.createEmbeddedDocuments("ActiveEffect", [activeEffect], options);
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-
-            // Generic CHARACTERISTIC activeEffect
-            if (this.id && this.type !== "characteristic" && this.baseInfo?.type?.includes("characteristic")) {
-                let activeEffect =
-                    this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
-                    this.effects.find((ae) => !ae.system.XMLID) ??
-                    {};
-                const value = this.system.LEVELS;
-                activeEffect.name = (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} +${value}`;
-                activeEffect.img = "icons/svg/upgrade.svg";
-                activeEffect.description = this.system.description;
-                const changes = [
+        const activeEffect = {
+            name: (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} +${value}`,
+            img: this.img ?? "icons/svg/upgrade.svg",
+            description: this.system.description || "",
+            transfer: true,
+            disabled: !this.system.active,
+            flags: {
+                [game.system.id]: {
+                    XMLID: this.system.XMLID,
+                },
+            },
+            // V14 Strict Formatting: All mutations mapped under system.changes block using your constants
+            system: {
+                changes: [
                     {
-                        key: `system.characteristics.${this.system.XMLID.toLowerCase()}.max`,
-                        value: value,
-                        mode: CONST.ACTIVE_EFFECT_MODES.ADD,
+                        key: `system.characteristics.${charKey}.max`,
+                        value: String(value),
+                        mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.ADD, // Safe utilization of custom global enum tokens
                         priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
                     },
-                ];
-                activeEffect = foundry.utils.mergeObject(activeEffect, {
-                    [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-                });
-                activeEffect.disabled ??= !this.system.active;
-                activeEffect = foundry.utils.mergeObject(activeEffect, {
-                    "system.XMLID": this.system.XMLID,
-                });
+                ],
+            },
+        };
 
-                if (activeEffect.update) {
-                    const oldMax = this.actor.system.characteristics[this.system.XMLID.toLowerCase()].max;
-                    const updates = {
-                        name: activeEffect.name,
-                    };
-                    if (HeroCompatibility.isV14) {
-                        updates.system ??= {};
-                        updates.system.changes = activeEffect.system.changes ?? activeEffect.changes;
-                    } else {
-                        updates.changes = activeEffect.changes;
-                    }
-                    await activeEffect.update(updates);
-                    const deltaMax = this.actor.system.characteristics[this.system.XMLID.toLowerCase()].max - oldMax;
-                    const newValue =
-                        this.actor.system.characteristics[this.system.XMLID.toLowerCase()].value + deltaMax;
-                    if (this.actor.system.characteristics[this.system.XMLID.toLowerCase()].value !== newValue) {
-                        await this.actor.update({
-                            [`system.characteristics.${this.system.XMLID.toLowerCase()}.value`]: newValue,
-                        });
-                    }
-                } else {
-                    await this.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
-                }
-            }
+        effects.push(activeEffect);
+    }
 
-            // Generic MOBILITY (BULKY & IMMOBILE) activeEffect (for all items that might have these XMLIDs)
-            // Aaron believes this only applies to FOCI, but with findModsByXmlid we don't really care.
-            const hasDCV = this.actor.hasCharacteristic("DCV");
-            const MOBILITY = this.findModsByXmlid("MOBILITY");
-            if (this.id && MOBILITY && hasDCV) {
-                const dcvValue = MOBILITY.OPTIONID === "BULKY" ? 0.5 : MOBILITY.OPTIONID === "IMMOBILE" ? 0 : null;
+    /**
+     * Evaluates and injects movement characteristic modifiers and "Usable As" vectors by reference.
+     * @param {object[]} effects - The active reference compilation payload array.
+     * @private
+     */
+    _applyMovementDynamicActiveEffects(effects) {
+        if (!this.baseInfo?.type?.includes("movement")) return;
 
-                let activeEffect =
-                    this.effects.find((ae) => ae.system.XMLID === "MOBILITY") ??
-                    this.effects.find((ae) => !ae.system.XMLID) ??
-                    {};
-                if (dcvValue !== null) {
-                    activeEffect.name =
-                        (this.name ? `${this.name}/${MOBILITY.parent.name || MOBILITY.parent.ALIAS}: ` : "") +
-                        `${MOBILITY.OPTIONID} ${dcvValue}`;
-                    activeEffect.img = "icons/svg/downgrade.svg";
-                    const changes = [
-                        {
-                            key: "system.characteristics.dcv.max",
-                            value: dcvValue,
-                            mode: CONST.ACTIVE_EFFECT_MODES.MULTIPLY,
-                            priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.MULTIPLY,
-                        },
-                    ];
-                    activeEffect = foundry.utils.mergeObject(activeEffect, {
-                        [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
+        const value = parseInt(this.system.LEVELS, 10) || 0;
+        if (value <= 0) return;
+
+        const coreCharKey = this.system.XMLID?.toLowerCase();
+        if (!coreCharKey) return;
+
+        const systemChangesPayload = [
+            {
+                key: `system.characteristics.${coreCharKey}.max`,
+                value: String(value),
+                mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.ADD, // Native constant execution mapping safely
+                priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
+            },
+        ];
+
+        const structuralModifiers = this.system.modifiers ?? [];
+
+        for (const usableas of structuralModifiers.filter((o) => o.XMLID === "USABLEAS")) {
+            let foundMatch = false;
+            const validMovementKeys = Object.keys(CONFIG.HERO.movementPowers ?? {});
+
+            for (const movementKey of validMovementKeys) {
+                const matchRegex = new RegExp(movementKey, "i");
+
+                if (usableas.ALIAS?.match(matchRegex) || usableas.COMMENTS?.match(matchRegex)) {
+                    systemChangesPayload.push({
+                        key: `system.characteristics.${movementKey.toLowerCase()}.max`,
+                        value: String(value),
+                        mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.ADD, // Native constant mapping
+                        priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
                     });
-
-                    activeEffect.transfer = true;
-                    activeEffect.disabled = !this.system.active;
-                    activeEffect.system ??= {
-                        XMLID: "MOBILITY",
-                    };
-
-                    if (activeEffect.update) {
-                        const updates = {
-                            name: activeEffect.name,
-                        };
-                        if (HeroCompatibility.isV14) {
-                            updates.system ??= {};
-                            updates.system.changes = activeEffect.system.changes ?? activeEffect.changes;
-                        } else {
-                            updates.changes = activeEffect.changes;
-                        }
-                        await activeEffect.update(updates);
-                    } else {
-                        await this.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
-                    }
-                } else {
-                    if (activeEffect.delete) {
-                        await activeEffect.delete();
-                    }
-                }
-            } else {
-                // Remove MOBILITY effect
-                const activeEffect = this.effects.find((ae) => ae.system.XMLID === "MOBILITY");
-                if (activeEffect) {
-                    await activeEffect.delete();
+                    foundMatch = true;
                 }
             }
 
-            // CUSTOMPOWER LIGHT
-            // TODO: V14 has built in token.* change keys to support vision/light, and we should use it
-            if (this.id && this.system.XMLID === "CUSTOMPOWER" && this.system.description.match(/light/i)) {
-                if (!game.modules.get("ATL")?.active) {
-                    ui.notifications.warn(
-                        `You must install the <b>Active Token Effects</b> module for carried lights to work`,
-                    );
-                }
-
-                // REF: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
-                function generateUniqueLightColor(alphaSeed) {
-                    function splitmix32(a) {
-                        return function () {
-                            a |= 0;
-                            a = (a + 0x9e3779b9) | 0;
-                            let t = a ^ (a >>> 16);
-                            t = Math.imul(t, 0x21f0aaad);
-                            t = t ^ (t >>> 15);
-                            t = Math.imul(t, 0x735a2d97);
-                            return ((t ^ (t >>> 15)) >>> 0) / 4294967296;
-                        };
-                    }
-
-                    function sumAsciiCodes(str) {
-                        let sum = 0;
-                        // Iterate through each character in the string
-                        for (let i = 0; i < str.length; i++) {
-                            // Use charCodeAt(i) to get the code of the character at index i
-                            sum += str.charCodeAt(i);
-                        }
-                        return sum;
-                    }
-
-                    const numericSeed = sumAsciiCodes(alphaSeed);
-
-                    const prng = splitmix32(numericSeed);
-
-                    // Define a minimum value (e.g., 200) to ensure the color is light/whiteish
-                    const min = 0;
-                    // Max value is 255
-                    const max = 50;
-
-                    // Generate random values for R, G, and B within the desired range
-                    const r = Math.floor(prng() * (max - min + 1)) + min;
-                    const g = Math.floor(prng() * (max - min + 1)) + min;
-                    const b = Math.floor(prng() * (max - min + 1)) + min;
-
-                    // return Hex string color
-                    return (
-                        r.toString(16).padStart(2, 0) + g.toString(16).padStart(2, 0) + b.toString(16).padStart(2, 0)
-                    );
-                }
-
-                let activeEffect =
-                    this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
-                    this.effects.find((ae) => !ae.system.XMLID) ??
-                    {};
-
-                activeEffect.name = (this.name ? `${this.name}: ` : "") + `LIGHT ${this.system.QUANTITY}`;
-                activeEffect.img = "icons/svg/light.svg";
-                const changes = [
-                    {
-                        key: "ATL.light.bright",
-                        value: parseFloat(this.system.QUANTITY),
-                        mode: CONST.ACTIVE_EFFECT_MODES.OVERRIDE,
-                        priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.OVERRIDE,
-                    },
-                    {
-                        key: "ATL.light.color",
-                        value: generateUniqueLightColor(this.uuid),
-                        mode: CONST.ACTIVE_EFFECT_MODES.OVERRIDE,
-                        priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.OVERRIDE,
-                    },
-                ];
-                activeEffect = foundry.utils.mergeObject(activeEffect, {
-                    [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-                });
-                activeEffect.system ??= { XMLID: this.system.XMLID };
-                activeEffect.disabled ??= true;
-
-                if (activeEffect.update) {
-                    const updates = {
-                        name: activeEffect.name,
-                    };
-                    if (HeroCompatibility.isV14) {
-                        updates.system ??= {};
-                        updates.system.changes = activeEffect.system.changes ?? activeEffect.changes;
-                    } else {
-                        updates.changes = activeEffect.changes;
-                    }
-                    await activeEffect.update(updates);
-                } else {
-                    await this.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
-                }
+            if (!foundMatch) {
+                ui.notifications.warn(
+                    `${this.name || this.system.XMLID} has unknown USABLE AS modifier: "${usableas.ALIAS}". Expected format is "Usable as Swimming".`,
+                );
             }
+        }
 
-            // Generic default toggle to on (if it doesn't use charges or END or part of multipower)
-            // AARON 5/23/2026: This just looks wrong, were not even saving to the DB.  Likely covered else where.
-            // if (
-            //     this.isActivatable() &&
-            //     this.system.active === undefined &&
-            //     this.system.chargesMax > 0 &&
-            //     !this.end &&
-            //     this.parentItem?.system.XMLID === "MULTIPOWER"
-            // ) {
-            //     this.system.active ??= true;
-            // }
+        const activeEffect = {
+            name: (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} +${value}`,
+            img: this.baseInfo?.img ?? "icons/svg/upgrade.svg",
+            description: this.system.description || "",
+            transfer: true,
+            disabled: !this.system.active,
+            flags: {
+                [game.system.id]: {
+                    XMLID: this.system.XMLID,
+                },
+            },
+            system: {
+                changes: systemChangesPayload,
+            },
+        };
 
-            // Sanity check for duplicate effects
-            for (const ae1 of this.effects) {
-                if (
-                    this.effects.find(
-                        (ae2) => ae1.system.XMLID && ae1.system.XMLID === ae2.system.XMLID && ae1.id !== ae2.id,
-                    )
-                ) {
-                    console.error(`Duplicate ${ae1.system.XMLID} effects on ${this.name}`);
-                }
-            }
-        } catch (e) {
-            console.error(`Failed to setActiveEffects on ${this.name}`, e, this);
-            throw e;
+        effects.push(activeEffect);
+    }
+
+    /**
+     * Internal helper to evaluate and attach secondary modifiers or penalties.
+     * @param {object[]} effects - The active reference compilation payload array.
+     * @private
+     */
+    _applyBulkyActiveEffectsModifiers(effects) {
+        if (this.system.modifiers?.some((m) => m.XMLID === "BULKY")) {
+            effects.push({
+                name: `${this.name || this.system.XMLID} (Bulky Penalty)`,
+                img: "icons/svg/hazard.svg",
+                transfer: true,
+                disabled: !this.system.active,
+                system: {
+                    changes: [
+                        {
+                            key: "system.characteristics.dcv.temporalModifiers",
+                            value: "-2",
+                            mode: CONFIG.HERO.ACTIVE_EFFECT_MODES.ADD, // Aligned consistency tracking across all sub-processors
+                            priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
+                        },
+                    ],
+                },
+            });
         }
     }
+
+    // async setActiveEffects(options = {}) {
+    //     try {
+    //         const _abstractItem = options.futureItem ?? this;
+
+    //         // If there is no actor for this item, then this item is most likely in the Items collection and we can ignore active effects for it.
+    //         if (!this.actor) {
+    //             console.warn(`Skipping setActiveEffects because there is no actor`, this);
+    //             return;
+    //         } else if (!this.id) {
+    //             console.warn(`Skipping setActiveEffects because there is no item.id`, this);
+    //             return;
+    //         }
+
+    //         // Generic activeEffect from CONFIG.MJS (preferred)
+    //         if (this.baseInfo?.activeEffect) {
+    //             const effectData = this.baseInfo?.activeEffect(_abstractItem);
+    //             if (effectData) {
+    //                 // Ensure v14 is using system.changes
+    //                 if (!effectData.system.changes) {
+    //                     console.warn(`${effectData.name} v14 changes moved to system.changes`);
+    //                     effectData.system.changes ??= effectData.changes;
+    //                     delete effectData.changes;
+
+    //                     // V14 appears to use "type" instead of "mode"
+    //                     for (const change of effectData.system.changes) {
+    //                         change.type ??= change.mode;
+
+    //                         // V14 no longer uses numeric change.type instead it uses a string
+    //                         // TODO: Rework change.type into HERO.CONFIG constants and perhaps a "fix" function
+    //                         if (Number.isNumeric(change.type)) {
+    //                             switch (change.type) {
+    //                                 case 1:
+    //                                     change.type = "multiply"; //CONST.ACTIVE_EFFECT_MODES.MULTIPLY
+    //                                     break;
+
+    //                                 case 2:
+    //                                     change.type = "add"; //CONST.ACTIVE_EFFECT_MODES.ADD
+    //                                     break;
+
+    //                                 case 3:
+    //                                     change.type = "downgrade"; //CONST.ACTIVE_EFFECT_MODES.DOWNGRADE
+    //                                     break;
+
+    //                                 case 4:
+    //                                     change.type = "upgrade"; //CONST.ACTIVE_EFFECT_MODES.UPGRADE
+    //                                     break;
+
+    //                                 case 5:
+    //                                     change.type = "override"; //CONST.ACTIVE_EFFECT_MODES.OVERRIDE
+    //                                     break;
+
+    //                                 default:
+    //                                     // Assume V14 change.type is correct
+    //                                     break;
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+
+    //                 // Some items will have more than one AE, for example a BULKY +X CON item, the BULKY AE has no system.XMLID
+    //                 const currentAE =
+    //                     this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
+    //                     this.effects.find((ae) => !ae.system.XMLID);
+
+    //                 if (currentAE?.update) {
+    //                     // TODO: Should we check if an update is really needed, potentially improving performance
+    //                     await currentAE.update(effectData);
+    //                 } else {
+    //                     const ae = await ActiveEffect.implementation.create(effectData, {
+    //                         parent: this,
+    //                     });
+
+    //                     if (!ae) {
+    //                         console.error(`Failed to setActiveEffects on ${this.name}`, this);
+    //                     }
+    //                 }
+
+    //                 // TODO: Update characteristic VALUE when changes includes a MAX?  DENSITYINCREASE for example.
+    //                 // Perhaps could be incorporated into the AE create/change/delete?
+
+    //                 // We can't simply return as this item could be a BUKLY FOCUS, requiring another AE (below).
+    //                 // TODO: Perhaps an opportunity to combine into a single AE.
+    //             } else {
+    //                 console.error(`missing AE`);
+    //             }
+    //         }
+
+    //         // Generic MOVEMENT activeEffect
+    //         if (this.id && this.baseInfo && this.baseInfo.type?.includes("movement")) {
+    //             try {
+    //                 let activeEffect =
+    //                     this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
+    //                     this.effects.find((ae) => !ae.system.XMLID) ??
+    //                     {};
+    //                 activeEffect.name =
+    //                     (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} +${this.system.LEVELS}`;
+    //                 activeEffect.img = this.baseInfo?.img ?? "icons/svg/upgrade.svg";
+    //                 activeEffect.description = this.system.description;
+    //                 activeEffect.origin = this.uuid;
+    //                 const changes = [
+    //                     {
+    //                         key: `system.characteristics.${this.system.XMLID.toLowerCase()}.max`,
+    //                         value: parseInt(this.system.LEVELS),
+    //                         mode: CONST.ACTIVE_EFFECT_MODES.ADD,
+    //                         priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
+    //                     },
+    //                 ];
+    //                 for (const usableas of this.modifiers.filter((o) => o.XMLID === "USABLEAS")) {
+    //                     let foundMatch = false;
+    //                     for (const movementKey of Object.keys(CONFIG.HERO.movementPowers)) {
+    //                         if (
+    //                             usableas.ALIAS?.match(new RegExp(movementKey, "i")) ||
+    //                             usableas.COMMENTS?.match(new RegExp(movementKey, "i"))
+    //                         ) {
+    //                             changes.push({
+    //                                 key: `system.characteristics.${movementKey.toLowerCase()}.max`,
+    //                                 value: parseInt(this.system.LEVELS),
+    //                                 mode: CONST.ACTIVE_EFFECT_MODES.ADD,
+    //                                 priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
+    //                             });
+    //                             foundMatch = true;
+    //                         }
+    //                     }
+    //                     if (!foundMatch) {
+    //                         ui.notifications.warn(
+    //                             `${this.name} has unknown USABLE AS "${usableas.ALIAS}. Expected format is "Usable as Swimming"`,
+    //                         );
+    //                         console.warn(`${this.name} has unknown USABLE AS "${usableas.ALIAS}"`, usableas);
+    //                     }
+    //                 }
+    //                 activeEffect.transfer = true;
+    //                 activeEffect.disabled ??= !this.system.active;
+    //                 activeEffect.system ??= { XMLID: this.system.XMLID };
+    //                 activeEffect = foundry.utils.mergeObject(activeEffect, {
+    //                     [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
+    //                 });
+
+    //                 if (activeEffect.update) {
+    //                     // Need to be careful because changes is an array
+    //                     await activeEffect.update({ name: activeEffect.name, changes }, options);
+    //                 } else {
+    //                     await this.createEmbeddedDocuments("ActiveEffect", [activeEffect], options);
+    //                 }
+    //             } catch (e) {
+    //                 console.error(e);
+    //             }
+    //         }
+
+    //         // Generic CHARACTERISTIC activeEffect
+    //         if (this.id && this.type !== "characteristic" && this.baseInfo?.type?.includes("characteristic")) {
+    //             let activeEffect =
+    //                 this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
+    //                 this.effects.find((ae) => !ae.system.XMLID) ??
+    //                 {};
+    //             const value = this.system.LEVELS;
+    //             activeEffect.name = (this.name ? `${this.name}: ` : "") + `${this.system.XMLID} +${value}`;
+    //             activeEffect.img = "icons/svg/upgrade.svg";
+    //             activeEffect.description = this.system.description;
+    //             const changes = [
+    //                 {
+    //                     key: `system.characteristics.${this.system.XMLID.toLowerCase()}.max`,
+    //                     value: value,
+    //                     mode: CONST.ACTIVE_EFFECT_MODES.ADD,
+    //                     priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.ADD,
+    //                 },
+    //             ];
+    //             activeEffect = foundry.utils.mergeObject(activeEffect, {
+    //                 [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
+    //             });
+    //             activeEffect.disabled ??= !this.system.active;
+    //             activeEffect = foundry.utils.mergeObject(activeEffect, {
+    //                 "system.XMLID": this.system.XMLID,
+    //             });
+
+    //             if (activeEffect.update) {
+    //                 const oldMax = this.actor.system.characteristics[this.system.XMLID.toLowerCase()].max;
+    //                 const updates = {
+    //                     name: activeEffect.name,
+    //                 };
+    //                 if (HeroCompatibility.isV14) {
+    //                     updates.system ??= {};
+    //                     updates.system.changes = activeEffect.system.changes ?? activeEffect.changes;
+    //                 } else {
+    //                     updates.changes = activeEffect.changes;
+    //                 }
+    //                 await activeEffect.update(updates);
+    //                 const deltaMax = this.actor.system.characteristics[this.system.XMLID.toLowerCase()].max - oldMax;
+    //                 const newValue =
+    //                     this.actor.system.characteristics[this.system.XMLID.toLowerCase()].value + deltaMax;
+    //                 if (this.actor.system.characteristics[this.system.XMLID.toLowerCase()].value !== newValue) {
+    //                     await this.actor.update({
+    //                         [`system.characteristics.${this.system.XMLID.toLowerCase()}.value`]: newValue,
+    //                     });
+    //                 }
+    //             } else {
+    //                 await this.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
+    //             }
+    //         }
+
+    //         // Generic MOBILITY (BULKY & IMMOBILE) activeEffect (for all items that might have these XMLIDs)
+    //         // Aaron believes this only applies to FOCI, but with findModsByXmlid we don't really care.
+    //         const hasDCV = this.actor.hasCharacteristic("DCV");
+    //         const MOBILITY = this.findModsByXmlid("MOBILITY");
+    //         if (this.id && MOBILITY && hasDCV) {
+    //             const dcvValue = MOBILITY.OPTIONID === "BULKY" ? 0.5 : MOBILITY.OPTIONID === "IMMOBILE" ? 0 : null;
+
+    //             let activeEffect =
+    //                 this.effects.find((ae) => ae.system.XMLID === "MOBILITY") ??
+    //                 this.effects.find((ae) => !ae.system.XMLID) ??
+    //                 {};
+    //             if (dcvValue !== null) {
+    //                 activeEffect.name =
+    //                     (this.name ? `${this.name}/${MOBILITY.parent.name || MOBILITY.parent.ALIAS}: ` : "") +
+    //                     `${MOBILITY.OPTIONID} ${dcvValue}`;
+    //                 activeEffect.img = "icons/svg/downgrade.svg";
+    //                 const changes = [
+    //                     {
+    //                         key: "system.characteristics.dcv.max",
+    //                         value: dcvValue,
+    //                         mode: CONST.ACTIVE_EFFECT_MODES.MULTIPLY,
+    //                         priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.MULTIPLY,
+    //                     },
+    //                 ];
+    //                 activeEffect = foundry.utils.mergeObject(activeEffect, {
+    //                     [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
+    //                 });
+
+    //                 activeEffect.transfer = true;
+    //                 activeEffect.disabled = !this.system.active;
+    //                 activeEffect.system ??= {
+    //                     XMLID: "MOBILITY",
+    //                 };
+
+    //                 if (activeEffect.update) {
+    //                     const updates = {
+    //                         name: activeEffect.name,
+    //                     };
+    //                     if (HeroCompatibility.isV14) {
+    //                         updates.system ??= {};
+    //                         updates.system.changes = activeEffect.system.changes ?? activeEffect.changes;
+    //                     } else {
+    //                         updates.changes = activeEffect.changes;
+    //                     }
+    //                     await activeEffect.update(updates);
+    //                 } else {
+    //                     await this.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
+    //                 }
+    //             } else {
+    //                 if (activeEffect.delete) {
+    //                     await activeEffect.delete();
+    //                 }
+    //             }
+    //         } else {
+    //             // Remove MOBILITY effect
+    //             const activeEffect = this.effects.find((ae) => ae.system.XMLID === "MOBILITY");
+    //             if (activeEffect) {
+    //                 await activeEffect.delete();
+    //             }
+    //         }
+
+    //         // CUSTOMPOWER LIGHT
+    //         // TODO: V14 has built in token.* change keys to support vision/light, and we should use it
+    //         if (this.id && this.system.XMLID === "CUSTOMPOWER" && this.system.description.match(/light/i)) {
+    //             if (!game.modules.get("ATL")?.active) {
+    //                 ui.notifications.warn(
+    //                     `You must install the <b>Active Token Effects</b> module for carried lights to work`,
+    //                 );
+    //             }
+
+    //             // REF: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
+    //             function generateUniqueLightColor(alphaSeed) {
+    //                 function splitmix32(a) {
+    //                     return function () {
+    //                         a |= 0;
+    //                         a = (a + 0x9e3779b9) | 0;
+    //                         let t = a ^ (a >>> 16);
+    //                         t = Math.imul(t, 0x21f0aaad);
+    //                         t = t ^ (t >>> 15);
+    //                         t = Math.imul(t, 0x735a2d97);
+    //                         return ((t ^ (t >>> 15)) >>> 0) / 4294967296;
+    //                     };
+    //                 }
+
+    //                 function sumAsciiCodes(str) {
+    //                     let sum = 0;
+    //                     // Iterate through each character in the string
+    //                     for (let i = 0; i < str.length; i++) {
+    //                         // Use charCodeAt(i) to get the code of the character at index i
+    //                         sum += str.charCodeAt(i);
+    //                     }
+    //                     return sum;
+    //                 }
+
+    //                 const numericSeed = sumAsciiCodes(alphaSeed);
+
+    //                 const prng = splitmix32(numericSeed);
+
+    //                 // Define a minimum value (e.g., 200) to ensure the color is light/whiteish
+    //                 const min = 0;
+    //                 // Max value is 255
+    //                 const max = 50;
+
+    //                 // Generate random values for R, G, and B within the desired range
+    //                 const r = Math.floor(prng() * (max - min + 1)) + min;
+    //                 const g = Math.floor(prng() * (max - min + 1)) + min;
+    //                 const b = Math.floor(prng() * (max - min + 1)) + min;
+
+    //                 // return Hex string color
+    //                 return (
+    //                     r.toString(16).padStart(2, 0) + g.toString(16).padStart(2, 0) + b.toString(16).padStart(2, 0)
+    //                 );
+    //             }
+
+    //             let activeEffect =
+    //                 this.effects.find((ae) => ae.system.XMLID === this.system.XMLID) ??
+    //                 this.effects.find((ae) => !ae.system.XMLID) ??
+    //                 {};
+
+    //             activeEffect.name = (this.name ? `${this.name}: ` : "") + `LIGHT ${this.system.QUANTITY}`;
+    //             activeEffect.img = "icons/svg/light.svg";
+    //             const changes = [
+    //                 {
+    //                     key: "ATL.light.bright",
+    //                     value: parseFloat(this.system.QUANTITY),
+    //                     mode: CONST.ACTIVE_EFFECT_MODES.OVERRIDE,
+    //                     priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.OVERRIDE,
+    //                 },
+    //                 {
+    //                     key: "ATL.light.color",
+    //                     value: generateUniqueLightColor(this.uuid),
+    //                     mode: CONST.ACTIVE_EFFECT_MODES.OVERRIDE,
+    //                     priority: CONFIG.HERO.ACTIVE_EFFECT_PRIORITY.OVERRIDE,
+    //                 },
+    //             ];
+    //             activeEffect = foundry.utils.mergeObject(activeEffect, {
+    //                 [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
+    //             });
+    //             activeEffect.system ??= { XMLID: this.system.XMLID };
+    //             activeEffect.disabled ??= true;
+
+    //             if (activeEffect.update) {
+    //                 const updates = {
+    //                     name: activeEffect.name,
+    //                 };
+    //                 if (HeroCompatibility.isV14) {
+    //                     updates.system ??= {};
+    //                     updates.system.changes = activeEffect.system.changes ?? activeEffect.changes;
+    //                 } else {
+    //                     updates.changes = activeEffect.changes;
+    //                 }
+    //                 await activeEffect.update(updates);
+    //             } else {
+    //                 await this.createEmbeddedDocuments("ActiveEffect", [activeEffect]);
+    //             }
+    //         }
+
+    //         // Generic default toggle to on (if it doesn't use charges or END or part of multipower)
+    //         // AARON 5/23/2026: This just looks wrong, were not even saving to the DB.  Likely covered else where.
+    //         // if (
+    //         //     this.isActivatable() &&
+    //         //     this.system.active === undefined &&
+    //         //     this.system.chargesMax > 0 &&
+    //         //     !this.end &&
+    //         //     this.parentItem?.system.XMLID === "MULTIPOWER"
+    //         // ) {
+    //         //     this.system.active ??= true;
+    //         // }
+
+    //         // Sanity check for duplicate effects
+    //         for (const ae1 of this.effects) {
+    //             if (
+    //                 this.effects.find(
+    //                     (ae2) => ae1.system.XMLID && ae1.system.XMLID === ae2.system.XMLID && ae1.id !== ae2.id,
+    //                 )
+    //             ) {
+    //                 console.error(`Duplicate ${ae1.system.XMLID} effects on ${this.name}`);
+    //             }
+    //         }
+    //     } catch (e) {
+    //         console.error(`Failed to setActiveEffects on ${this.name}`, e, this);
+    //         throw e;
+    //     }
+    // }
 
     createVisionActiveEffect(visionDetectMode, isTargetingSense) {
         // While we create these AE's in V13 and V14, only V14 knows what to do with them.
@@ -1227,58 +1398,6 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         return this._basePoints + this._addersCost;
     }
 
-    // Pre-process an update operation for a single Document instance. Pre-operation events only occur for the client
-    // which requested the operation.
-    async _preUpdate(changes, options, user) {
-        // CSLs have multiple fields which are linked. Do that linking.
-        if (this.isCsl) {
-            // Reinitialize CSLs if their LEVELS have changed
-            if (changes.system?.LEVELS != null && changes.system?.LEVELS !== this.system?.LEVELS) {
-                const reinitializationChanges = this.initializeCsl(changes.system.LEVELS);
-                foundry.utils.mergeObject(changes, reinitializationChanges);
-            }
-
-            // Update CSLs if their ADDER array has changed (in any way)
-            if (changes.system?.ADDER != null) {
-                const relinkChanges = this.linkBasedOnCustomAdders(changes.system.ADDER, this.actor?.cslItems || []);
-                foundry.utils.mergeObject(changes, relinkChanges);
-            }
-        }
-
-        // PSLs have multiple fields which are linked. Do that linking.
-        else if (this.isPsl) {
-            // Update PSLs if their ADDER array has changed (in any way)
-            if (changes.system?.ADDER != null) {
-                const relinkChanges = this.linkBasedOnCustomAdders(changes.system.ADDER, this.actor?.pslItems || []);
-                foundry.utils.mergeObject(changes, relinkChanges);
-            }
-        }
-
-        const newName = this.preBuildName(changes.system);
-        if (this.name !== newName) {
-            changes.name = newName;
-        }
-
-        await super._preUpdate(changes, options, user);
-
-        // preUpdate for ActiveEffects
-        if (this.baseInfo.activeEffect) {
-            const currentData = foundry.utils.deepClone(this.toObject());
-            const expandedChanges = foundry.utils.expandObject(changes);
-            const futureItemData = foundry.utils.mergeObject(currentData, expandedChanges);
-            const futureItem = new this.constructor(futureItemData, { parent: this.parent });
-
-            if (this.baseInfo.activeEffect?.(futureItem)) {
-                this.setActiveEffects({ futureItem });
-            }
-        }
-
-        // Changing SFX may result in new img
-        if (changes?.system?.SFX) {
-            await this._assignSfxIcon(changes);
-        }
-    }
-
     preBuildName(changesSystem) {
         // Updating item.name with NAME/ALIAS/XMLID
         // NOTE: Doesn't work for EffectiveItems as they aren't in the database, thus no update operation. Perhaps move some of this to PrepareData for EffectiveItems.
@@ -1354,6 +1473,50 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         return newName || `${this.type} ${this.id}`; // Fallback to something identifiable if no name can be built
     }
 
+    /**
+     * Handles synchronous validation and property linking for custom item variations.
+     * @override
+     */
+    async _preUpdate(changes, options, user) {
+        const allowed = await super._preUpdate(changes, options, user);
+        if (allowed === false) return false;
+
+        // 1. Process explicit CSL internal field linkage constraints
+        if (this.isCsl) {
+            // Reinitialize CSL subproperties if their bought levels have actively changed
+            if (changes.system?.LEVELS != null && changes.system?.LEVELS !== this.system?.LEVELS) {
+                const reinitializationChanges = this.initializeCsl(changes.system.LEVELS);
+                foundry.utils.mergeObject(changes, reinitializationChanges);
+            }
+
+            // Process structural adder configurations against companion sheet items
+            if (changes.system?.ADDER != null) {
+                const relinkChanges = this.linkBasedOnCustomAdders(changes.system.ADDER, this.actor?.cslItems || []);
+                foundry.utils.mergeObject(changes, relinkChanges);
+            }
+        }
+        // 2. Process companion PSL system logic paths
+        else if (this.isPsl) {
+            if (changes.system?.ADDER != null) {
+                const relinkChanges = this.linkBasedOnCustomAdders(changes.system.ADDER, this.actor?.pslItems || []);
+                foundry.utils.mergeObject(changes, relinkChanges);
+            }
+        }
+
+        // 3. Dynamic Name Compilation Phase: Enforce dynamic naming consistency prior to save
+        const newName = this.preBuildName(changes.system);
+        if (this.name !== newName) {
+            changes.name = newName;
+        }
+
+        // 4. Asynchronous Asset Configuration: Resolve icons before finalizing database records
+        if (changes?.system?.SFX) {
+            await this._assignSfxIcon(changes);
+        }
+
+        return true;
+    }
+
     _onUpdate(changed, options, userId) {
         // We favor effect.disabled over system.active (in fact shouldn't be changing system.active)
         if (this.effect && changed.system.active !== undefined) {
@@ -1387,6 +1550,77 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
                 }
             }
         }
+    }
+
+    static {
+        /**
+         * Global system handler mapping post-database item updates onto its OWN embedded ActiveEffects.
+         * Utilizes the item's internal factory method and minimizes UI performance overhead.
+         */
+        Hooks.on("updateItem", async (itemDoc, changed, options, userId) => {
+            // Guard: Only the active executing client processes the side-effect to block multi-GM loops
+            if (game.user.id !== userId) return;
+
+            // Guard: If system configuration attributes did not shift, skip evaluation entirely
+            if (!changed.system) return;
+
+            // If the update was triggered with render: false (standard for HDC uploads),
+            // or a custom upload flag, exit immediately. The importer will handle its own structural effects.
+            if (options.render === false || options.hdcImporting === true) return;
+
+            // 1. Fetch freshly calculated data arrays directly from your consolidated rules engine factory
+            const dynamicEffects = itemDoc.buildDynamicActiveEffects() ?? [];
+
+            // 2. Query all live active instances originating inside THIS item's embedded collection
+            const currentEffects = itemDoc.effects.contents;
+
+            // 3. COMPONENT VALIDATION GUARD: Perform deep structural comparison on V14 data spaces
+            if (currentEffects.length === dynamicEffects.length) {
+                const isIdentical = currentEffects.every((liveEffect, idx) => {
+                    // Pull a clean, un-proxied plain database object representation from the live document
+                    const liveData = liveEffect.toObject();
+                    const generatedData = dynamicEffects[idx];
+
+                    // Compare names directly
+                    if (liveData.name !== generatedData?.name) return false;
+
+                    // Compare transfer states directly (must be true for actor propagation mechanics)
+                    if (!!liveData.transfer !== !!generatedData?.transfer) return false;
+
+                    // Rule: V14 Comparison matches mutations nested within the mutable system namespace
+                    const liveChangesStr = JSON.stringify(liveData.system?.changes ?? []);
+                    const generatedChangesStr = JSON.stringify(generatedData?.system?.changes ?? []);
+
+                    return liveChangesStr === generatedChangesStr;
+                });
+
+                // IDEMPOTENT BYPASS: The calculations match what is already on the item. Abort transaction.
+                if (isIdentical) return;
+            }
+
+            // 4. EVICTION PHASE: Clear stale active configurations from the item document safely
+            if (currentEffects.length > 0) {
+                const oldIds = currentEffects.map((e) => e.id);
+
+                // Conditional rendering optimization: Suppress UI redraw if a replacement is immediately incoming
+                const shouldRenderDeletion = dynamicEffects.length === 0;
+
+                await itemDoc.deleteEmbeddedDocuments("ActiveEffect", oldIds, {
+                    render: shouldRenderDeletion,
+                });
+            }
+
+            // 5. INSTANTIATION PHASE: Commit newly modified data blocks into the item's collection
+            if (dynamicEffects.length > 0) {
+                // This call handles the final, single UI rendering execution pass naturally
+                await itemDoc.createEmbeddedDocuments("ActiveEffect", dynamicEffects);
+            }
+
+            // 6. Explicitly wake up downstream chronological engines on the host document if embedded
+            if (itemDoc.actor) {
+                itemDoc.actor.prepareData();
+            }
+        });
     }
 
     /**
@@ -1713,7 +1947,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         const item = this;
 
         // Make sure activeEffects are properly defined
-        await this.setActiveEffects(options);
+        //await this.setActiveEffects(options);
 
         // If this is a constant power where to show the "to-hit" then don't bother spending
         // resources or checking for requires a roll.
@@ -1908,9 +2142,9 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
     }
 
     async turnOff(options = {}) {
-        if (!options.token && this.actor?.getActiveTokens().length > 0) {
-            console.error(`turnOff: missing token`);
-        }
+        // if (!options.token && this.actor?.getActiveTokens().length > 0) {
+        //     console.error(`turnOff: missing token`);
+        // }
 
         const item = this;
 
@@ -1955,7 +2189,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
     async setActive(value) {
         if (this.effects.size > 0) {
             // Make sure ActiveEffects are current
-            await this.setActiveEffects();
+            //await this.setActiveEffects();
             // multiple ActiveEffects on an item are possible such as FLIGHT with BULKY FOCUS
             const changes = [];
             for (const ae of this.effects) {

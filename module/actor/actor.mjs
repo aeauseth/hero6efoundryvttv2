@@ -2906,7 +2906,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         return ChatMessage.create(chatData);
     }
 
-    async uploadFromXml(xml, options = {}) {
+    async uploadFromXml2(xml, options = {}) {
         // Is this a linked actor?  If so upload into parent.
         // if (this.uuid.includes("Scene")) {
         //     console.warn(`Tried to upload a linked actor, redirecting to parent actor`);
@@ -3231,7 +3231,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                     }
                     await Promise.all(turnOffPromises);
                 } catch (error) {
-                    console.error(`Error occurred while turning off existing items: ${error.message}`);
+                    console.error(error);
                 }
                 await this.deleteEmbeddedDocuments(
                     "Item",
@@ -3356,7 +3356,10 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             uploadPerformance.preItems = new Date().getTime() - uploadPerformance._d;
             uploadPerformance._d = new Date().getTime();
             if (this.id) {
-                await this.createEmbeddedDocuments("Item", itemsToCreate, { render: false, renderSheet: false });
+                await this.createEmbeddedDocuments("Item", itemsToCreate, {
+                    render: false,
+                    hdcImporting: true, // Global hook guard: forces the updateItem system automation layer to stand down
+                });
             } else {
                 // Temporary actor: createEmbeddedDocuments would silently create world items.
                 for (const itemData of itemsToCreate) {
@@ -3373,9 +3376,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             const doLastXmlids = ["COMBAT_LEVELS", "MENTAL_COMBAT_LEVELS", "MENTALDEFENSE"];
 
             uploadProgressBar.advance(`${this.name}: applyActiveEffects`, 0);
-            for (const item of this.items) {
-                await item.setActiveEffects({ render: false });
-            }
+            // for (const item of this.items) {
+            //     await item.setActiveEffects({ render: false });
+            // }
 
             uploadProgressBar.advance(`${this.name}: applySizeEffect`, 0);
             await this.applySizeEffect();

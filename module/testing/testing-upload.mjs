@@ -8764,7 +8764,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -8846,7 +8846,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -8908,7 +8908,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -8978,7 +8978,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -9048,7 +9048,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -9114,7 +9114,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -9196,7 +9196,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -9258,7 +9258,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -9328,7 +9328,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
@@ -9398,7 +9398,7 @@ export function registerUploadTests(quench) {
                                     },
                                 );
 
-                                await item.setActiveEffects();
+                                //await item.setActiveEffects();
                                 await actor.fullHealth();
                                 if (!item.isActive) {
                                     await item.toggle();
