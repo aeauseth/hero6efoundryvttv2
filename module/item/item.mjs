@@ -555,9 +555,9 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         }
 
         // 3. Cascade down structural rules modifiers by reference matching system boundaries
-        this._applyCharacteristicsDynamicActiveEffects(effects);
-        this._applyMovementDynamicActiveEffects(effects);
-        this._applyBulkyActiveEffectsModifiers(effects);
+        this._applyCharacteristicsDynamicActiveEffects?.(effects);
+        this._applyMovementDynamicActiveEffects?.(effects);
+        this._applyBulkyActiveEffectsModifiers?.(effects);
 
         return effects;
     }
@@ -8360,7 +8360,9 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             delete root[itemTag];
         }
 
-        return itemsToCreate;
+        // pass the entire matrix through deepClone. This strips all upstream memory freezes,
+        // ensuring that every object block is fully extensible for downstream tracking decorators.
+        return foundry.utils.deepClone(itemsToCreate);
     }
 }
 

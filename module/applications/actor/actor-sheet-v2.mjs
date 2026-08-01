@@ -1546,10 +1546,7 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         const reader = new FileReader();
         reader.onload = async function (event) {
             const contents = event.target.result;
-
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(contents, "text/xml");
-            await this.actor.uploadFromXml(xmlDoc, { file });
+            await this.actor.uploadFromXml(contents, { file });
         }.bind(this);
         reader.readAsText(file);
     }

@@ -690,12 +690,18 @@ export class HeroSystem6eItemTypeDataModelGetters extends HeroObjectCacheMixin(f
     #baseInfo = null;
 
     get baseInfo() {
-        // cache getPowerInfo
-        this.#baseInfo ??= getPowerInfo({ item: this.parent, xmlTag: this.xmlTag });
-        if (!this.#baseInfo) {
-            if (!squelch(this.id)) {
-                console.warn(`${this.item.name}/${this.XMLID} has no baseInfo`);
-            }
+        // 1. Isolate characteristics safely by checking the parent item type explicitly
+        const forcedXmlTag = this.parent?.type === "characteristic" ? "CHARACTERISTIC" : (this.xmlTag ?? this.XMLID);
+
+        // 2. Cache the power info pass using clean system bounds identifiers
+        this.#baseInfo ??= getPowerInfo({
+            XMLID: this.XMLID,
+            item: this.parent,
+            xmlTag: forcedXmlTag,
+        });
+
+        if (!this.#baseInfo && !squelch(this.id)) {
+            console.warn(`${this.item?.name}/${this.XMLID} has no valid baseInfo entry mapped.`);
         }
         return this.#baseInfo;
     }
@@ -1062,6 +1068,7 @@ export class HeroSystem6eItemTypeDataModelProps extends HeroSystem6eItemTypeData
             INCLUDE_NOTES_IN_PRINTOUT: new BooleanField({ initial: null, nullable: true }),
             _active: new ObjectField(), // action  (consider renaming); We don't store anything in the database, but handy to have it initilized
             _hdcXml: new StringField(),
+            versionHeroSystem6eCreated: new StringField({ required: false, nullable: true }),
             is5e: new BooleanField({ initial: null, nullable: true }),
             xmlTag: new StringField(),
             USE_END_RESERVE: new BooleanField({ initial: null, nullable: true }),

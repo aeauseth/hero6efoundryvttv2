@@ -115,6 +115,11 @@ export function getActorDefensesVsAttack(targetActor, attackItem, options = {}) 
         options,
     };
 
+    // GUARD: Abort calculation immediately if the document is uninitialized
+    if (!targetActor || targetActor.hdcImporting === true) {
+        return actorDefenses;
+    }
+
     if (!targetActor) {
         console.error("Missing targetActor");
         return actorDefenses;
