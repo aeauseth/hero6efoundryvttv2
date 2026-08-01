@@ -2906,7 +2906,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         return ChatMessage.create(chatData);
     }
 
-    async uploadFromXml2(xml, options = {}) {
+    async uploadFromXml(xml, options = {}) {
         // Is this a linked actor?  If so upload into parent.
         // if (this.uuid.includes("Scene")) {
         //     console.warn(`Tried to upload a linked actor, redirecting to parent actor`);
