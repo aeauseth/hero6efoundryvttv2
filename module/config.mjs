@@ -4962,9 +4962,7 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costEnd: false,
             xml: `<SKILL XMLID="SYSTEMS_OPERATION" ID="1709161555044" BASECOST="3.0" LEVELS="0" ALIAS="Systems Operation" POSITION="57" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" CHARACTERISTIC="INT" FAMILIARITY="No" PROFICIENCY="No" LEVELSONLY="No"></SKILL>`,
         },
-        {
-            /*5e is a SYSTEM category */
-        },
+        {/*5e is a SYSTEM category */},
     );
 
     addPower(

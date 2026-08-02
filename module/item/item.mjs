@@ -1311,7 +1311,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
     }
 
     get validationTooltip() {
-        return this.heroValidation.map((m) => m.message).join(", ");
+        return this.heroValidation.map((m) => `${m.message} (e.g. "${m.example}")`).join(", ");
     }
 
     setCarried() {
