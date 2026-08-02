@@ -813,13 +813,11 @@ export class HeroSystem6eCombat extends Combat {
                     //   uses 0 END.
                     // - Continuing fuel charges won't use charges? Will depend how we actually implement them.
                     // Regardless, we probably don't want to report a stream of no resource usage messages on the start of every turn.
-                    if (
-                        !(
-                            resourcesRequired.totalCharges === 0 &&
-                            resourcesRequired.totalEnd === 0 &&
-                            resourcesRequired.totalReserveEnd === 0
-                        )
-                    ) {
+                    if (!(
+                        resourcesRequired.totalCharges === 0 &&
+                        resourcesRequired.totalEnd === 0 &&
+                        resourcesRequired.totalReserveEnd === 0
+                    )) {
                         content += resourcesUsedDescription
                             ? `<li>${powerUsingResourcesToContinue.detailedName()} spent ${resourcesUsedDescription}${resourcesUsedDescriptionRenderedRoll}</li>`
                             : "";

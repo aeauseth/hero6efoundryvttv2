@@ -426,14 +426,12 @@ export function addRangeIntoToHitRoll(distance, attackItem, actor, attackHeroRol
 
     // There are no range penalties if this is a line of sight power or it has been bought with
     // no range modifiers.
-    if (
-        !(
-            attackItem.effectiveAttackItem.system.range === CONFIG.HERO.RANGE_TYPES.LINE_OF_SIGHT ||
-            attackItem.effectiveAttackItem.system.range === CONFIG.HERO.RANGE_TYPES.SPECIAL ||
-            noRangeModifiers ||
-            normalRange
-        )
-    ) {
+    if (!(
+        attackItem.effectiveAttackItem.system.range === CONFIG.HERO.RANGE_TYPES.LINE_OF_SIGHT ||
+        attackItem.effectiveAttackItem.system.range === CONFIG.HERO.RANGE_TYPES.SPECIAL ||
+        noRangeModifiers ||
+        normalRange
+    )) {
         attackHeroRoller.addNumber(
             baseRangePenalty,
             `Range penalty (${getRoundedDownDistanceInSystemUnits(distance, attackItem.actor.is5e)}${getSystemDisplayUnits(attackItem.actor.is5e)})`,

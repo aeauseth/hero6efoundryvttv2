@@ -47,6 +47,65 @@ const DICE_CUMULATIVE_PROBABILITY = Object.freeze({
     18: 100,
 });
 
+// Translation for x or less to a limitation value only for 5e. For instance 8- is a -2 limitation per activation roll table FRed pg 283.
+const HERO_SYSTEM_VALUE_OR_LESS_LIMITATION_VALUE_5E = Object.freeze({
+    3: -2,
+    4: -2,
+    5: -2,
+    6: -2,
+    7: -2,
+    8: -2,
+    9: -1.5,
+    10: -1.25,
+    11: -1,
+    12: -0.75,
+    13: -0.75,
+    14: -0.5,
+    15: -0.25,
+    16: 0,
+    17: 0,
+    18: 0,
+});
+
+// Translation for x or less to a limitation value only for 6e constant/every phase powers only. For instance 8- is a -2 limitation per requires a roll table 6e vol 1 pg 389.
+const HERO_SYSTEM_VALUE_OR_LESS_LIMITATION_VALUE_FOR_CONSTANT_POWERS_6E = Object.freeze({
+    3: -2,
+    4: -2,
+    5: -2,
+    6: -2,
+    7: -2,
+    8: -1.75,
+    9: -1.5,
+    10: -1.25,
+    11: -1,
+    12: -0.75,
+    13: -0.5,
+    14: -0.25,
+    15: 0, // GM permission required for this to be worth anything. Be pessimistic.
+    16: 0, // GM permission required for this to be worth anything. Be pessimistic.
+    17: 0, // GM permission required for this to be worth anything. Be pessimistic.
+    18: 0,
+});
+
+function limitationValueFromItemAndCumulativeProbability(item, hitLocationsCumulativeProbability) {
+    // What is a more reasonable activation roll number that is not smaller?
+    let shouldBeLessThanValue = 18;
+    for (let cumulativeValue = shouldBeLessThanValue - 1; cumulativeValue >= 3; --cumulativeValue) {
+        if (DICE_CUMULATIVE_PROBABILITY[cumulativeValue] < hitLocationsCumulativeProbability) {
+            break;
+        }
+
+        shouldBeLessThanValue = cumulativeValue;
+    }
+
+    return {
+        shouldBeLessThanValue: shouldBeLessThanValue,
+        limitationValue: item.is5e
+            ? HERO_SYSTEM_VALUE_OR_LESS_LIMITATION_VALUE_5E[shouldBeLessThanValue]
+            : HERO_SYSTEM_VALUE_OR_LESS_LIMITATION_VALUE_FOR_CONSTANT_POWERS_6E[shouldBeLessThanValue],
+    };
+}
+
 const CAP_HIT_LOCATIONS = new FrozenSet([5]); // Protects location 5? (part of head) (NOTE: not defined properly in HD)
 const HELMET_HIT_LOCATIONS = new FrozenSet([4, ...CAP_HIT_LOCATIONS.values()]); // Protects location 4-5 (adds more head)
 const FULLHELMET_HIT_LOCATIONS = new FrozenSet([3, ...HELMET_HIT_LOCATIONS.values()]); // Protects location 3-5 (adds rest of head)
@@ -365,7 +424,6 @@ function getRollsForRar(item, rar) {
         }
 
         // FIXME: OPTIONID= attack roll doesn't seem to exist in HDC but does in the 5e rules (although it's not well defined). It does exist in 6e
-
         // 5e Unknown OPTIONID
         else {
             console.error(`Unknown 5e RSR ${rar.OPTIONID}`);
@@ -853,6 +911,8 @@ export function sectionalDefenseHeroValidation(modifier, item) {
                 severity: CONFIG.HERO.VALIDATION_SEVERITY.ERROR,
                 modifierID: modifier.ID,
             });
+        } else if (sectionalDefenseRanges.reason !== VALIDATE_SECTION_DEFENSE_ERROR_REASON.NOT_DECLARATION) {
+            console.error(`Unknown invalid sectional defense reason: ${sectionalDefenseRanges.reason}.`);
         }
     } else {
         // A sectional defense only makes sense for a defense
@@ -866,31 +926,32 @@ export function sectionalDefenseHeroValidation(modifier, item) {
             });
         }
 
-        // Check that the sectional defense description roughly matches the expected probability based on the limitation taken
+        // Check that the sectional defense description's limitation value roughly matches the limitation value taken
         const activationRollCumulativeProbability =
             modifier.XMLID === "SECTIONAL_DEFENSES"
                 ? SECTIONAL_DEFENSES_OPTIONID_TO_PROBABILITY[modifier.OPTIONID]
                 : DICE_CUMULATIVE_PROBABILITY[modifier.OPTIONID];
-        const hitLocationCumulativeProbability = summedHitProbability(
-            sectionalDefenseRanges.sectionalDefenseLocationsSet,
+        const activationRollLimitationValueFromCumulativeProbability = limitationValueFromItemAndCumulativeProbability(
+            item,
+            activationRollCumulativeProbability,
         );
 
-        // If cumulative probability of hit locations is larger than the probability at the activation roll (with a 1% fuzz)
-        // then this is "cheating" and the limitation should probably be bought down.
-        if (hitLocationCumulativeProbability > activationRollCumulativeProbability + 1) {
-            // What is a more reasonable activation roll number?
-            let shouldBeLessThanValue = 18;
-            for (let cumulativeValue = shouldBeLessThanValue - 1; cumulativeValue >= 3; --cumulativeValue) {
-                if (DICE_CUMULATIVE_PROBABILITY[cumulativeValue] < hitLocationCumulativeProbability) {
-                    break;
-                }
+        const hitLocationsCumulativeProbability = summedHitProbability(
+            sectionalDefenseRanges.sectionalDefenseLocationsSet,
+        );
+        const hitLocationLimitationValueFromCumulativeProbability = limitationValueFromItemAndCumulativeProbability(
+            item,
+            hitLocationsCumulativeProbability,
+        );
 
-                shouldBeLessThanValue = cumulativeValue;
-            }
-
+        // Is this "cheating" and the limitation should cost more?
+        if (
+            hitLocationLimitationValueFromCumulativeProbability.limitationValue >
+            activationRollLimitationValueFromCumulativeProbability.limitationValue
+        ) {
             validations.push({
                 property: undefined,
-                message: `${item.detailedName()}'s sectional defense declaration cumulative probability is ${hitLocationCumulativeProbability.toFixed(2)}% vs the matching limitation value's cumulative probability value of ${activationRollCumulativeProbability}%. This limitation should most likely be bought to ${shouldBeLessThanValue}-`,
+                message: `${item.detailedName()}'s sectional defense declaration cumulative probability is ${hitLocationsCumulativeProbability.toFixed(1)}%. This limitation should most likely be bought to ${hitLocationLimitationValueFromCumulativeProbability.shouldBeLessThanValue}- (${hitLocationLimitationValueFromCumulativeProbability.limitationValue})`,
                 example: "A 14- activation roll should reflect a section defense declaration like: 3-5, 7-14, 16-18",
                 severity: CONFIG.HERO.VALIDATION_SEVERITY.WARNING,
                 modifierID: modifier.ID,
