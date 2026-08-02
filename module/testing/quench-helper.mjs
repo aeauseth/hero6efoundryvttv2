@@ -51,10 +51,6 @@ export async function createQuenchActor({ quench, contents, is5e, actorType = "p
         }
     }
 
-    // PH: FIXME: This is done as a part of the uploadFromXml... why do we need to do it here? Is it needed only for
-    // where we create via itemDataFromXml? It creates one failure which indicates incorrect code.
-    await actor.fullHealth();
-
     return actor;
 }
 

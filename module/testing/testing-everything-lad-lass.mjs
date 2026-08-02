@@ -10,7 +10,7 @@ export function registerEverythingLadLass(quench) {
                 // The default timeout tends to be insufficient with multiple actors being created at the same time.
                 setQuenchTimeout(this);
 
-                describe.only("Everything Lad (5e)", function () {
+                describe("Everything Lad (5e)", function () {
                     const contents = `
                     <?xml version="1.0" encoding="UTF-16"?>
                     <CHARACTER version="6.0" TEMPLATE="builtIn.Superheroic.hdt">
@@ -965,7 +965,15 @@ export function registerEverythingLadLass(quench) {
                     });
 
                     it("Items imported", async function () {
-                        assert.isAbove(actor.items.length, 50, "Actor.items count should be greater than 50");
+                        // 259 items as of Aug, 2 2026
+                        assert.isAbove(actor.items.size, 250, "Actor.items count should be greater than 250");
+                    });
+
+                    it("Items with an ActiveEffect", async function () {
+                        assert.ok(
+                            actor.items.find((item) => item.effects.size > 0),
+                            "Expecting at least 1 item with an ActiveEffect",
+                        );
                     });
                 });
 
@@ -1942,7 +1950,15 @@ export function registerEverythingLadLass(quench) {
                     });
 
                     it("Items imported", async function () {
-                        assert.isAbove(actor.items.length, 50, "Actor.items count should be greater than 50");
+                        // 239 items as of Aug, 2 2026
+                        assert.isAbove(actor.items.size, 230, "Actor.items count should be greater than 230");
+                    });
+
+                    it("Items with an ActiveEffect", async function () {
+                        assert.ok(
+                            actor.items.find((item) => item.effects.size > 0),
+                            "Expecting at least 1 item with an ActiveEffect",
+                        );
                     });
 
                     it("Absorption", async function () {

@@ -6,7 +6,7 @@ export function registerAutomatonTests(quench) {
         (context) => {
             const { after, before, describe, expect, it } = context;
 
-            describe.only("Automaton Characteristics", function () {
+            describe("Automaton Characteristics", function () {
                 // The default timeout tends to be insufficient with multiple actors being created at the same time.
                 setQuenchTimeout(this);
 
@@ -123,7 +123,7 @@ export function registerAutomatonTests(quench) {
                         expect(actor.system.CHARACTER.TEMPLATE.name).to.equal("builtIn.Automaton.hdt");
                     });
 
-                    it.only("should recognize that it has the can't be stunned special automaton power", function () {
+                    it("should recognize that it has the can't be stunned special automaton power", function () {
                         expect(actor.getAutomatonSpecialPowers().cannotBeStunned).to.be.true;
                     });
                 });

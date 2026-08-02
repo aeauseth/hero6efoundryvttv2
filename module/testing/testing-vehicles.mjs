@@ -6,7 +6,7 @@ export function registerVehicleTests(quench) {
         (context) => {
             const { after, before, describe, expect, it } = context;
 
-            describe("Vehicle Characteristics", function () {
+            describe.only("Vehicle Characteristics", function () {
                 // The default timeout tends to be insufficient with multiple actors being created at the same time.
                 setQuenchTimeout(this);
 
@@ -93,7 +93,7 @@ export function registerVehicleTests(quench) {
                         expect(actor.hasCharacteristic("SIZE")).to.be.true;
                     });
 
-                    it("should have the correct SIZE characteristic value", function () {
+                    it.only("should have the correct SIZE characteristic value", function () {
                         expect(actor.system.characteristics.size.value).to.equal(8);
                     });
 
