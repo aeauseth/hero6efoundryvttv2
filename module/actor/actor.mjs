@@ -2993,8 +2993,8 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                     name: "Stage 6: Executing Unified Database Batch",
                     fn: this._stageCommitAllDocumentChanges.bind(this),
                 },
-                { name: "Stage 6.5: Linking Custom Skill Adders", fn: this._stageLinkCustomAdders.bind(this) }, // 🟢 RE-INTEGRATED
-                { name: "Stage 7: Finalizing Character Sheet Record", fn: this._stageUpdateActorDocument.bind(this) },
+                { name: "Stage 7: Linking Custom Skill Adders", fn: this._stageLinkCustomAdders.bind(this) }, // 🟢 RE-INTEGRATED
+                { name: "Stage 8: Finalizing Character Sheet Record", fn: this._stageUpdateActorDocument.bind(this) },
             ];
 
             // 2. Instantiate your custom progress bar using the suppressUi parameter flag
@@ -3281,7 +3281,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     /**
      * Stage 6: Executes all combined database batch creations, deletions, and updates sequentially.
      * Flushes physical ActiveEffects and their structural data model status parameters
-     * simultaneously to completely eliminate stale index leakage during Stage 7 updates.
+     * simultaneously to completely eliminate stale index leakage during Stage 8 updates.
      *
      * @param {object} context - The shared orchestration thread block container.
      * @private
@@ -3302,8 +3302,8 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
             // 🟢 CRITICAL TRACKING LEAK FIX:
             // Completely wipe out ALL condition, status, tracking arrays, AND your system's
-            // root CHARACTER data blocks simultaneously right here before Stage 7 maps fields.
-            // This stops Stage 7 updates from feeding obsolete data ghosts back to the server!
+            // root CHARACTER data blocks simultaneously right here before Stage 8 maps fields.
+            // This stops Stage 8 updates from feeding obsolete data ghosts back to the server!
             await this.update(
                 {
                     "system.statuses": [],
@@ -3343,7 +3343,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     /**
-     * Stage 6.5: Linking Custom Skill Adders.
+     * Stage 7: Linking Custom Skill Adders.
      * Completely DRY: Synchronizes indices before letting your legacy code map links safely.
      *
      * @param {object} context - The shared orchestration thread block container.
@@ -3353,7 +3353,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const systemUpper = game.system.id.toUpperCase();
 
         if (typeof this.linkCustomAddersForUpload === "function") {
-            console.log(`${systemUpper} | Stage 6.5: Synchronizing collection index bindings...`);
+            console.log(`${systemUpper} | Stage 7: Synchronizing collection index bindings...`);
 
             // 🟢 Force full data recalculation so getters target valid parent objects
             this.prepareData();
@@ -3361,12 +3361,12 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             // Execute original linking logic cleanly now that indices are verified
             await this.linkCustomAddersForUpload();
 
-            console.log(`${systemUpper} | Stage 6.5: Custom skill linkages processed successfully.`);
+            console.log(`${systemUpper} | Stage 7: Custom skill linkages processed successfully.`);
         }
     }
 
     /**
-     * Stage 7: Finalizes global identity fields, archives serialized XML data,
+     * Stage 8: Finalizes global identity fields, archives serialized XML data,
      * synchronizes naming strings, balances resource values, and releases locks.
      * Maps properties flatly using clean serializable structures to pass V14 validations.
      *
@@ -3379,8 +3379,6 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const systemUpper = systemId.toUpperCase();
         const opt = context.options;
 
-        const shouldRenderUI = this.sheet?.rendered ?? false;
-
         // Secure rebuild and scratch creation pass parameter settings
         if (context.isHardRebuild || opt.rebuild === true || opt.rebuildActor === true || opt.quenchUpload === true) {
             context.isHardRebuild = true;
@@ -3388,7 +3386,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
         const finalName = json.CHARACTER_INFO?.CHARACTER_NAME || json.CHARACTER?.["@attributes"]?.NAME || this.name;
 
-        console.log(`${systemUpper} | Stage 7: Building safe final transaction payload for "${finalName}"...`);
+        console.log(`${systemUpper} | Stage 8: Building safe final transaction payload for "${finalName}"...`);
 
         // 1. Establish a pristine baseline payload architecture
         const updatePayload = {
@@ -3423,8 +3421,8 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
         // 🚨 EXPLICIT HARD REBUILD/SCRATCH CREATION PATHWAY ISOLATION:
         if (context.isHardRebuild) {
-            console.log(`${systemUpper} | Stage 7 Rebuild/Scratch: Pushing flat serializable finalization payload.`);
-            await this.update(updatePayload, { render: shouldRenderUI });
+            console.log(`${systemUpper} | Stage 8 Rebuild/Scratch: Pushing flat serializable finalization payload.`);
+            await this.update(updatePayload, { render: true });
             return; // Exit stage completely; standard delta calculations are safely skipped
         }
 
@@ -3496,7 +3494,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         }
 
         // Commit standard delta metrics
-        await this.update(updatePayload, { render: shouldRenderUI });
+        await this.update(updatePayload, { render: true });
 
         // Restore item-level ammunition states (Only relevant for minor adjustments)
         if (rv?.resources?.length > 0) {
@@ -3526,15 +3524,14 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         }
 
         // Cascade token identity synchronization if active
-        if (shouldRenderUI) {
-            const liveCanvasTokens = this.getActiveTokens() ?? [];
-            if (liveCanvasTokens.length > 0) {
-                const canvasTokenPayload = { name: finalName };
-                if (context.portraitServerPath) canvasTokenPayload["texture.src"] = context.portraitServerPath;
 
-                for (const tokenInstance of liveCanvasTokens) {
-                    await tokenInstance.document.update(canvasTokenPayload, { render: true });
-                }
+        const liveCanvasTokens = this.getActiveTokens() ?? [];
+        if (liveCanvasTokens.length > 0) {
+            const canvasTokenPayload = { name: finalName };
+            if (context.portraitServerPath) canvasTokenPayload["texture.src"] = context.portraitServerPath;
+
+            for (const tokenInstance of liveCanvasTokens) {
+                await tokenInstance.document.update(canvasTokenPayload, { render: true });
             }
         }
 
@@ -3553,7 +3550,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                     content: `Took ${totalSecondsCeil} seconds for <b>${game.user.name}</b> to upload <b>${finalName}</b>.`,
                 });
             } catch (chatError) {
-                console.error(`${systemUpper} | Stage 7 Chat Error:`, chatError);
+                console.error(`${systemUpper} | Stage 8 Chat Error:`, chatError);
             }
         }
     }

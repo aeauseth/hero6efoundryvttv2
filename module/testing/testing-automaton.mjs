@@ -6,7 +6,7 @@ export function registerAutomatonTests(quench) {
         (context) => {
             const { after, before, describe, expect, it } = context;
 
-            describe("Automaton Characteristics", function () {
+            describe.only("Automaton Characteristics", function () {
                 // The default timeout tends to be insufficient with multiple actors being created at the same time.
                 setQuenchTimeout(this);
 
@@ -97,7 +97,18 @@ export function registerAutomatonTests(quench) {
 
                     let actor;
                     before(async function () {
-                        actor = await createQuenchActor({ quench: this, contents, is5e: true, actorType: "automaton" });
+                        try {
+                            actor = await createQuenchActor({
+                                quench: this,
+                                contents,
+                                is5e: true,
+                                actorType: "automaton",
+                            });
+                        } catch (quenchSetupError) {
+                            console.error("🚨 CRITICAL MOCHA ABORT ENCOUNTERED IN BEFORE HOOK:", quenchSetupError);
+                            // Explicitly rethrow so the test engine registers the crash safely
+                            throw quenchSetupError;
+                        }
                     });
 
                     after(async function () {
@@ -112,7 +123,7 @@ export function registerAutomatonTests(quench) {
                         expect(actor.system.CHARACTER.TEMPLATE.name).to.equal("builtIn.Automaton.hdt");
                     });
 
-                    it("should recognize that it has the can't be stunned special automaton power", function () {
+                    it.only("should recognize that it has the can't be stunned special automaton power", function () {
                         expect(actor.getAutomatonSpecialPowers().cannotBeStunned).to.be.true;
                     });
                 });

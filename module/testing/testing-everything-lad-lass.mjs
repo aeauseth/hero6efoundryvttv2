@@ -952,9 +952,7 @@ export function registerEverythingLadLass(quench) {
                     let actor;
                     before(async function () {
                         try {
-                            console.log("QUENCH DEBUG | Entering Before Hook Setup Pass...");
                             actor = await createQuenchActor({ quench: this, contents, is5e: true });
-                            console.log("QUENCH DEBUG | Before Hook Setup Completed Successfully.");
                         } catch (quenchSetupError) {
                             console.error("🚨 CRITICAL MOCHA ABORT ENCOUNTERED IN BEFORE HOOK:", quenchSetupError);
                             // Explicitly rethrow so the test engine registers the crash safely
@@ -966,9 +964,8 @@ export function registerEverythingLadLass(quench) {
                         await deleteQuenchActor({ quench: this, actor });
                     });
 
-                    it("ok", async function () {
-                        console.log("ok");
-                        assert.ok(true);
+                    it("Items imported", async function () {
+                        assert.isAbove(actor.items.length, 50, "Actor.items count should be greater than 50");
                     });
                 });
 
@@ -1944,8 +1941,8 @@ export function registerEverythingLadLass(quench) {
                         await deleteQuenchActor({ quench: this, actor });
                     });
 
-                    it("ok", async function () {
-                        assert.ok(true);
+                    it("Items imported", async function () {
+                        assert.isAbove(actor.items.length, 50, "Actor.items count should be greater than 50");
                     });
 
                     it("Absorption", async function () {
