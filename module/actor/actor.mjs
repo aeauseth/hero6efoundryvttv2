@@ -108,6 +108,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         this.updateSource(actorChanges);
 
         if (freshCreate) {
+            // For some unknown reason heroicIdentity is null, we want to default it to true
+            this.updateSource({ "system.heroicIdentity": this.system.heroicIdentity ?? true });
+
             // Create free stuff unless this is specifically for a quench create.
             if (!options.quenchCreate) {
                 await this.addFreeStuff();
@@ -1156,30 +1159,38 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         }
 
         // Heroic Identity Conversion Announcement
-        if (
-            !options.quenchCreate &&
-            changed.system?.heroicIdentity !== undefined &&
-            this.system.heroicIdentity !== undefined &&
-            changed.system.heroicIdentity !== this.system.heroicIdentity
-        ) {
-            const token = this.getActiveTokens()[0];
-            const speaker = ChatMessage.getSpeaker({ actor: this, token });
-            const tokenName = token?.name || this.name;
-            speaker["alias"] = game.user.name;
-            const identityContent = `<b>${tokenName}</b> ${changed.system.heroicIdentity ? "entered" : "left"} their heroic identity.`;
-            ChatMessage.create({
-                style: CONFIG.HERO.CHAT_MESSAGE_DEFAULT_STYLE,
-                author: game.user._id,
-                content: identityContent,
-                speaker: speaker,
-            });
-        }
+        // if (
+        //     !options.quenchCreate &&
+        //     changed.system?.heroicIdentity !== undefined &&
+        //     this.system.heroicIdentity !== undefined &&
+        //     changed.system.heroicIdentity !== this.system.heroicIdentity
+        // ) {
+        //     const token = this.getActiveTokens()[0];
+        //     const speaker = ChatMessage.getSpeaker({ actor: this, token });
+        //     const tokenName = token?.name || this.name;
+        //     speaker["alias"] = game.user.name;
+        //     const identityContent = `<b>${tokenName}</b> ${changed.system.heroicIdentity ? "entered" : "left"} their heroic identity.`;
+        //     ChatMessage.create({
+        //         style: CONFIG.HERO.CHAT_MESSAGE_DEFAULT_STYLE,
+        //         author: game.user._id,
+        //         content: identityContent,
+        //         speaker: speaker,
+        //     });
+        // }
 
         return true;
     }
 
     _onUpdate(changed, options, userId) {
         super._onUpdate(changed, options, userId);
+
+        // If this actor document or its items are actively processing an hdc upload sequence,
+        // immediately exit the update hook lifecycle tracking loops.
+        // The staging pipeline manager handles single-pass point evaluations, so letting
+        // background active effect updates run here triggers index drift and socket crashes!
+        if (this.hdcImporting === true || this.getFlag(game.system.id, "uploading") === true) {
+            return;
+        }
 
         // 1. Unpack and execute computed scrolling data across all connected player displays
         if (options.displayScrollingChanges?.length && typeof this._displayScrollingChange === "function") {
@@ -2909,13 +2920,19 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     /**
      * Orchestrates the conversion and database upload of an HDC character file.
      * Compares items to update via matching IDs, create new ones, or prompt for deletion.
+     * Leverages a simplified 1-7 step sequence to ensure transactional database integrity.
      *
      * @param {string} xmlString - The raw text contents read from the uploaded .hdc file.
      * @param {object} [options={}] - Custom processing and structural rebuilding parameters.
      * @returns {Promise<void>}
      */
     async uploadFromXml(xmlString, options = {}) {
+        const startTimeTicks = performance.now();
         this.hdcImporting = true;
+        const systemUpper = game.system.id.toUpperCase();
+
+        // Declare out in method scope to maintain visibility inside the finally recovery block
+        let uploadProgressBar = null;
 
         try {
             const parser = new DOMParser();
@@ -2928,97 +2945,168 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             const rootChildren = xmlDoc.documentElement?.children || xmlDoc.children;
             this.constructor._xmlToJsonNode(heroJson, rootChildren);
 
-            // Context tracking configurations passing through sequential stage workers
+            // Resolve template layout boundaries sequentially
+            let targetTemplateString = heroJson.TEMPLATE?.extends || heroJson.TEMPLATE?.name || "";
+            if (!targetTemplateString && heroJson.CHARACTER?.TEMPLATE) {
+                const charTemplate = heroJson.CHARACTER.TEMPLATE;
+                targetTemplateString = charTemplate.extends || charTemplate.name || "";
+            }
+            if (!targetTemplateString && xmlDoc.documentElement) {
+                targetTemplateString = xmlDoc.documentElement.getAttribute("TEMPLATE") || "";
+            }
+
+            let detectedIs5e = this.constructor.is5ePreview(targetTemplateString);
+            if (detectedIs5e === null || detectedIs5e === undefined) {
+                detectedIs5e = game.settings.get(game.system.id, "DefaultEdition") === "five";
+            }
+
+            // Initialize the shared orchestration tracking context with our verified variables
             const context = {
                 actorDoc: this,
                 heroJson,
+                xmlDoc,
                 options,
-                is5e: !!heroJson.CHARACTER?.["@attributes"]?.IS_5E || !!this.system.is5e,
-                parsedItems: [], // The fresh array coming strictly out of the parser
-                updatesToCommit: [], // Reconciled item updates mapping matching IDs
-                creationsToCommit: [], // Reconciled new item payloads
-                deletionsToCommit: [], // Stale item IDs identified for eviction
+                targetTemplateString,
+                is5e: !!detectedIs5e,
+                startTimeTicks,
+                parsedItems: [],
+                updatesToCommit: [],
+                creationsToCommit: [],
+                deletionsToCommit: [],
             };
 
+            console.log(`${systemUpper} | --- HDC RECONCILE START ---`);
+
             const stages = [
-                { name: "Initializing Global Broadcast Lock", fn: this._stageBroadcastLock.bind(this) },
-                { name: "Parsing XML Assets", fn: this._stageParseXmlItems.bind(this) },
-                { name: "Extracting Base64 Portrait Artwork", fn: this._stageExtractBase64Portrait.bind(this) }, // 🟢 Integrated
-                { name: "Processing Ruleset Baseline Assets", fn: this._stageApplySystemFreeStuff.bind(this) },
-                { name: "Reconciling Database Differences", fn: this._stageReconcileItemDelta.bind(this) },
-                { name: "Prompting User for Item Deletions", fn: this._stagePromptUserDeletions.bind(this) },
-                { name: "Executing Database Operations Batch", fn: this._stageCommitAllDocumentChanges.bind(this) },
-                { name: "Finalizing Character Sheet Record", fn: this._stageUpdateActorDocument.bind(this) },
+                { name: "Stage 1: Initializing Global Broadcast Lock", fn: this._stageBroadcastLock.bind(this) },
+                { name: "Stage 2: Parsing XML Assets", fn: this._stageParseXmlItems.bind(this) },
+                {
+                    name: "Stage 3: Extracting Base64 Portrait Artwork",
+                    fn: this._stageExtractBase64Portrait.bind(this),
+                },
+                {
+                    name: "Stage 4: Merging Actor Baseline Characteristics",
+                    fn: this._stageMergeActorCharacteristics.bind(this),
+                },
+                { name: "Stage 5: Reconciling Database Differences", fn: this._stageReconcileItemDelta.bind(this) },
+                {
+                    name: "Stage 6: Executing Unified Database Batch",
+                    fn: this._stageCommitAllDocumentChanges.bind(this),
+                },
+                { name: "Stage 6.5: Linking Custom Skill Adders", fn: this._stageLinkCustomAdders.bind(this) }, // 🟢 RE-INTEGRATED
+                { name: "Stage 7: Finalizing Character Sheet Record", fn: this._stageUpdateActorDocument.bind(this) },
             ];
 
-            const progressId = `${game.system.id}.hdcImport.${this.id}`;
-            const progressLabel = game.i18n.format("HEROSYS.HDCImportProgress", { name: this.name });
+            // 2. Instantiate your custom progress bar using the suppressUi parameter flag
+            uploadProgressBar = new HeroProgressBar(`${this.name}: Processing HDC file`, stages.length, {
+                suppressUi: !!options.quenchUpload,
+            });
 
-            if (typeof SceneNavigation?.displayProgressBar === "function") {
-                SceneNavigation.displayProgressBar({ id: progressId, label: progressLabel, pct: 0 });
-            }
-
+            // 3. Process each worker phase sequentially across our matrix loop
             for (let i = 0; i < stages.length; i++) {
                 const stage = stages[i];
                 await stage.fn(context);
 
-                const percentage = Math.round(((i + 1) / stages.length) * 100);
-                if (typeof SceneNavigation?.displayProgressBar === "function") {
-                    SceneNavigation.displayProgressBar({
-                        id: progressId,
-                        label: `${progressLabel}: ${stage.name}`,
-                        pct: percentage,
-                    });
+                // Advance your custom bar module interface state cleanly
+                if (uploadProgressBar && typeof uploadProgressBar.advance === "function") {
+                    uploadProgressBar.advance(`${this.name}: ${stage.name}`, 1);
                 }
             }
 
-            ui.notifications.info(`${this.name} successfully reconciled and updated from HDC profile.`);
+            console.log(`${systemUpper} | --- HDC RECONCILE COMPLETE ---`);
         } catch (error) {
-            console.error(`${game.system.id.toUpperCase()} | HDC Processing Error:`, error);
+            console.error(`${systemUpper} | HDC Processing Error:`, error);
             ui.notifications.error(`Upload failed: ${error.message}`);
-            await this.update({ [`flags.${game.system.id}.-=uploading`]: null }, { render: true });
+            await this.update({ [`flags.${game.system.id}.-=uploading`]: null }, { render: false });
         } finally {
+            // 🟢 RE-INTEGRATED TRANSITORY INTERFACE DESTRUCTOR TERMINATION PASS:
+            // Invokes your exact old method line to safely close and release control of navigation layouts
+            if (uploadProgressBar && typeof uploadProgressBar.close === "function") {
+                uploadProgressBar.close(`Uploaded ${this.name}`);
+            }
+
             delete this.hdcImporting;
             this.prepareData();
-            this.sheet?.render(true);
         }
     }
 
+    /**
+     * Stage 1: Commits the global uploading flag to the database to sync all connected clients.
+     * Proactively synchronizes the in-memory data source and captures volatile state metrics.
+     * @private
+     */
     async _stageBroadcastLock(context) {
+        // 1. Force early in-memory data source evaluation to support intermediate calculations
+        this.updateSource({
+            "system.is5e": context.is5e,
+        });
+
+        // 2. 🟢 RE-ININTEGRATED RESOURCE RETENTION PATH:
+        // Extract your exact legacy status profile metrics tracking delta wounds and ammo pools
+        context.retainValuesOnUpload = {
+            body:
+                (parseInt(this.system.characteristics?.body?.max, 10) || 0) -
+                (parseInt(this.system.characteristics?.body?.value, 10) || 0),
+            stun:
+                (parseInt(this.system.characteristics?.stun?.max, 10) || 0) -
+                (parseInt(this.system.characteristics?.stun?.value, 10) || 0),
+            end:
+                (parseInt(this.system.characteristics?.end?.max, 10) || 0) -
+                (parseInt(this.system.characteristics?.end?.value, 10) || 0),
+            hap: this.system.hap?.value,
+            heroicIdentity: this.system.heroicIdentity ?? true,
+
+            // Isolate active gear, ammunition reserve values, or specialized endurance pools
+            resources: this.items
+                .filter(
+                    (item) =>
+                        (item.system.chargeItemModifier &&
+                            (item.system._charges !== item.system.chargesMax ||
+                                item.system._clips !== item.system.clipsMax)) ||
+                        item.system.ablative > 0 ||
+                        (item.system.XMLID === "ENDURANCERESERVE" && item.system.LEVELS !== item.system.value),
+                )
+                .map((o) => ({
+                    id: o.id,
+                    XMLID: o.system.XMLID, // Cache systemic tags to facilitate reliable reconciliation checks later
+                    _charges: o.system._charges,
+                    _clips: o.system._clips,
+                    ablative: o.system.ablative,
+                    value: o.system.value,
+                })),
+            was5e: this.is5e,
+        };
+
+        console.log(`${game.system.id.toUpperCase()} | Stage 1: Volatile combat resource states successfully cached.`);
+
+        // Push the global broadcast lock transaction out over the network socket channel
         await this.update({ [`flags.${game.system.id}.uploading`]: true }, { render: true });
     }
 
     /**
-     * Stage 1: Converts structural intermediate JSON nodes into standard raw document arrays.
-     * Extracts raw IMAGE tags and stashes them inside the context execution frame.
+     * Stage 2: Converts unified intermediate JSON nodes into standard raw document arrays.
      * @private
      */
     async _stageParseXmlItems(context) {
-        context.itemsToCreate =
+        context.parsedItems =
             HeroSystem6eItem.parseItemsFromHeroJsonToItemDataArray(context.heroJson, context.actorDoc, {
                 partial: true,
             }) ?? [];
 
-        // Capture the root image structure safely from the intermediate JSON mapping tree
-        const rootCharacter = context.heroJson.CHARACTER ?? context.heroJson;
-        if (rootCharacter?.IMAGE) {
-            context.hdcRawImageNode = rootCharacter.IMAGE;
-        }
+        console.log(
+            `${game.system.id.toUpperCase()} | Stage 2: Extracted ${context.parsedItems.length} valid item structures from data source.`,
+        );
     }
 
     /**
-     * Stage 1.5: Re-implements production file image uploads using the exact legacy paths,
-     * Tokenizer overrides, Forge API asset mapping, and missing image dialog prompts.
-     *
-     * @param {object} context - The shared orchestration thread block container.
+     * Stage 3: Handles file portrait updates, directory provisions, and Forge API cloud alignment.
+     * Strips the heavy <IMAGE> tags out of the XML to optimize systemic database space constraints.
      * @private
      */
     async _stageExtractBase64Portrait(context) {
-        // Local shorthand bindings to match target rules criteria
-        const actorName = context.heroJson.CHARACTER?.["@attributes"]?.NAME || this.name;
-        const imageNode = context.hdcRawImageNode;
+        const actorName = context.heroJson.CHARACTER_INFO?.CHARACTER_NAME || this.name;
+        const systemUpper = game.system.id.toUpperCase();
 
-        // A. TOKENIZER SAFETY CHECK: Stop processing if the current actor sheet uses Tokenizer module assets
         if (this.img.startsWith("tokenizer/") && game.modules.get("vtta-tokenizer")?.active) {
             await ui.notifications.warn(
                 `Skipping image upload, because this token (${actorName}) appears to be using tokenizer.`,
@@ -3026,121 +3114,91 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             return;
         }
 
-        // B. EXPLICIT FILE UPLOAD PATH (When an IMAGE tag exists in the HDC file)
-        if (imageNode) {
-            // Safely isolate filename properties and fall back to generic naming structures if missing
-            const filename =
-                imageNode["@attributes"]?.FileName || `${actorName.toLowerCase().replace(/[^a-z0-9_-]/gi, "_")}.png`;
-            const storagePath = `worlds/${game.world.id}/tokens`;
-            let relativePathName = `${storagePath}/${filename}`;
+        const xmlImageElements = context.xmlDoc.getElementsByTagName("IMAGE");
+        if (xmlImageElements && xmlImageElements.length > 0) {
+            const imageNode = xmlImageElements[0];
+            const rawBase64Text = imageNode.textContent;
 
-            // Extract raw Base64 string data from text arrays or attribute fields
-            let rawBase64Text = typeof imageNode === "string" ? imageNode : imageNode["#text"];
-            if (!rawBase64Text && imageNode["@attributes"]?.DATA) {
-                rawBase64Text = imageNode["@attributes"].DATA;
-            }
+            if (rawBase64Text && typeof rawBase64Text === "string") {
+                const filename =
+                    imageNode.getAttribute("FileName") ||
+                    `${actorName.toLowerCase().replace(/[^a-z0-9_-]/gi, "_")}.png`;
+                const storagePath = `worlds/${game.world.id}/tokens`;
+                let relativePathName = `${storagePath}/${filename}`;
 
-            if (!rawBase64Text || typeof rawBase64Text !== "string") return;
+                const extension = filename.split(".").pop() || "png";
+                const sanitizedBase64 = rawBase64Text.replace(/[\r\n\t\s]+/g, "").trim();
+                const completeBase64Url = `data:image/${extension};base64,${sanitizedBase64}`;
 
-            // Extract file extensions and build complete Data URL tags matching ImageHelper signatures
-            const extension = filename.split(".").pop() || "png";
-            const sanitizedBase64 = rawBase64Text.replace(/[\r\n\t\s]+/g, "").trim();
-            const completeBase64Url = `data:image/${extension};base64,${sanitizedBase64}`;
-
-            try {
-                // Create directory bounds cleanly if they don't already exist on user data drives
                 try {
-                    await FilePicker.createDirectory("user", storagePath);
-                } catch (dirError) {
-                    console.debug("Create storage directory error/exists:", dirError);
-                }
-
-                // Check if the target file name already exists in the folder array space
-                const targetDirectoryBrowse = await FilePicker.browse("user", storagePath);
-                const imageFileExists = targetDirectoryBrowse.files.includes(encodeURI(relativePathName));
-
-                if (!imageFileExists) {
-                    // Commit the file binary stream directly using Foundry's native helper methods
-                    await ImageHelper.uploadBase64(completeBase64Url, filename, storagePath);
-
-                    // FORGE API ALIGNMENT: Rewrite local path pointers if running within a Forge cloud environment
-                    if (typeof ForgeAPI !== "undefined") {
-                        const forgeUser = (await ForgeAPI.status()).user;
-                        relativePathName = `https://assets.forge-vtt.com/${forgeUser}/${relativePathName}`;
+                    try {
+                        await FilePicker.createDirectory("user", storagePath);
+                    } catch {
+                        console.debug(`${systemUpper} | Target token path directory exists.`);
                     }
+
+                    const targetDirectoryBrowse = await FilePicker.browse("user", storagePath);
+                    const imageFileExists = targetDirectoryBrowse.files.includes(encodeURI(relativePathName));
+
+                    if (!imageFileExists) {
+                        await ImageHelper.uploadBase64(completeBase64Url, filename, storagePath);
+
+                        if (typeof ForgeAPI !== "undefined") {
+                            const forgeUser = (await ForgeAPI.status()).user;
+                            relativePathName = `https://assets.forge-vtt.com/${forgeUser}/${relativePathName}`;
+                        }
+                    }
+                    context.portraitServerPath = relativePathName;
+                } catch (uploadException) {
+                    console.error(`${systemUpper} | Image allocation failure during XML parse:`, uploadException);
                 }
-
-                // Stash the clean file path destination to let Stage 6 write it atomically
-                context.portraitServerPath = relativePathName;
-            } catch (uploadException) {
-                console.error(
-                    `${game.system.id.toUpperCase()} | Image allocation crash during HDC upload:`,
-                    uploadException,
-                );
-                ui.notifications.warn(
-                    `${actorName} failed to upload ${filename}. Make sure user has [Use File Browser] and [Upload New Files] permissions. Also make sure the folder isn't in [Privacy Mode] indicated with a purple background within FoundryVTT.`,
-                );
-            }
-
-            // Prune memory references from intermediate data blocks to match legacy flow signatures
-            if (context.heroJson.CHARACTER?.IMAGE) delete context.heroJson.CHARACTER.IMAGE;
-            if (context.heroJson.IMAGE) delete context.heroJson.IMAGE;
-        }
-        // C. MISSING IMAGE HANDLING (When the HDC file contains no image node)
-        else {
-            // Prompt before overwriting existing character sheet portrait paths
-            if (this.img !== CONST.DEFAULT_TOKEN && !context.options.keepExistingImage) {
-                // Wrap within an awaited Promise if you want to block stage execution for input,
-                // or let it fire reactively. Per V14 parameters, DialogV2 handles this seamlessly.
-                new foundry.applications.api.DialogV2({
-                    window: { title: "Choose token image" },
-                    content: `
-            <p>This HDC file does not include an image.</p>
-            <p>Do you want to keep the existing token image or clear the image (${CONST.DEFAULT_TOKEN})?</p>
-          `,
-                    buttons: [
-                        {
-                            action: "keepImage",
-                            label: "Keep Existing Image",
-                            default: true,
-                        },
-                        {
-                            action: "defaultImage",
-                            label: "Clear",
-                            callback: async () => {
-                                // Clear the portrait and immediately update any active canvas scene instances
-                                await this.update({ img: CONST.DEFAULT_TOKEN });
-
-                                for (const token of this.getActiveTokens()) {
-                                    await token.document.update({ "texture.src": CONST.DEFAULT_TOKEN });
-                                }
-                            },
-                        },
-                    ],
-                    submit: (result) => {
-                        console.log(`${game.system.id.toUpperCase()} | User picked image prompt option: ${result}`);
-                    },
-                }).render({ force: true });
             }
         }
+
+        // Storage Optimization Block: Clone and strip image node to keep DB records lightweight
+        const xmlNoImage = context.xmlDoc.cloneNode(true);
+        const targetImageTag = xmlNoImage.getElementsByTagName("IMAGE")[0];
+        if (targetImageTag && targetImageTag.parentNode) {
+            targetImageTag.parentNode.removeChild(targetImageTag);
+        }
+        context.optimizedXmlText = new XMLSerializer().serializeToString(xmlNoImage);
     }
 
-    async _stageApplySystemFreeStuff(context) {
-        if (typeof context.actorDoc.addFreeStuff === "function") {
-            await context.actorDoc.addFreeStuff({ is5e: context.is5e });
+    /**
+     * Stage 4: Re-integrates your original HeroItemCharacteristic instantiation pipeline.
+     * Purely In-Memory: Prepares class wrappers locally to support sibling calculation engines.
+     * @private
+     */
+    async _stageMergeActorCharacteristics(context) {
+        const hdcCharacteristics = context.heroJson.CHARACTER?.CHARACTERISTICS || context.heroJson.CHARACTERISTICS;
+        if (!hdcCharacteristics) return;
+
+        const systemUpper = game.system.id.toUpperCase();
+        console.log(`${systemUpper} | Stage 4: Preparing characteristics in client memory...`);
+
+        for (const [key, value] of Object.entries(hdcCharacteristics)) {
+            // Instantiate the live system class element exactly as your old engine expects
+            const charInstance = new HeroItemCharacteristic(value, { parent: this });
+
+            // Mutate the active runtime actor document state immediately in local client memory
+            this.system[key] = charInstance;
         }
     }
 
     /**
-     * Refactored Stage 3: Compares parsed items against live items using system.ID.
-     * Hard rebuilds slate items for deletion but explicitly guard free systemic assets.
+     * Stage 5: Compares parsed items against live items using system.ID trackers.
+     * If a hard rebuild is active, slates all existing non-free assets for destruction.
+     *
+     * @param {object} context - The shared orchestration thread block container.
      * @private
      */
     async _stageReconcileItemDelta(context) {
-        const liveItems = context.actorDoc.items.contents;
+        const liveItems = this.items.contents;
+        const systemUpper = game.system.id.toUpperCase();
+
         const validActorCharacteristics =
             typeof getCharacteristicInfoArrayForActor === "function"
-                ? (getCharacteristicInfoArrayForActor(context.actorDoc) ?? [])
+                ? (getCharacteristicInfoArrayForActor(this) ?? [])
                 : [];
         const validCharKeysUpper = validActorCharacteristics.map((info) => info.key.toUpperCase());
 
@@ -3165,7 +3223,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 }
             }
 
-            // Pre-instantiation effects calculation to respect read-only V14 fields
+            // Pre-instantiation active effects calculation to respect read-only getters
             cleanPlainObject.effects =
                 HeroSystem6eItem.prototype.buildDynamicActiveEffects.call(cleanPlainObject) ?? [];
             return cleanPlainObject;
@@ -3174,27 +3232,26 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         // 🚨 REBUILD OVERRIDE EXCEPTION CHECK:
         if (context.options.rebuild === true || context.options.rebuildActor === true) {
             context.creationsToCommit = curatedParsedItems;
-            context.isHardRebuild = true;
-
-            // 🟢 CRITICAL ARCHITECTURAL SAFETY FIX:
-            // Protect your free baseline assets from being deleted by using the explicit helper.
             context.deletionsToCommit = liveItems
                 .filter((li) => !li.isFreeStuff)
                 .map((li) => ({ id: li.id, name: li.name }));
+            context.isHardRebuild = true;
 
-            return; // Exit stage early; standard delta matching is skipped
+            console.log(
+                `${systemUpper} | Stage 5 Rebuild: Targeted all ${context.deletionsToCommit.length} non-free documents for destruction.`,
+            );
+            return;
         }
 
-        // --- Standard Incremental Reconcile Mode (When rebuild is falsy) ---
+        // Standard Incremental Delta Sync Mode
         const matchedLiveIds = new Set();
 
         for (const parsed of curatedParsedItems) {
             const targetHdcId = parsed.system?.ID ?? parsed.system?.XMLID;
-
             const matchingLiveItem = liveItems.find(
                 (li) =>
-                    (li.system?.ID && li.system?.ID === targetHdcId) ||
-                    (li.system?.XMLID && li.system?.XMLID === targetHdcId),
+                    (li.system?.ID && String(li.system?.ID) === String(targetHdcId)) ||
+                    (li.system?.XMLID && String(li.system?.XMLID) === String(targetHdcId)),
             );
 
             if (matchingLiveItem) {
@@ -3211,136 +3268,292 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             }
         }
 
-        // 🟢 DELTA MODE PROTECTION: Keep free items safe when doing incremental updates
+        // Delta Mode Safety: Filter out your system free baseline assets from eviction slates
         context.deletionsToCommit = liveItems
             .filter((li) => !li.isFreeStuff && !matchedLiveIds.has(li.id))
             .map((li) => ({ id: li.id, name: li.name }));
+
+        console.log(
+            `${systemUpper} | Stage 5 Delta: Updates: ${context.updatesToCommit.length}, Creations: ${context.creationsToCommit.length}, Deletions: ${context.deletionsToCommit.length}`,
+        );
     }
 
     /**
-     * Refactored Stage 4: Prompts the active user via a native asynchronous Dialog confirmation box
-     * if stale items are flagged for absolute eviction.
-     * @private
-     */
-    async _stagePromptUserDeletions(context) {
-        if (context.deletionsToCommit.length === 0) return;
-
-        // Build standard high-scannability listing lists inside HTML templates
-        const itemLinksText = context.deletionsToCommit.map((d) => `<li><strong>${d.name}</strong></li>`).join("");
-
-        const contentHtml = `
-      <p>The incoming HDC file does not contain the following items currently sitting on this character sheet:</p>
-      <ul style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;">${itemLinksText}</ul>
-      <p>Would you like to permanently delete these items from the database to align with the upload file?</p>
-    `;
-
-        // Wrap the interface overlay inside an awaited Promise to pause the processing stage execution safely
-        const confirmed = await new Promise((resolve) => {
-            new Dialog({
-                title: "Confirm HDC Deletions",
-                content: contentHtml,
-                buttons: {
-                    yes: {
-                        icon: '<i class="fas fa-trash"></i>',
-                        label: "Delete Stale Items",
-                        callback: () => resolve(true),
-                    },
-                    no: {
-                        icon: '<i class="fas fa-times"></i>',
-                        label: "Keep Existing Items",
-                        callback: () => resolve(false),
-                    },
-                },
-                default: "yes",
-                close: () => resolve(false),
-            }).render(true);
-        });
-
-        // If the user chooses "no", clear out the deletions target array payload to preserve them
-        if (!confirmed) {
-            context.deletionsToCommit = [];
-        }
-    }
-
-    /**
-     * Stage 5: Commits updates, creations, and approved deletions to the database.
-     * If a hard rebuild override is active, executes full-wipe evictions on separate
-     * embedded collections first before running transactional batch assignments.
+     * Stage 6: Executes all combined database batch creations, deletions, and updates sequentially.
+     * Flushes physical ActiveEffects and their structural data model status parameters
+     * simultaneously to completely eliminate stale index leakage during Stage 7 updates.
      *
      * @param {object} context - The shared orchestration thread block container.
      * @private
      */
     async _stageCommitAllDocumentChanges(context) {
-        const actor = context.actorDoc;
+        const systemUpper = game.system.id.toUpperCase();
 
-        // 🚨 REBUILD ACTIONS OPERATION: Clear out ActiveEffects and Statuses from the actor document
+        // 🚨 A. COMBINED HARDEST CLEANSE ENGINE (The Error Exterminator):
         if (context.isHardRebuild) {
-            // 1. Evict actor-level ActiveEffects completely using V14-safe embedded arrays
-            const actorEffectIds = actor.effects.contents.map((e) => e.id);
+            console.log(
+                `${systemUpper} | Stage 6 Rebuild: Executing absolute ActiveEffect and Status tracking wipe...`,
+            );
+
+            const actorEffectIds = this.effects.contents.map((e) => e.id);
             if (actorEffectIds.length > 0) {
-                await actor.deleteEmbeddedDocuments("ActiveEffect", actorEffectIds, { render: false });
+                await this.deleteEmbeddedDocuments("ActiveEffect", actorEffectIds, { render: false });
             }
 
-            // 2. Clear status flags or tracking properties stored in the system namespace safely
-            // Use V14 path keys to flush temporary state dictionaries in one clean call
-            await actor.update(
+            // 🟢 CRITICAL TRACKING LEAK FIX:
+            // Completely wipe out ALL condition, status, tracking arrays, AND your system's
+            // root CHARACTER data blocks simultaneously right here before Stage 7 maps fields.
+            // This stops Stage 7 updates from feeding obsolete data ghosts back to the server!
+            await this.update(
                 {
                     "system.statuses": [],
                     "system.conditions": [],
+                    "system.CHARACTER": null, // Purges stale data structures completely from database caches
                 },
                 { render: false },
             );
         }
 
-        // 3. Execute Approved / Rebuild Deletions
+        // B. PROCESS DOCUMENT DELETIONS
         if (context.deletionsToCommit.length > 0) {
             const idsToRemove = context.deletionsToCommit.map((d) => d.id);
-            await actor.deleteEmbeddedDocuments("Item", idsToRemove, { render: false });
+            await this.deleteEmbeddedDocuments("Item", idsToRemove, { render: false });
         }
 
-        // 4. Execute Updates (Will be completely zero if in rebuild mode)
+        // C. PROCESS DOCUMENT UPDATES
         if (context.updatesToCommit.length > 0) {
-            await actor.updateEmbeddedDocuments("Item", context.updatesToCommit, { render: false });
+            await this.updateEmbeddedDocuments("Item", context.updatesToCommit, { render: false });
         }
 
-        // 5. Execute Creations to re-build character abilities cleanly from scratch
+        // D. SEED FRESH BASELINE RULES SYSTEM ASSETS
+        if (typeof this.addFreeStuff === "function") {
+            await this.addFreeStuff({ is5e: context.is5e });
+        }
+
+        // E. COMMITTING PARSED HDC POWER ITEMS
         if (context.creationsToCommit.length > 0) {
-            await actor.createEmbeddedDocuments("Item", context.creationsToCommit, {
+            console.log(
+                `${systemUpper} | Stage 6 DB: Writing ${context.creationsToCommit.length} parsed items to database.`,
+            );
+            await this.createEmbeddedDocuments("Item", context.creationsToCommit, {
                 render: false,
-                hdcImporting: true, // Forces the updateItem system hook automation layer to stand down
+                hdcImporting: true,
             });
         }
     }
 
     /**
-     * Stage 6: Finalizes global identity fields, character identification strings,
-     * commits portrait paths, and drops the database reload lock across all clients.
+     * Stage 6.5: Linking Custom Skill Adders.
+     * Completely DRY: Synchronizes indices before letting your legacy code map links safely.
+     *
+     * @param {object} context - The shared orchestration thread block container.
+     * @private
+     */
+    async _stageLinkCustomAdders(context) {
+        const systemUpper = game.system.id.toUpperCase();
+
+        if (typeof this.linkCustomAddersForUpload === "function") {
+            console.log(`${systemUpper} | Stage 6.5: Synchronizing collection index bindings...`);
+
+            // 🟢 Force full data recalculation so getters target valid parent objects
+            this.prepareData();
+
+            // Execute original linking logic cleanly now that indices are verified
+            await this.linkCustomAddersForUpload();
+
+            console.log(`${systemUpper} | Stage 6.5: Custom skill linkages processed successfully.`);
+        }
+    }
+
+    /**
+     * Stage 7: Finalizes global identity fields, archives serialized XML data,
+     * synchronizes naming strings, balances resource values, and releases locks.
+     * Maps properties flatly using clean serializable structures to pass V14 validations.
+     *
+     * @param {object} context - The shared orchestration thread block container.
      * @private
      */
     async _stageUpdateActorDocument(context) {
-        const finalName = context.heroJson.CHARACTER?.["@attributes"]?.NAME || this.name;
+        const json = context.heroJson;
+        const systemId = game.system.id;
+        const systemUpper = systemId.toUpperCase();
+        const opt = context.options;
 
+        const shouldRenderUI = this.sheet?.rendered ?? false;
+
+        // Secure rebuild and scratch creation pass parameter settings
+        if (context.isHardRebuild || opt.rebuild === true || opt.rebuildActor === true || opt.quenchUpload === true) {
+            context.isHardRebuild = true;
+        }
+
+        const finalName = json.CHARACTER_INFO?.CHARACTER_NAME || json.CHARACTER?.["@attributes"]?.NAME || this.name;
+
+        console.log(`${systemUpper} | Stage 7: Building safe final transaction payload for "${finalName}"...`);
+
+        // 1. Establish a pristine baseline payload architecture
         const updatePayload = {
             name: finalName,
+            "prototypeToken.name": finalName,
             "system.is5e": context.is5e,
-            [`flags.${game.system.id}.-=uploading`]: null,
+            "system._hdcXml": context.optimizedXmlText || "",
+            [`flags.${systemId}.-=uploading`]: null,
         };
 
-        // If a valid server path was captured during Stage 1.5, append it to the transaction pass
         if (context.portraitServerPath) {
             updatePayload.img = context.portraitServerPath;
             updatePayload["prototypeToken.texture.src"] = context.portraitServerPath;
         }
 
-        // 1. Commit top-level properties and update prototype tokens on the server database
-        await this.update(updatePayload, { render: true });
+        // 2. 🟢 SERIALIZABLE META EXTRACTION ENGINE:
+        // Only map flat, browser-safe metadata variables.
+        // This stops Foundry's server database schema engine from rejecting objects or crashing!
+        const rootNode = json.CHARACTER ? json.CHARACTER : json;
 
-        // 2. Cascade changes down to live active tokens rendered across active canvas scenes
-        if (context.portraitServerPath) {
-            for (const token of this.getActiveTokens()) {
-                await token.document.update({
-                    "texture.src": context.portraitServerPath,
+        updatePayload["system.CHARACTER.BASIC_CONFIGURATION"] = rootNode.BASIC_CONFIGURATION || null;
+        updatePayload["system.CHARACTER.CHARACTER_INFO"] = rootNode.CHARACTER_INFO || null;
+        updatePayload["system.CHARACTER.version"] = json.version || rootNode.version || "";
+
+        if (context.targetTemplateString) {
+            updatePayload["system.CHARACTER.TEMPLATE._name"] = context.targetTemplateString;
+        } else if (typeof json.TEMPLATE === "string") {
+            updatePayload["system.CHARACTER.TEMPLATE._name"] = json.TEMPLATE;
+        } else if (rootNode.TEMPLATE?.extends) {
+            updatePayload["system.CHARACTER.TEMPLATE._name"] = rootNode.TEMPLATE.extends;
+        }
+
+        // 🚨 EXPLICIT HARD REBUILD/SCRATCH CREATION PATHWAY ISOLATION:
+        if (context.isHardRebuild) {
+            console.log(`${systemUpper} | Stage 7 Rebuild/Scratch: Pushing flat serializable finalization payload.`);
+            await this.update(updatePayload, { render: shouldRenderUI });
+            return; // Exit stage completely; standard delta calculations are safely skipped
+        }
+
+        // --- Standard Incremental Delta Pathway (Only executes if isHardRebuild is false) ---
+        if (
+            typeof this._getFullHealthCharacteristicMaxes === "function" &&
+            typeof this._getFullHealthCharacteristicValues === "function"
+        ) {
+            const fullHealthMaxByCharacteristic = this._getFullHealthCharacteristicMaxes() ?? {};
+            const fullHealthValues = this._getFullHealthCharacteristicValues(fullHealthMaxByCharacteristic) ?? {};
+
+            for (const [charKey, fullHealthMax] of Object.entries(fullHealthMaxByCharacteristic)) {
+                if (
+                    this.system.characteristics[charKey] &&
+                    this.system.characteristics[charKey].max !== fullHealthMax
+                ) {
+                    updatePayload[`system.characteristics.${charKey}.max`] = fullHealthMax;
+                }
+            }
+
+            for (const [charKey, targetVal] of Object.entries(fullHealthValues)) {
+                const characteristic = this.system.characteristics[charKey];
+                if (characteristic && characteristic.value !== targetVal) {
+                    updatePayload[`system.characteristics.${charKey}.value`] = targetVal;
+                }
+            }
+        }
+
+        const rv = context.retainValuesOnUpload;
+        if (rv) {
+            if (updatePayload["system.characteristics.body.max"] !== undefined) {
+                updatePayload["system.characteristics.body.value"] = Math.max(
+                    0,
+                    updatePayload["system.characteristics.body.max"] - (rv.body || 0),
+                );
+            } else {
+                updatePayload["system.characteristics.body.value"] = Math.max(
+                    0,
+                    (this.system.characteristics?.body?.max || 0) - (rv.body || 0),
+                );
+            }
+
+            if (updatePayload["system.characteristics.stun.max"] !== undefined) {
+                updatePayload["system.characteristics.stun.value"] = Math.max(
+                    0,
+                    updatePayload["system.characteristics.stun.max"] - (rv.stun || 0),
+                );
+            } else {
+                updatePayload["system.characteristics.stun.value"] = Math.max(
+                    0,
+                    (this.system.characteristics?.stun?.max || 0) - (rv.stun || 0),
+                );
+            }
+
+            if (updatePayload["system.characteristics.end.max"] !== undefined) {
+                updatePayload["system.characteristics.end.value"] = Math.max(
+                    0,
+                    updatePayload["system.characteristics.end.max"] - (rv.end || 0),
+                );
+            } else {
+                updatePayload["system.characteristics.end.value"] = Math.max(
+                    0,
+                    (this.system.characteristics?.end?.max || 0) - (rv.end || 0),
+                );
+            }
+
+            if (rv.hap !== undefined) updatePayload["system.hap.value"] = rv.hap;
+            updatePayload["system.heroicIdentity"] = rv.heroicIdentity;
+        }
+
+        // Commit standard delta metrics
+        await this.update(updatePayload, { render: shouldRenderUI });
+
+        // Restore item-level ammunition states (Only relevant for minor adjustments)
+        if (rv?.resources?.length > 0) {
+            const liveItems = this.items.contents;
+            const itemUpdatePayloads = [];
+
+            for (const res of rv.resources) {
+                const matchingItem = liveItems.find((li) => {
+                    const liveHdcId = li.system?.ID;
+                    return liveHdcId && String(liveHdcId) === String(res.id);
                 });
+
+                if (matchingItem) {
+                    itemUpdatePayloads.push({
+                        _id: matchingItem.id,
+                        "system._charges": res._charges,
+                        "system._clips": res._clips,
+                        "system.ablative": res.ablative,
+                        "system.value": res.value,
+                    });
+                }
+            }
+
+            if (itemUpdatePayloads.length > 0) {
+                await this.updateEmbeddedDocuments("Item", itemUpdatePayloads, { render: false });
+            }
+        }
+
+        // Cascade token identity synchronization if active
+        if (shouldRenderUI) {
+            const liveCanvasTokens = this.getActiveTokens() ?? [];
+            if (liveCanvasTokens.length > 0) {
+                const canvasTokenPayload = { name: finalName };
+                if (context.portraitServerPath) canvasTokenPayload["texture.src"] = context.portraitServerPath;
+
+                for (const tokenInstance of liveCanvasTokens) {
+                    await tokenInstance.document.update(canvasTokenPayload, { render: true });
+                }
+            }
+        }
+
+        // Output Chat Performance Card Notice
+        if (!opt.quenchUpload) {
+            try {
+                const currentTicks = performance.now();
+                const totalDurationMs = currentTicks - context.startTimeTicks;
+                const totalSecondsCeil = Math.ceil(totalDurationMs / 1000);
+
+                await ChatMessage.create({
+                    style: CONFIG.HERO?.CHAT_MESSAGE_DEFAULT_STYLE ?? CONST.CHAT_MESSAGE_STYLES.OTHER,
+                    author: game.user.id,
+                    speaker: ChatMessage.getSpeaker({ actor: this }),
+                    whisper: typeof whisperUserTargetsForActor === "function" ? whisperUserTargetsForActor(this) : [],
+                    content: `Took ${totalSecondsCeil} seconds for <b>${game.user.name}</b> to upload <b>${finalName}</b>.`,
+                });
+            } catch (chatError) {
+                console.error(`${systemUpper} | Stage 7 Chat Error:`, chatError);
             }
         }
     }
@@ -3551,9 +3764,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             if (this.id) {
                 // Delete maneuvers (or any other existing items) that don't
                 // match template prior to possibly changing is5e
-                if (this.is5ePreview(root.TEMPLATE) !== this.system.is5e) {
+                if (HeroSystem6eActor.is5ePreview(root.TEMPLATE) !== this.system.is5e) {
                     const itemsToDeleteIs5e = this.items
-                        .filter((i) => i.system.is5e !== this.is5ePreview(root.TEMPLATE))
+                        .filter((i) => i.system.is5e !== HeroSystem6eActor.is5ePreview(root.TEMPLATE))
                         .map((m) => m.id);
                     if (itemsToDeleteIs5e.length > 0) {
                         console.warn(`Deleting ${itemsToDeleteIs5e.length} is5e mismatches`);
@@ -3568,7 +3781,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 await this.update(
                     {
                         ...changes,
-                        "system.is5e": this.is5ePreview(root.TEMPLATE),
+                        "system.is5e": HeroSystem6eActor.is5ePreview(root.TEMPLATE),
                         "system.CHARACTER.BASIC_CONFIGURATION": root.BASIC_CONFIGURATION,
                         "system.CHARACTER.CHARACTER_INFO": root.CHARACTER_INFO,
                         "system.CHARACTER.TEMPLATE": root.TEMPLATE,
@@ -4901,30 +5114,38 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         return valueSum;
     }
 
-    is5ePreview(template) {
+    /**
+     * Static rule utility evaluating Hero Designer template extensions strings
+     * to determine the edition context without needing an active document instance.
+     *
+     * @param {string|object} template - The template name string or nested object layout.
+     * @returns {boolean|null} True for 5e, false for 6e, null if unknown or missing.
+     */
+    static is5ePreview(template) {
         try {
             const _template = template?.extends ?? template;
-            if (_template?.includes("6")) {
+            if (typeof _template !== "string") return null;
+
+            if (_template.includes("6")) {
                 return false;
             }
 
-            // 5e templates don't have the number 6
-            if (_template?.includes("hdt") && !_template?.includes("6")) {
+            // 5e templates don't have the number 6 but carry standard hdt descriptors
+            if (_template.includes("hdt") && !_template.includes("6")) {
                 return true;
             }
         } catch (e) {
-            console.error(e);
-            if (squelch("is5ePreview")) {
-                ui.notifications.error("Error occurred while checking for 5e template.");
-            }
+            console.error(
+                `${game.system.id.toUpperCase()} | Error occurred while checking for 5e template profile:`,
+                e,
+            );
         }
-
         return null;
     }
 
     get is5e() {
         const _template = this.system.CHARACTER?.TEMPLATE?.name;
-        const _is5e = this.is5ePreview(_template);
+        const _is5e = HeroSystem6eActor.is5ePreview(_template);
 
         if (_is5e != undefined && this.system.is5e !== _is5e) {
             if (!squelch(this.id)) {
@@ -5082,8 +5303,8 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
 
     get _templateTypeAbreviation() {
         // Heroic or SuperHeroic
-        // CAREFUL: the template type is only loosly tied to actor.type
-        // TODO: See if we can tighly couple the template to actor.type
+        // CAREFUL: the template type is only loosely tied to actor.type
+        // TODO: See if we can tightly couple the template to actor.type
 
         // There are 2 types that start with A (AI, and Automaton) so distinguish between them
         switch (this._templateType) {

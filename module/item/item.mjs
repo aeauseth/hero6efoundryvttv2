@@ -1082,54 +1082,6 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
     //     }
     // }
 
-    createVisionActiveEffect(visionDetectMode, isTargetingSense) {
-        // While we create these AE's in V13 and V14, only V14 knows what to do with them.
-        // We assume a valid actor.
-
-        const visionMaximumDistanceInMeters = this.actor?.visionMaximumDistanceInMeters;
-
-        const ae = {
-            name: this.name,
-            img: this.img,
-            transfer: true,
-            system: {
-                changes: [],
-            },
-        };
-
-        //TODO: range should be dynamic based on PERCEPTION
-        //TODO: Add the default priority V14 values, because we will take another pass at this when we implement darkness regions.
-
-        // If this is a TARGETING SENSE, then we can can we sense (see/hear/taste/smell) the map
-        if (isTargetingSense) {
-            ae.system.changes.push({
-                key: "token.sight.range",
-                value: visionMaximumDistanceInMeters, // Should be Infinity? Or blur when range exceeded?
-                mode: "upgrade", // "upgrade" has a V14 bug, so not using it, but would prefer to
-            });
-        }
-
-        // Detection of tokens
-        ae.system.changes.push({
-            key: `token.detectionModes.basicSight.range`,
-            value: visionMaximumDistanceInMeters,
-            mode: "upgrade",
-        });
-        ae.system.changes.push({
-            key: `token.detectionModes.${visionDetectMode}.range`,
-            value: visionMaximumDistanceInMeters,
-            mode: "upgrade",
-        });
-        ae.system.changes.push({
-            key: `token.detectionModes.${visionDetectMode}.enabled`,
-            value: true,
-            mode: "override",
-        });
-
-        ae.system.XMLID = this.system.XMLID;
-        return ae;
-    }
-
     get heroValidation() {
         const heroValidations = [];
 
@@ -2428,7 +2380,16 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         return false;
     }
 
-    static ItemXmlTags = ["SKILLS", "PERKS", "TALENTS", "MARTIALARTS", "POWERS", "DISADVANTAGES", "EQUIPMENT"];
+    static ItemXmlTags = [
+        //"CHARACTERISTICS",
+        "SKILLS",
+        "PERKS",
+        "TALENTS",
+        "MARTIALARTS",
+        "POWERS",
+        "DISADVANTAGES",
+        "EQUIPMENT",
+    ];
     static ItemXmlChildTags = ["ADDER", "MODIFIER", "POWER"];
 
     static ItemXmlChildTagsUpload = ["ADDER", "MODIFIER", "POWER", "SKILL", "PERK", "TALENT"];
@@ -8424,7 +8385,11 @@ export function getCostPerHalfDie(item, baseCpPerDie) {
             break;
 
         default:
-            console.error(`${item.detailedName()} for ${item.actor.name} has unknown base character points per die`);
+            if (squelch(`${item.id}-getCostPerHalfDie`)) {
+                console.error(
+                    `${item.detailedName()} for ${item.actor.name} has unknown base character points per die`,
+                );
+            }
 
             // make a guess since we don't know
             baseCost = roundFavorPlayerTowardsZero(baseCpPerDie / 2);
@@ -8459,7 +8424,9 @@ export function getCostPerDiePip(item, baseCpPerDie) {
             break;
 
         default:
-            console.error(`${item.detailedName()} for ${item.actor.name} has unknown base active points per die`);
+            if (squelch(`${item.id}-getCostPerDiePip`)) {
+                console.error(`${item.detailedName()} for ${item.actor.name} has unknown base active points per die`);
+            }
             break;
     }
 

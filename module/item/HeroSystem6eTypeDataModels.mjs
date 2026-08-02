@@ -2160,7 +2160,7 @@ export class HeroActorModel extends HeroObjectCacheMixin(foundry.abstract.TypeDa
             versionHeroSystem6eUpload: new StringField(),
             versionHeroSystem6eCreated: new StringField(),
             is5e: new BooleanField({ initial: null, nullable: true }),
-            heroicIdentity: new BooleanField({ initial: null, nullable: true }),
+            heroicIdentity: new BooleanField({ initial: true, nullable: false }),
             initiativeCharacteristic: new StringField(),
             _hdcXml: new StringField(),
 

@@ -10,7 +10,7 @@ export function registerEverythingLadLass(quench) {
                 // The default timeout tends to be insufficient with multiple actors being created at the same time.
                 setQuenchTimeout(this);
 
-                describe("Everything Lad (5e)", function () {
+                describe.only("Everything Lad (5e)", function () {
                     const contents = `
                     <?xml version="1.0" encoding="UTF-16"?>
                     <CHARACTER version="6.0" TEMPLATE="builtIn.Superheroic.hdt">
@@ -951,7 +951,15 @@ export function registerEverythingLadLass(quench) {
 
                     let actor;
                     before(async function () {
-                        actor = await createQuenchActor({ quench: this, contents, is5e: true });
+                        try {
+                            console.log("QUENCH DEBUG | Entering Before Hook Setup Pass...");
+                            actor = await createQuenchActor({ quench: this, contents, is5e: true });
+                            console.log("QUENCH DEBUG | Before Hook Setup Completed Successfully.");
+                        } catch (quenchSetupError) {
+                            console.error("🚨 CRITICAL MOCHA ABORT ENCOUNTERED IN BEFORE HOOK:", quenchSetupError);
+                            // Explicitly rethrow so the test engine registers the crash safely
+                            throw quenchSetupError;
+                        }
                     });
 
                     after(async function () {

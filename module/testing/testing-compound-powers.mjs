@@ -14,7 +14,7 @@ export function registerCompoundPowerTests(quench) {
             const { describe, it, assert, beforeEach, afterEach } = context;
 
             // Rule: Keep titles strictly bounded under 60 characters
-            describe.only("Compound Powers", function () {
+            describe("Compound Powers", function () {
                 setQuenchTimeout(this);
 
                 describe("Unit Tests", function () {
