@@ -3349,7 +3349,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
      * @param {object} context - The shared orchestration thread block container.
      * @private
      */
-    async _stageLinkCustomAdders(context) {
+    async _stageLinkCustomAdders() {
         const systemUpper = game.system.id.toUpperCase();
 
         if (typeof this.linkCustomAddersForUpload === "function") {
