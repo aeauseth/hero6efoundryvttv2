@@ -298,6 +298,13 @@
         },
         "HitLocation": {
             "Name": "Hit Locations",
+            "Hint": "Are you using hit locations and, if so, are you also using sectional defenses.",
+            "Choices": {
+                "NoHitLocations": "No Hit Locations",
+                "HitWithoutSectional": "Hit Locations Without Sectional Defenses",
+                "HitWithSectional": "Hit Locations With Sectional Defenses"
+            },
+
             "Tracking": {
                 "Name": "Hit Location Left/Right",
                 "Hint": "Allows differentiation between left and right sides of the body. Currently there is no automation that deals with Impairing or Disabling a specific body part.",

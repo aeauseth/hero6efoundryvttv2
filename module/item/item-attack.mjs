@@ -563,7 +563,11 @@ export async function addAttackCslsIntoToHitRoll(action, attackHeroRoller, _item
 async function addAttackHitLocationsIntoToHitRoll(item, attackHeroRoller, options) {
     let remainingAimOcvPenalty = 0;
 
-    if (game.settings.get(HEROSYS.module, "hit locations") && options.aim && options.aim !== "none") {
+    if (
+        game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations" &&
+        options.aim &&
+        options.aim !== "none"
+    ) {
         const aimTargetLocation =
             game.settings.get(HEROSYS.module, "hitLocTracking") === "all" && options.aimSide !== "none"
                 ? `${options.aimSide} ${options.aim}`
@@ -2477,7 +2481,8 @@ export async function _onRollDamage(event) {
     });
 
     const includeHitLocation =
-        game.settings.get(HEROSYS.module, "hit locations") && !item.effectiveAttackItem.system.noHitLocations;
+        game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations" &&
+        !item.effectiveAttackItem.system.noHitLocations;
 
     const customStunMultiplierSetting = game.settings.get(
         game.system.id,
@@ -4463,7 +4468,8 @@ async function _calcDamage(damageRoller, item, options) {
     }
 
     const noHitLocationsPower = !!item.effectiveAttackItem.system.noHitLocations;
-    const useHitLocations = game.settings.get(HEROSYS.module, "hit locations") && !noHitLocationsPower;
+    const useHitLocations =
+        game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations" && !noHitLocationsPower;
     const hasStunMultiplierRoll = isKillingAttack && !useHitLocations;
 
     const stunMultiplier = hasStunMultiplierRoll ? damageRoller.getStunMultiplier() : 1;

@@ -1,8 +1,9 @@
 # Releases
 
-### Version 4.3.0 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+### Version 5.0.0 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
 
 - This (and future) releases no longer support FoundryVTT V13. This release only works with FoundryVTT V14.
+- Sectional defenses are now only supported if the hit locations setting is "Hit Locations with Sectional Defense".
 
 ### Version 4.3.17 20260725
 

@@ -217,9 +217,15 @@ export default class SettingsHelpers {
 
         game.settings.register(module, "hit locations", {
             name: game.i18n.localize("Settings.HitLocation.Name"),
+            hint: game.i18n.localize("Settings.HitLocation.Hint"),
             scope: "world",
             config: true,
-            type: Boolean,
+            type: String,
+            choices: {
+                noHitLocations: game.i18n.localize("Settings.HitLocation.Choices.NoHitLocations"),
+                hitLocationsWithoutSectional: game.i18n.localize("Settings.HitLocation.Choices.HitWithoutSectional"),
+                hitLocationsWithSectional: game.i18n.localize("Settings.HitLocation.Choices.HitWithSectional"),
+            },
             default: false,
             onChange: (value) => HEROSYS.log(false, value),
         });

@@ -120,7 +120,7 @@ export class GenericRoller {
             },
         };
 
-        const includeHitLocation = game.settings.get(HEROSYS.module, "hit locations");
+        const includeHitLocation = game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations";
         if (includeHitLocation) {
             options.hitLoc = [
                 { key: "noHitLocation", label: `No Hit Location` },
