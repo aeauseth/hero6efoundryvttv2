@@ -58,14 +58,22 @@
                 ></i></a>
         {{/if}}
 
-        {{!-- The dice icon does double duty - for to-hit or for damage/effects that don't require a to-hit roll (e.g. luck, unluck, susceptibility) --}}
-        {{#if (or (itemHasActionBehavior this "to-hit") (itemHasBehaviours this "dice"))}}
-            <a class="item-image item-rollable"><i class="fas fa-dice" 
-            title="Roll" 
-            width="24" 
-            height="24"
-            data-action="roll"
-            ></i></a>
+        {{!-- ae-only maneuvers (Dodge) have no roll at all: activating IS the action --}}
+        {{#if (itemHasBehaviours this "ae-only")}}
+            <input class="Xitem-toggle" type="checkbox"
+                {{checked this.isActive}} data-action="toggle" data-dtype="Boolean"
+                title="Activation toggle"
+            />
+        {{else}}
+            {{!-- The dice icon does double duty - for to-hit or for damage/effects that don't require a to-hit roll (e.g. luck, unluck, susceptibility) --}}
+            {{#if (or (itemHasActionBehavior this "to-hit") (itemHasBehaviours this "dice"))}}
+                <a class="item-image item-rollable"><i class="fas fa-dice"
+                title="Roll"
+                width="24"
+                height="24"
+                data-action="roll"
+                ></i></a>
+            {{/if}}
         {{/if}}
     {{/if}}
     <a class="fa-fw fa-solid fa-ellipsis-vertical" data-action="documentListContext"></a>

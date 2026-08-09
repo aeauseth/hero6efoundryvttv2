@@ -1,9 +1,10 @@
 import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs";
 import { HEROSYS } from "./herosystem6e.mjs";
 import { rehydrateAttackItem } from "./item/item-attack.mjs";
+import { expireManeuverNextPhaseEffects } from "./item/maneuver.mjs";
 import { userInteractiveVerifyOptionallyPromptThenSpendResources } from "./item/item-resources.mjs";
 import { HeroCompatibility } from "./utility/compatibility.mjs";
-import { expireEffects, gmActive, toHHMMSS, whisperUserTargetsForActor } from "./utility/util.mjs";
+import { expireEffects, gmActive, isQuenchTestRunning, toHHMMSS, whisperUserTargetsForActor } from "./utility/util.mjs";
 
 export class HeroSystem6eCombat extends Combat {
     // static defineSchema() {
@@ -705,13 +706,6 @@ export class HeroSystem6eCombat extends Combat {
             await combatant.actor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.abortEffect.id);
         }
 
-        // Stop dodges and other maneuvers' active effects that expire automatically
-        const maneuverNextPhaseAes = combatant.actor.temporaryEffects.filter(
-            (ae) =>
-                ae.flags?.[game.system.id]?.type === "maneuverNextPhaseEffect" &&
-                ae.duration.startTime !== game.time.worldTime,
-        );
-
         // Sanity check for older maneuver styles.
         // TODO: Perhaps use appliedEffects above
         const sanity1 = combatant.actor.effects.filter(
@@ -723,25 +717,8 @@ export class HeroSystem6eCombat extends Combat {
             console.error(`unexpected maneuver flag.type`, sanity1);
         }
 
-        const maneuverNextPhaseTogglePromises = maneuverNextPhaseAes
-            .filter((ae) => ae.flags[game.system.id]?.toggle)
-            .map((toggleAes) => {
-                const maneuver =
-                    fromUuidSync(toggleAes.flags[game.system.id]?.itemUuid) ||
-                    rehydrateAttackItem(
-                        toggleAes.flags[game.system.id]?.dehydratedManeuverItem,
-                        fromUuidSync(toggleAes.flags[game.system.id]?.dehydratedManeuverActorUuid),
-                    ).item;
-
-                return maneuver.toggle();
-            });
-        const maneuverNextPhaseNonTogglePromises = maneuverNextPhaseAes
-            .filter((ae) => !ae.flags[game.system.id].toggle)
-            .map((maneuverAes) => maneuverAes.delete());
-        const combinedManeuvers = [...maneuverNextPhaseTogglePromises, ...maneuverNextPhaseNonTogglePromises];
-        if (combinedManeuvers.length > 0) {
-            await Promise.all(combinedManeuvers);
-        }
+        // Stop dodges and other maneuvers' active effects that expire automatically
+        await expireManeuverNextPhaseEffects(combatant.actor);
 
         // PH: FIXME: stop abort under certain circumstances
 
@@ -1473,32 +1450,7 @@ export class HeroSystem6eCombat extends Combat {
     }
 
     async promptToDeleteAoeInstantRegions() {
-        // This only works for V14. canvas.regions.viewedDocuments is an invalid V14 function.
-        if (!HeroCompatibility.isV14) return;
-
-        // We only care about AoEs
-        const regionsToPrompt = Array.from(canvas.regions.viewedDocuments()).filter(
-            (template) => template.flags[game.system.id]?.purpose === "AoE",
-        );
-        for (const region of regionsToPrompt) {
-            // Make sure item the region is associated with an INSTANT effectiveItem
-            const effectiveItem = rehydrateAttackItem(region.flags[game.system.id].effectiveItemJson).item;
-            const duration = effectiveItem.system.duration;
-            if (duration === CONFIG.HERO.DURATION_TYPES.INSTANT) {
-                const proceed = await foundry.applications.api.DialogV2.confirm({
-                    window: {
-                        title: `Delete region ${region.name}?`,
-                    },
-                    content: `<p>The region <b>${region.name}</b> is likely no longer needed. Would you like to delete it?</p>`,
-                    rejectClose: false,
-                    modal: true,
-                });
-
-                if (proceed) {
-                    await region.delete();
-                }
-            }
-        }
+        return promptToDeleteAoeInstantRegions();
     }
 
     async previousRound() {
@@ -1683,6 +1635,50 @@ export class HeroSystem6eCombat extends Combat {
                 const next = this.combatant;
                 if (prior) await this.onEndTurn(prior, { round: current.round, turn: current.turn, skipped: false });
                 if (next) await this.onStartTurn(next, { round: current.round, turn: current.turn, skipped: false });
+            }
+        }
+    }
+}
+
+/**
+ * Offers to delete AoE regions whose effective item is INSTANT — once the phase
+ * moves on, an instant AoE template has done its work. Shared by the legacy and
+ * single-combatant trackers. V14 only (viewedDocuments does not exist earlier).
+ * @returns {Promise<void>}
+ */
+// Regions already offered for deletion this session. Marked BEFORE each prompt
+// awaits: the single tracker asks at every Phase start, and rapid advances
+// (quench loops, End Turn spam) would otherwise queue an unbounded stack of
+// modal dialogs for the same region. A declined region stays deletable by hand.
+const promptedAoeRegionUuids = new Set();
+
+export async function promptToDeleteAoeInstantRegions() {
+    if (!HeroCompatibility.isV14) return;
+    // Nobody is present to answer during an unattended test run, and an open
+    // modal stalls the Phase-start chain behind it
+    if (isQuenchTestRunning()) return;
+
+    // We only care about AoEs
+    const regionsToPrompt = Array.from(canvas.regions.viewedDocuments()).filter(
+        (template) => template.flags[game.system.id]?.purpose === "AoE" && !promptedAoeRegionUuids.has(template.uuid),
+    );
+    for (const region of regionsToPrompt) {
+        // Make sure item the region is associated with an INSTANT effectiveItem
+        const effectiveItem = rehydrateAttackItem(region.flags[game.system.id].effectiveItemJson).item;
+        const duration = effectiveItem.system.duration;
+        if (duration === CONFIG.HERO.DURATION_TYPES.INSTANT) {
+            promptedAoeRegionUuids.add(region.uuid);
+            const proceed = await foundry.applications.api.DialogV2.confirm({
+                window: {
+                    title: `Delete region ${region.name}?`,
+                },
+                content: `<p>The region <b>${region.name}</b> is likely no longer needed. Would you like to delete it?</p>`,
+                rejectClose: false,
+                modal: true,
+            });
+
+            if (proceed) {
+                await region.delete();
             }
         }
     }

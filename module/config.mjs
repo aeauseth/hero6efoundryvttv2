@@ -76,11 +76,17 @@ HERO.folderColors = {
     Equipment: "#aa00aa",
     Disadvantages: "#aaaa00",
 
-    // Sub Categories of POWER
-    "Powers.Characteristics": "#ff6666",
-    "Powers.Perks": "#ff6666",
-    "Powers.Skill": "#ff6666",
-    "Powers.Talents": "#ff6666",
+    // Sub categories of POWER (mute the base category's colour with grey - except for characteristics which is based on powers)
+    "Powers.Characteristics": "#b14e4e",
+    "Powers.Perks": "#343476",
+    "Powers.Skills": "#347634",
+    "Powers.Talents": "#347676",
+
+    // Sub category of SKILLS
+    "Skills.Enhancers": "#347634",
+
+    // Sub category of PERKS
+    "Perks.Enhancers": "#343476",
 };
 
 HERO.DEFENSE_ABBREVIATIONS = {
@@ -6885,39 +6891,44 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costPerLevel: fixedValueFunction(1 / 2),
             defenseTagVsAttack: function (actorItemDefense, attackItem, options) {
                 let value = 0;
+                let purchasedLevels = 0;
                 let maxValue = 0;
                 switch (options.attackDefenseVs) {
                     case "PD":
-                        value = parseInt(actorItemDefense.system.PDLEVELS) || 0;
-                        maxValue = parseInt(actorItemDefense.actor?.getCharacteristic("pd").base) || 0;
+                    case "ED": {
+                        const characteristic = actorItemDefense.actor?.getCharacteristic(
+                            options.attackDefenseVs.toLowerCase(),
+                        );
+                        purchasedLevels = parseInt(actorItemDefense.system[`${options.attackDefenseVs}LEVELS`]) || 0;
+                        maxValue = parseInt(characteristic?.basePlusLevels) || 0;
+                        // Damage Resistance converts existing normal defense (5ER p. 146); it can
+                        // only convert what the characteristic currently holds, and a
+                        // characteristic drained into the negatives functions as 0 (6E1 p. 135).
+                        value = Math.min(purchasedLevels, Math.max(0, parseInt(characteristic?.value) || 0));
                         break;
-
-                    case "ED":
-                        value = parseInt(actorItemDefense.system.EDLEVELS) || 0;
-                        maxValue = parseInt(actorItemDefense.actor?.getCharacteristic("ed").base) || 0;
-                        break;
+                    }
 
                     case "MD":
-                        value = parseInt(actorItemDefense.system.MDLEVELS) || 0;
+                        value = purchasedLevels = parseInt(actorItemDefense.system.MDLEVELS) || 0;
                         // Icky to calculate maxValue. Deferring for now.
                         maxValue = value;
                         break;
 
                     case "FLASHDEFENSE":
-                        value = parseInt(actorItemDefense.system.FDLEVELS) || 0;
+                        value = purchasedLevels = parseInt(actorItemDefense.system.FDLEVELS) || 0;
                         // Icky to calculate maxValue. Deferring for now.
                         maxValue = value;
                         break;
 
                     case "POWERDEFENSE":
-                        value = parseInt(actorItemDefense.system.POWDLEVELS) || 0;
+                        value = purchasedLevels = parseInt(actorItemDefense.system.POWDLEVELS) || 0;
                         // Icky to calculate maxValue. Deferring for now.
                         maxValue = value;
                         break;
                 }
 
-                if (value > maxValue) {
-                    const msg = `${actorItemDefense.detailedName()} has more ${options.attackDefenseVs} LEVELS (${value}) than natural LEVELS (${maxValue}). Defenses may not properly represent this defense. Consider ARMOR if you want resistant defenses.`;
+                if (purchasedLevels > maxValue) {
+                    const msg = `${actorItemDefense.detailedName()} has more ${options.attackDefenseVs} LEVELS (${purchasedLevels}) than natural LEVELS (${maxValue}). Defenses may not properly represent this defense. Consider ARMOR if you want resistant defenses.`;
                     if (!squelch(actorItemDefense.id)) {
                         ui.notifications.warn(msg, actorItemDefense);
                     }
@@ -19562,6 +19573,18 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
         },
         {},
     );
+    addPower(
+        {
+            // ENTANGLE related
+            key: "SUSCEPTIBLE",
+            behaviors: ["modifier"],
+            type: ["modifier"],
+            costPerLevel: fixedValueFunction(0),
+            dcAffecting: fixedValueFunction(false),
+            xml: `<MODIFIER XMLID="SUSCEPTIBLE" ID="1785780670846" BASECOST="-0.25" LEVELS="0" ALIAS="Susceptible" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" OPTION="UNCOMMON" OPTIONID="UNCOMMON" OPTION_ALIAS="Uncommon" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="special solvent" PRIVATE="No" FORCEALLOW="No"></MODIFIER>`,
+        },
+        {},
+    );
 
     addPower(
         {
@@ -19605,9 +19628,12 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             cost: function (modifierModel /*, item */) {
                 // This has no cost itself; it's a 2x cost multiplier. Just pretend the cost of this modifier is
                 // the cost of its parent with any additional adders that it may have.
+                // Guard against counting ourselves should we ever end up in the parent's adder list
+                // (THROUGHOUT also exists as an ADDER under EYECONTACTREQUIRED) — that would recurse forever.
                 const parentsAdders = modifierModel.parent.adders;
                 let parentsAddersCosts = 0;
                 for (const adder of parentsAdders) {
+                    if (adder === modifierModel) continue;
                     parentsAddersCosts += adder.cost;
                 }
 
@@ -19616,6 +19642,18 @@ function addPower(powerDescription6e, powerOverrideFor5e) {
             costPerLevel: fixedValueFunction(0),
             dcAffecting: fixedValueFunction(false),
             xml: `<MODIFIER XMLID="THROUGHOUT" ID="1762104990480" BASECOST="1.0" LEVELS="0" ALIAS="Requires Gestures throughout" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" COMMENTS="" PRIVATE="No" FORCEALLOW="No"></MODIFIER>`,
+        },
+        {},
+    );
+    addPower(
+        {
+            // EYECONTACTREQUIRED related (distinct from the GESTURES/INCANTATIONS "throughout" MODIFIER above)
+            key: "THROUGHOUT",
+            behaviors: ["adder"],
+            type: ["adder"],
+            costPerLevel: fixedValueFunction(0),
+            dcAffecting: fixedValueFunction(false),
+            xml: `<ADDER XMLID="THROUGHOUT" ID="1785543718134" BASECOST="-0.5" LEVELS="0" ALIAS="Constant Power requires eye contact throughout use" POSITION="-1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="" SHOWALIAS="Yes" PRIVATE="No" REQUIRED="No" INCLUDEINBASE="No" DISPLAYINSTRING="Yes" GROUP="No" SELECTED="YES"></ADDER>`,
         },
         {},
     );

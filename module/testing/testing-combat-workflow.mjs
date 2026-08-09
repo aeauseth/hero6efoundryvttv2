@@ -9,7 +9,7 @@ import {
 } from "./quench-helper.mjs";
 import { getPowerInfo } from "../utility/util.mjs";
 import { HeroCompatibility } from "../utility/compatibility.mjs";
-import { getAndSetGameSettingCore } from "../settings/settings-helpers.mjs";
+import { getAndSetGameSetting, getAndSetGameSettingCore } from "../settings/settings-helpers.mjs";
 
 const { Actor } = foundry.documents;
 
@@ -137,12 +137,17 @@ export function registerCombatWorkflowTests(quench) {
                     let defenderTokenDoc = null;
                     let quenchScene = null;
                     let originalScrollingTextPreference;
+                    let originalHitLocations;
 
                     before(async function () {
                         // Recommended when doing integration test with the UI
                         await waitForNotificationQueueToClear();
 
                         originalScrollingTextPreference = await getAndSetGameSettingCore("scrollingStatusText", false);
+                        // The expected-damage math is raw - defense: a rolled hit
+                        // location (Vitals x1.5 STUN, Head x2...) would multiply the
+                        // applied damage and fail the assertions non-deterministically
+                        originalHitLocations = await getAndSetGameSetting("hit locations", false);
 
                         quenchScene = await createQuenchScene({ quench: this });
 
@@ -228,6 +233,7 @@ export function registerCombatWorkflowTests(quench) {
                             await deleteQuenchActor({ quench: this, actor: defenderActor });
                         }
                         await getAndSetGameSettingCore("scrollingStatusText", originalScrollingTextPreference);
+                        await getAndSetGameSetting("hit locations", originalHitLocations);
                     });
 
                     it("STRIKE", async function () {

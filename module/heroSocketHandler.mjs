@@ -42,6 +42,21 @@ export class HeroSocketHandler {
                     await combat?.lrPreemptPointer?.(data.combatantId, data.activeId ?? null);
                     break;
                 }
+                case "logCombatEvent": {
+                    if (game.user !== game.users.activeGM) return;
+                    const combat = game.combats.get(data.combatId) ?? game.combat;
+                    await combat?.logEvents?.(data.events ?? []);
+                    break;
+                }
+                case "markDelayedCardResolved": {
+                    if (game.user !== game.users.activeGM) return;
+                    const message = ChatMessage.get(data.messageId);
+                    if (message?.getFlag(game.system.id, "delayedAttack")) {
+                        await message.setFlag(game.system.id, "delayedAttack.resolved", true);
+                    }
+                    break;
+                }
+
                 case "updateChatMessage": {
                     if (game.user !== game.users.activeGM) return;
 

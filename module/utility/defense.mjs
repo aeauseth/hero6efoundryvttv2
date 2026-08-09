@@ -141,14 +141,23 @@ export function getActorDefensesVsAttack(targetActor, attackItem, options = {}) 
         !(options?.ignoreDefenseIds || []).includes(attackDefenseVs.toUpperCase())
     ) {
         let value = targetActor.system.characteristics[attackDefenseVs.toLowerCase()].value;
+        const characteristicCurrentValue = value;
         const newOptions = foundry.utils.deepClone(options);
+        let temporaryChangesSum = 0;
+        let nonTemporaryChangesSum = 0;
 
         // back out any Active Effects
         for (const ae of targetActor.appliedEffects) {
             for (const change of ae.changes.filter(
                 (o) => o.key === `system.characteristics.${attackDefenseVs.toLowerCase()}.max`,
             )) {
-                value -= parseInt(change.value) || 0;
+                const changeValue = parseInt(change.value) || 0;
+                value -= changeValue;
+                if (ae.isTemporary) {
+                    temporaryChangesSum += changeValue;
+                } else {
+                    nonTemporaryChangesSum += changeValue;
+                }
 
                 if (value < 0) {
                     console.warn(
@@ -185,20 +194,48 @@ export function getActorDefensesVsAttack(targetActor, attackItem, options = {}) 
                 }
             }
         }
-        // back out 5e DAMAGERESISTANCE
+        // back out 5e DAMAGERESISTANCE. It converts existing normal defense into resistant
+        // (5ER p. 146), so it can only remove what remains here, and its own tag (see
+        // defenseTagVsAttack) can only convert what the characteristic currently holds.
+        let damageResistanceConverted = 0;
         for (const damageResistance of targetActor.items.filter(
             (o) => o.system.XMLID === "DAMAGERESISTANCE" && o.isActive,
         )) {
+            let drLevels = 0;
             switch (attackDefenseVs.toUpperCase()) {
                 case "PD":
-                    value -= parseInt(damageResistance.system.PDLEVELS) || 0;
+                    drLevels = parseInt(damageResistance.system.PDLEVELS) || 0;
                     break;
                 case "ED":
-                    value -= parseInt(damageResistance.system.EDLEVELS) || 0;
+                    drLevels = parseInt(damageResistance.system.EDLEVELS) || 0;
                     break;
                 default:
                     console.error(`Unsupported DAMAGERESISTANCE`, attackDefenseVs);
             }
+            value -= Math.min(drLevels, Math.max(0, value));
+            damageResistanceConverted += Math.min(
+                drLevels,
+                Math.max(0, characteristicCurrentValue - damageResistanceConverted),
+            );
+        }
+
+        // 5ER p. 39 / 6E1 p. 135: a characteristic reduced below 0 functions as 0 — it never
+        // subtracts from other defenses. The tags pushed so far (natural + temporary
+        // adjustments + item-granted levels re-added by their own defense tags) must sum to the
+        // current characteristic value less what Damage Resistance converted; when drains
+        // exceed the pool, push a correcting tag so the shortfall never leaks into the total.
+        value = Math.max(0, value);
+        const characteristicGroupTarget = Math.max(0, characteristicCurrentValue) - damageResistanceConverted;
+        const characteristicGroupSum = value + temporaryChangesSum + nonTemporaryChangesSum;
+        if (characteristicGroupSum < characteristicGroupTarget) {
+            actorDefenses.defenseTags = [
+                ...actorDefenses.defenseTags,
+                ...createDefenseProfile(undefined, attackItem, characteristicGroupTarget - characteristicGroupSum, {
+                    ...newOptions,
+                    title: `${attackDefenseVs.toUpperCase()} cannot be reduced below 0`,
+                    shortDesc: `Minimum 0`,
+                }),
+            ];
         }
 
         // Check for ADD MODIFIERS TO BASE CHARACTERISTIC (RESISTANT)
@@ -330,6 +367,10 @@ export function getActorDefensesVsAttack(targetActor, attackItem, options = {}) 
             }
         }
     }
+    // Defenses never go negative (5ER p. 39, 6E1 p. 135): whatever the tags sum to, a shortfall
+    // must not become a damage bonus for the attacker.
+    actorDefenses.defenseValue = Math.max(0, actorDefenses.defenseValue);
+    actorDefenses.resistantValue = Math.max(0, actorDefenses.resistantValue);
     actorDefenses.defenseTotalValue = actorDefenses.defenseValue + actorDefenses.resistantValue;
 
     return actorDefenses;
@@ -576,13 +617,10 @@ export async function getConditionalDefenses(token, item, avad) {
                     default: true,
                     callback: (event, button) => Array.from(button.form.querySelectorAll("input")),
                 },
-                {
-                    action: "cancel",
-                    label: "Cancel",
-                    callback: () => null,
-                },
             ],
         });
+
+        // Was the dialog closed without providing input? If so, assume no defenses are desired.
         if (inputs === null) {
             return { ignoreDefenseIds: null, conditionalDefenses: null };
         }

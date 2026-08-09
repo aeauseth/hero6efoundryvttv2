@@ -15,7 +15,12 @@ import {
     isManeuverThatDoesNormalDamage,
     isRangedCombatManeuver,
 } from "../../utility/damage.mjs";
-import { convertSystemUnitsToMetres, getSystemDisplayUnits, gridUnitsToMeters } from "../../utility/units.mjs";
+import {
+    convertSystemUnitsToMetres,
+    currentSceneUsesHexGrid,
+    getGridSizeInMeters,
+    getSystemDisplayUnits,
+} from "../../utility/units.mjs";
 
 const { FormDataExtended } = foundry.applications.ux;
 
@@ -522,10 +527,9 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
      */
     #setAoeAndHitLocationDataForEffectiveItem() {
         const aoe = this.data.effectiveItem.effectiveAttackItem.aoeAttackParameters;
-        this.data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations");
+        this.data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations";
         this.data.hitLocationSideEnabled =
             this.data.hitLocationsEnabled && game.settings.get(HEROSYS.module, "hitLocTracking") === "all";
-        this.data.hitLocationsEnabled = game.settings.get(HEROSYS.module, "hit locations");
 
         // If there are no hit locations for the power or this is an AoE then the user cannot
         // place a shot. If they can't place a shot the only options should be "none"
@@ -697,27 +701,30 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
             }
         }
 
-        function metersToPixels(meters) {
-            const sizeConversionToMeters = convertSystemUnitsToMetres(1, actor.is5e);
-            const distanceInMeters = meters * sizeConversionToMeters;
-            const distanceInGridUnits = distanceInMeters / gridUnitsToMeters();
-            return distanceInGridUnits * canvas.grid.size;
+        // NOTE: Region shape dimensions are in pixels.
+        function metersToPixels(distanceInMeters) {
+            return (distanceInMeters / getGridSizeInMeters()) * canvas.grid.size;
+        }
+
+        function systemUnitsToPixels(distanceInSystemUnits) {
+            return metersToPixels(convertSystemUnitsToMetres(distanceInSystemUnits, actor.is5e));
+        }
+
+        const hexTemplates = game.settings.get(HEROSYS.module, "HexTemplates");
+        const hexGrid = currentSceneUsesHexGrid();
+
+        // NOTE: If we're using hex templates (i.e. 5e), the target hex should count as a distance of 1". This means
+        //       the geometric extent of the area is half a hex (0.5"/1m) smaller than the euclidean distance.
+        const hexTemplateAdjustmentInMeters = hexTemplates && hexGrid ? 1 : 0;
+        function aoeSizeToPixels(distanceInSystemUnits) {
+            return metersToPixels(
+                convertSystemUnitsToMetres(distanceInSystemUnits, actor.is5e) - hexTemplateAdjustmentInMeters,
+            );
         }
 
         const templateType = heroAoeTypeToFoundryAoeTypeConversions[aoeType];
 
         const isFreeform = aoeType === "any" || aoeType === "surface";
-
-        //const sizeConversionToMeters = convertSystemUnitsToMetres(1, actor.is5e);
-
-        //const hexTemplates = game.settings.get(HEROSYS.module, "HexTemplates");
-        //const hexGrid = currentSceneUsesHexGrid();
-
-        // NOTE: If we're using hex templates (i.e. 5e), the target hex is in should count as a distance of 1". This means that to convert to what FoundryVTT expects
-        //       for distance we need to subtract 0.5"/1m from the radius.
-        // NOTE: MeasuredTemplates assume that the distance is in grid units.
-        //const distanceInMeters = aoeValue * sizeConversionToMeters - (hexTemplates && hexGrid ? 1 : 0);
-        //const distanceInGridUnits = distanceInMeters / gridUnitsToMeters();
 
         const effectiveAttackItemOriginalItemId = item.effectiveAttackItem.getEffectiveItemOriginalItemId;
         const regionData = {
@@ -744,11 +751,8 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
                 },
             },
 
-            levels:
-                canvas.scene.levels.find((level) => {
-                    const elevation = token.document.elevation ?? 0;
-                    return elevation >= level.bottom && elevation <= level.top;
-                })?.id ?? "defaultLevel0000",
+            levels: [token.document.level], // Only place the region on the token's scene level.
+
             "restriction.enabled": true,
             "restriction.type": "sight",
             "restriction.priority": 0,
@@ -769,8 +773,8 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
                     radius: oneAreaRadius,
                 });
             } else if (grid.isGridless) {
-                // Gridless can't snap to a cell, so approximate each area as a circle.
-                const oneAreaRadius = metersToPixels(1) / 2;
+                // Gridless can't snap to a cell, so approximate each 1" hex as a circle.
+                const oneAreaRadius = systemUnitsToPixels(1) / 2;
                 makeAreaShape = () => ({
                     type: "circle",
                     x: token.center.x,
@@ -801,7 +805,7 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
             switch (templateType) {
                 case "circle":
                     {
-                        regionData.shapes[0].radius = metersToPixels(areaOfEffect.value) / 2;
+                        regionData.shapes[0].radius = aoeSizeToPixels(areaOfEffect.value);
                     }
                     break;
 
@@ -812,17 +816,15 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
                         } else {
                             regionData.shapes[0].angle = 60;
                         }
-                        regionData.shapes[0].radius = metersToPixels(areaOfEffect.value) / 2;
+                        regionData.shapes[0].radius = aoeSizeToPixels(areaOfEffect.value);
                     }
 
                     break;
 
                 case "line":
                     {
-                        // width & length are in pixels
-                        // AARON: Not sure why we are dividing by 2 here.
-                        regionData.shapes[0].width = metersToPixels(areaOfEffect.width) / 2;
-                        regionData.shapes[0].length = metersToPixels(areaOfEffect.value) / 2;
+                        regionData.shapes[0].width = systemUnitsToPixels(areaOfEffect.width);
+                        regionData.shapes[0].length = aoeSizeToPixels(areaOfEffect.value);
                     }
                     break;
 
@@ -883,7 +885,7 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
                   },
               }
             : {};
-        newRegion = await this.placeRegionWithHiddenUI(regionData, placementOptions); //await canvas.regions.placeRegion(regionData);
+        newRegion = await this.placeRegionWithHiddenUI(regionData, placementOptions);
         if (newRegion?.documentName !== "Region") {
             throw new Error("Failed to create region for area of effect");
         }
@@ -911,7 +913,7 @@ export class ItemAttackFormApplicationV2 extends HandlebarsApplicationMixin(Appl
         }
     }
 
-    async placeRegionWithHiddenUI(regionData, options = {}) {
+    async placeRegionWithHiddenUI(regionData, options) {
         let newRegion;
         const hiddenElementsData = [];
 
