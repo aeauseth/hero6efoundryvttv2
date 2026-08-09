@@ -7,6 +7,8 @@
 - Fixed attacks with strength minima that are specifically defined rather than just using the default range. [#4647](https://github.com/dmdorman/hero6e-foundryvtt/issues/4647)
 - AOE region templates are placed on the attacking token's scene level. [#4637](https://github.com/dmdorman/hero6e-foundryvtt/issues/4637)
 - 5e and 6e compendia now have disadvantages/complications and a separate folder for skill and perk enhancers. [#4112](https://github.com/dmdorman/hero6e-foundryvtt/issues/4112) [#4114](https://github.com/dmdorman/hero6e-foundryvtt/issues/4114)
+- Compendia now prompt for overwite if they already exist. [#4592](https://github.com/dmdorman/hero6e-foundryvtt/issues/4592)
+- Hero prefabs can now be imported in bulk. Each prefab is now sorted in the same order as they appear in Hero Designer. [#4593](https://github.com/dmdorman/hero6e-foundryvtt/issues/4593) [#4663](https://github.com/dmdorman/hero6e-foundryvtt/issues/4663)
 
 ### Version 4.3.17 20260725
 

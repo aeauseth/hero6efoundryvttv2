@@ -9,8 +9,8 @@ import { HeroSystem6eCombatSingle, migrateCombatsToSingleCombatantTracker } from
 import { HeroSystem6eCombatTrackerSingle } from "./combatTracker-single.mjs";
 import { HeroSystem6eCombatantSingle } from "./combatant-single.mjs";
 
-import { HeroSystem6eCompendium } from "./compendium.mjs";
-import { HeroSystem6eCompendiumDirectory } from "./compendiumDirectory.mjs";
+import { HeroSystem6eCompendium } from "./compendium/compendium.mjs";
+import { HeroSystem6eCompendiumDirectory } from "./compendium/compendiumDirectory.mjs";
 import { HERO } from "./config.mjs";
 import { EffectsPanel } from "./effects-panel.mjs";
 import { initializeHandlebarsHelpers } from "./handlebars-helpers.mjs";

@@ -1,7 +1,8 @@
-import { HeroSystem6eActor } from "./actor/actor.mjs";
-import { HeroSystem6eItem } from "./item/item.mjs";
-import { getPowerInfo } from "./utility/util.mjs";
+import { HeroSystem6eActor } from "../actor/actor.mjs";
+import { HeroSystem6eItem } from "../item/item.mjs";
+import { getPowerInfo } from "../utility/util.mjs";
 
+const { DialogV2 } = foundry.applications.api;
 const { CompendiumDirectory } = foundry.applications.sidebar.tabs;
 const { CompendiumCollection } = foundry.documents.collections;
 const { renderTemplate } = foundry.applications.handlebars;
@@ -41,26 +42,29 @@ export class HeroSystem6eCompendiumDirectory extends CompendiumDirectory {
             );
             html = html.replace(
                 "Document.</p>",
-                `Document.</p><label>Hero Designer Prefab</label><input name="upload" class="upload" type="file" accept=".hdp"></input>`,
+                `Document.</p><label>Hero Designer Prefab</label><input name="upload" class="upload" type="file" accept=".hdp" multiple></input>`,
             );
-
-            const { DialogV2 } = foundry.applications.api;
 
             // DialogV2RenderCallback
             function handleRender(event, dialog) {
                 const inputUpload = dialog.element.querySelector("input.upload");
                 inputUpload.addEventListener("change", (event) => {
-                    console.log(event, event.target.files[0]);
-                    const reader = new FileReader();
-                    reader.onload = async function (event) {
-                        const contents = event.target.result;
+                    const files = Array.from(event.target.files);
+                    console.log(event, files);
 
-                        const parser = new DOMParser();
-                        const xmlDoc = parser.parseFromString(contents, "text/xml");
-                        // TODO create the Item compendium
-                        HeroSystem6eCompendiumDirectory.uploadFromXml(xmlDoc);
-                    }.bind(this);
-                    reader.readAsText(event.target.files[0]);
+                    files.forEach((file) => {
+                        const reader = new FileReader();
+                        reader.onload = async function (event) {
+                            const contents = event.target.result;
+
+                            const parser = new DOMParser();
+                            const xmlDoc = parser.parseFromString(contents, "text/xml");
+
+                            HeroSystem6eCompendiumDirectory.uploadFromXml(xmlDoc);
+                        }.bind(this);
+
+                        reader.readAsText(file);
+                    });
 
                     // Close Create Compendium message box
                     $(event.currentTarget).closest(".window-content").find("button").click();
@@ -123,6 +127,7 @@ export class HeroSystem6eCompendiumDirectory extends CompendiumDirectory {
 
         const metadata = {
             label: compendiumName,
+            name: compendiumName.slugify({ strict: true }),
             type: "Item",
             flags: {
                 [`${game.system.id}.versionHeroSystem6eCreated`]: game.system.version,
@@ -152,13 +157,34 @@ export class HeroSystem6eCompendiumDirectory extends CompendiumDirectory {
         );
 
         if (itemsToCreate.length === 0) {
-            return ui.notifications.error(`${compendiumName} has no items from which to create a compendium from.`);
+            return ui.notifications.error(`${compendiumName} has no items from which to create a compendium.`);
+        }
+
+        // Does the compendium already exist? If so, prompt for delete.
+        // Delete compendium so we can recreate it.
+        const packName = `world.${metadata.name}`;
+        const existingPack = game.packs.get(packName);
+        if (existingPack) {
+            const confirmed = await foundry.applications.api.DialogV2.confirm({
+                window: { title: "Overwrite Compendium Entry" },
+                content: `<p>"<strong>${metadata.label}</strong>" already exists in this compendium. Overwrite it?</p>`,
+                rejectClose: false,
+            });
+            if (!confirmed) {
+                return;
+            }
+
+            console.debug(`Overwriting existing compendium ${packName} on upload.`);
+            await existingPack.configure({ locked: false });
+            await existingPack.deleteCompendium();
         }
 
         // Create Compendium
         const pack = await CompendiumCollection.createCompendium(metadata);
 
-        if (targetFolderId) await pack.setFolder(targetFolderId);
+        if (targetFolderId) {
+            await pack.setFolder(targetFolderId);
+        }
 
         ui.notifications.info(`Creating compendium ${pack.metadata.label} from Hero Designer Prefab file.`);
 
@@ -175,6 +201,7 @@ export class HeroSystem6eCompendiumDirectory extends CompendiumDirectory {
                             type: "Item",
                             name: name,
                             color: CONFIG.HERO.folderColors[name],
+                            sorting: "m", // Sort documents in this folder in the order of the HDP rather than alphabetically.
                         },
                         { pack: pack.metadata.id },
                     );
@@ -186,12 +213,13 @@ export class HeroSystem6eCompendiumDirectory extends CompendiumDirectory {
                         pack.contents.find((o) => o.system.ID === itemData.system.PARENTID)?.folder ||
                         folders[folderName];
                     const subFolder = await Folder.create(
-                        { type: "Item", name: itemData.name, folder: parentFolder },
+                        { type: "Item", name: itemData.name, folder: parentFolder, sorting: "m", sort: itemData.sort },
                         { pack: pack.metadata.id },
                     );
                     itemData.folder = subFolder.id;
                 }
-                // Check if a child
+
+                // Is a child?
                 else if (itemData.system.PARENTID) {
                     const parentFolder = pack.contents.find((o) => o.system.ID === itemData.system.PARENTID)?.folder;
                     if (parentFolder) {
