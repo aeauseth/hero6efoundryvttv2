@@ -332,7 +332,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             data.name = newName;
         }
 
-        const unifiedDynamicEffects = this.buildDynamicActiveEffects() ?? [];
+        const unifiedDynamicEffects = this.buildItemDynamicActiveEffects();
 
         try {
             this.updateSource({
@@ -536,12 +536,12 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
     }
 
     /**
-     * Universal factory method compiling dynamic ActiveEffect configurations.
-     * Completely realigned for pure Foundry V14 DataModel parameters.
+     * Universal factory method compiling dynamic ActiveEffect configurations for the Item.
+     * Aligned for pure Foundry V14 database persistence.
      *
      * @returns {object[]} Combined clean database payload arrays.
      */
-    buildDynamicActiveEffects() {
+    buildItemDynamicActiveEffects() {
         const effects = [];
 
         // 1. Unroll singular base-info effect payloads if present
@@ -554,12 +554,57 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             effects.push(...this.baseInfo.activeEffects(this));
         }
 
-        // 3. Cascade down structural rules modifiers by reference matching system boundaries
-        this._applyCharacteristicsDynamicActiveEffects?.(effects);
-        this._applyMovementDynamicActiveEffects?.(effects);
-        this._applyBulkyActiveEffectsModifiers?.(effects);
+        // 3. Cascade down structural rules modifiers by reference matching item boundaries
+        this._applyItemCharacteristicsDynamicActiveEffects?.(effects);
+        this._applyItemMovementDynamicActiveEffects?.(effects);
+        this._applyItemBulkyActiveEffectsModifiers?.(effects);
 
         return effects;
+    }
+
+    /**
+     * Synchronizes the item's generated active effects directly into its own database collection.
+     * Pure Foundry V14 architecture.
+     */
+    async syncItemDynamicActiveEffects() {
+        const currentDynamicPayloads = this.buildItemDynamicActiveEffects();
+
+        // Define tags managed systematically by the Item's rule mechanics
+        const managedItemOrigins = ["calculated-movement", "calculated-bulky", "calculated-item-char"];
+
+        for (const originTag of managedItemOrigins) {
+            const targetData = currentDynamicPayloads.find((e) => e.flags?.hero6e?.origin === originTag);
+            const existingEffect = this.effects.find((e) => e.getFlag("hero6e", "origin") === originTag);
+
+            // Case 1: Fresh injection needed
+            if (targetData && !existingEffect) {
+                await this.createEmbeddedDocuments("ActiveEffect", [targetData]);
+                continue;
+            }
+
+            // Case 2: Artifact cleanup needed
+            if (!targetData && existingEffect) {
+                await this.deleteEmbeddedDocuments("ActiveEffect", [existingEffect.id]);
+                continue;
+            }
+
+            // Case 3: Structural differential check before writing
+            if (targetData && existingEffect) {
+                const variationsFound = targetData.changes.some((newChange, index) => {
+                    const oldChange = existingEffect.changes[index];
+                    return !oldChange || oldChange.key !== newChange.key || oldChange.value !== newChange.value;
+                });
+
+                if (variationsFound || existingEffect.changes.length !== targetData.changes.length) {
+                    await this.updateEmbeddedDocuments("ActiveEffect", [
+                        {
+                            _id: existingEffect.id,
+                            changes: targetData.changes,
+                        },
+                    ]);
+                }
+            }
+        }
     }
 
     /**
@@ -567,7 +612,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
      * @param {object[]} effects - The active reference compilation payload array.
      * @private
      */
-    _applyCharacteristicsDynamicActiveEffects(effects) {
+    _applyItemCharacteristicsDynamicActiveEffects(effects) {
         if (!this.baseInfo?.type?.includes("characteristic")) return;
 
         const value = parseInt(this.system.LEVELS, 10) || 0;
@@ -608,7 +653,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
      * @param {object[]} effects - The active reference compilation payload array.
      * @private
      */
-    _applyMovementDynamicActiveEffects(effects) {
+    _applyItemMovementDynamicActiveEffects(effects) {
         if (!this.baseInfo?.type?.includes("movement")) return;
 
         const value = parseInt(this.system.LEVELS, 10) || 0;
@@ -677,7 +722,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
      * @param {object[]} effects - The active reference compilation payload array.
      * @private
      */
-    _applyBulkyActiveEffectsModifiers(effects) {
+    _applyItemBulkyActiveEffectsModifiers(effects) {
         if (this.system.modifiers?.some((m) => m.XMLID === "BULKY")) {
             effects.push({
                 name: `${this.name || this.system.XMLID} (Bulky Penalty)`,
@@ -1521,7 +1566,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             if (options.render === false || options.hdcImporting === true) return;
 
             // 1. Fetch freshly calculated data arrays directly from your consolidated rules engine factory
-            const dynamicEffects = itemDoc.buildDynamicActiveEffects() ?? [];
+            const dynamicEffects = this.buildItemDynamicActiveEffects();
 
             // 2. Query all live active instances originating inside THIS item's embedded collection
             const currentEffects = itemDoc.effects.contents;

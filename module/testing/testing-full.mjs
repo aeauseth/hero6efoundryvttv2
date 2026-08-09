@@ -739,7 +739,7 @@ export function registerFullTests(quench) {
                         });
                     });
                 });
-                describe("Enforcer", function () {
+                describe.only("Enforcer", function () {
                     const contents = `
                         <?xml version="1.0" encoding="UTF-16"?>
                         <CHARACTER version="6.0" TEMPLATE="builtIn.Superheroic.hdt">

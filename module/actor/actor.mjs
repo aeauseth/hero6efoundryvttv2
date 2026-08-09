@@ -339,71 +339,71 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         this.composeMemoizableObjectFunction("getAutomatonItems");
         this.composeMemoizableObjectFunction("getAutomatonSpecialPowers");
 
-        // The 5e recompute below reads characteristic nodes, which may not exist yet mid-construction.
-        if (!this.system?.characteristics) return;
+        // // The 5e recompute below reads characteristic nodes, which may not exist yet mid-construction.
+        // if (!this.system?.characteristics) return;
 
-        if (this.is5e === true) {
-            const characteristicInfo = getCharacteristicInfoArrayForActor(this);
+        // if (this.is5e === true) {
+        //     const characteristicInfo = getCharacteristicInfoArrayForActor(this);
 
-            // One effect-collection pass shared by the override + per-characteristic passes below;
-            // allApplicableEffects() walks actor and item effects and prepareData runs on every
-            // update/render.
-            const maxChangesByKey = this._collectActiveEffectMaxChanges();
-            const restoreFormulaSources = this._apply5eActiveEffectFormulaSourceOverrides(
-                characteristicInfo,
-                maxChangesByKey,
-            );
-            try {
-                for (const info of characteristicInfo) {
-                    const keyLower = info.key.toLowerCase();
-                    const characteristic = this.getCharacteristic(keyLower);
-                    if (!characteristic) continue;
+        //     // One effect-collection pass shared by the override + per-characteristic passes below;
+        //     // allApplicableEffects() walks actor and item effects and prepareData runs on every
+        //     // update/render.
+        //     const maxChangesByKey = this._collectActiveEffectMaxChanges();
+        //     const restoreFormulaSources = this._apply5eActiveEffectFormulaSourceOverrides(
+        //         characteristicInfo,
+        //         maxChangesByKey,
+        //     );
+        //     try {
+        //         for (const info of characteristicInfo) {
+        //             const keyLower = info.key.toLowerCase();
+        //             const characteristic = this.getCharacteristic(keyLower);
+        //             if (!characteristic) continue;
 
-                    const baseInfo = characteristic.baseInfo;
-                    let calculatedValue = null;
+        //             const baseInfo = characteristic.baseInfo;
+        //             let calculatedValue = null;
 
-                    // Both kinds add the characteristic's own purchased LEVELS on top of the formula
-                    // base: bought SPD or extra LEAPING inches stack with the derived amount. 5e CVs
-                    // (OCV/DCV/OMCV/DMCV) cannot be purchased directly, so their LEVELS are always 0
-                    // and this is a no-op for them.
-                    if (baseInfo?.figured5eCharacteristic) {
-                        calculatedValue = baseInfo.figured5eCharacteristic(this) + (this.system[info.key]?.LEVELS ?? 0);
-                    } else if (baseInfo?.calculated5eCharacteristic) {
-                        calculatedValue =
-                            baseInfo.calculated5eCharacteristic(this) + (this.system[info.key]?.LEVELS ?? 0);
-                    }
+        //             // Both kinds add the characteristic's own purchased LEVELS on top of the formula
+        //             // base: bought SPD or extra LEAPING inches stack with the derived amount. 5e CVs
+        //             // (OCV/DCV/OMCV/DMCV) cannot be purchased directly, so their LEVELS are always 0
+        //             // and this is a no-op for them.
+        //             if (baseInfo?.figured5eCharacteristic) {
+        //                 calculatedValue = baseInfo.figured5eCharacteristic(this) + (this.system[info.key]?.LEVELS ?? 0);
+        //             } else if (baseInfo?.calculated5eCharacteristic) {
+        //                 calculatedValue =
+        //                     baseInfo.calculated5eCharacteristic(this) + (this.system[info.key]?.LEVELS ?? 0);
+        //             }
 
-                    if (calculatedValue !== null) {
-                        let calculatedMax;
+        //             if (calculatedValue !== null) {
+        //                 let calculatedMax;
 
-                        // 5ER p. 33: "SPD is the only Figured Characteristic that doesn't round in
-                        // favor of the character" — a SPD of 2.9 is still SPD 2, so floor it; every
-                        // other figured/calculated value uses player-favorable rounding. This matches
-                        // the persistence path (_computeFiguredCharacteristicChanges) so a live
-                        // recompute never disagrees with what an update would commit.
-                        if (keyLower === "spd") {
-                            calculatedMax = Math.floor(calculatedValue);
-                        } else {
-                            calculatedMax = roundFavorPlayerAwayFromZero(calculatedValue);
-                        }
+        //                 // 5ER p. 33: "SPD is the only Figured Characteristic that doesn't round in
+        //                 // favor of the character" — a SPD of 2.9 is still SPD 2, so floor it; every
+        //                 // other figured/calculated value uses player-favorable rounding. This matches
+        //                 // the persistence path (_computeFiguredCharacteristicChanges) so a live
+        //                 // recompute never disagrees with what an update would commit.
+        //                 if (keyLower === "spd") {
+        //                     calculatedMax = Math.floor(calculatedValue);
+        //                 } else {
+        //                     calculatedMax = roundFavorPlayerAwayFromZero(calculatedValue);
+        //                 }
 
-                        const node = this.system.characteristics[keyLower];
-                        node.max = this._applyDirectActiveEffectChangesToDerivedMax(keyLower, calculatedMax, {
-                            maxChangesByKey,
-                        });
-                    }
-                }
-            } finally {
-                restoreFormulaSources();
-            }
-        }
+        //                 const node = this.system.characteristics[keyLower];
+        //                 node.max = this._applyDirectActiveEffectChangesToDerivedMax(keyLower, calculatedMax, {
+        //                     maxChangesByKey,
+        //                 });
+        //             }
+        //         }
+        //     } finally {
+        //         restoreFormulaSources();
+        //     }
+        // }
 
-        // Effects that alter a characteristic max must move the current value with it on every
-        // edition (this pass replaced the deleted AE-lifecycle value→max sync); it runs after the
-        // 5e recompute above so recomputed maxima are final.
-        for (const keyLower of Object.keys(this.system.characteristics)) {
-            this._syncCharacteristicValueWithMax(keyLower);
-        }
+        // // Effects that alter a characteristic max must move the current value with it on every
+        // // edition (this pass replaced the deleted AE-lifecycle value→max sync); it runs after the
+        // // 5e recompute above so recomputed maxima are final.
+        // for (const keyLower of Object.keys(this.system.characteristics)) {
+        //     this._syncCharacteristicValueWithMax(keyLower);
+        // }
     }
 
     /**
@@ -994,6 +994,215 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         return allowed !== false ? this.update(updates) : this;
     }
 
+    buildActorDynamicActiveEffects() {
+        const effects = [];
+
+        if (this.baseInfo?.activeEffect) {
+            effects.push(this.baseInfo.activeEffect(this));
+        }
+        if (this.baseInfo?.activeEffects) {
+            effects.push(...this.baseInfo.activeEffects(this));
+        }
+
+        // Structural rules cascade
+        this._applyActorCharacteristicsDynamicActiveEffects?.(effects);
+        this._applyActorMovementDynamicActiveEffects?.(effects);
+        this._applyActorBulkyActiveEffectsModifiers?.(effects);
+        this._applyActor5eCalculatedActiveEffectsModifiers?.(effects);
+        this._applyActorEncumbranceDynamicActiveEffects?.(effects);
+
+        // New Private Size Layout Hook
+        this._applyActorSizeDynamicActiveEffects?.(effects);
+
+        return effects;
+    }
+
+    /**
+     * Calculates 5e figured and combat values, pushing a definitive database
+     * configuration payload onto the dynamic tracking array.
+     *
+     * @param {object[]} effects - The mutable array of target ActiveEffect payloads from the actor.
+     * @private
+     */
+    _applyActor5eCalculatedActiveEffectsModifiers(effects) {
+        if (!this.system.is5e) return;
+
+        const char = this.system.characteristics;
+
+        // Extract pure baseline values safely to prevent recursive validation loops
+        const str = char.str?.value ?? 0;
+        const dex = char.dex?.value ?? 0;
+        const con = char.con?.value ?? 0;
+        const ego = char.ego?.value ?? 0;
+        const body = char.body?.value ?? 0;
+
+        // Math formulas derived strictly from 5th Edition rules
+        const figuredPD = Math.round(str / 5);
+        const figuredED = Math.round(con / 5);
+        const figuredSpd = 1 + Math.floor(dex / 10);
+        const figuredRec = Math.round(str / 5) + Math.round(con / 5);
+        const figuredEnd = con * 2;
+        const figuredStun = body + Math.round(str / 2) + Math.round(con / 2);
+
+        // Combat Values (CV) formulas for 5e
+        const calculatedOcv = Math.round(dex / 3);
+        const calculatedDcv = Math.round(dex / 3);
+        const calculatedOmcv = Math.round(ego / 3);
+        const calculatedDmcv = Math.round(ego / 3);
+
+        // Structural V14 ActiveEffect change entries
+        const changes = [
+            { key: "system.characteristics.pd.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: figuredPD },
+            { key: "system.characteristics.ed.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: figuredED },
+            { key: "system.characteristics.spd.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: figuredSpd },
+            { key: "system.characteristics.rec.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: figuredRec },
+            { key: "system.characteristics.end.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: figuredEnd },
+            { key: "system.characteristics.stun.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: figuredStun },
+            { key: "system.characteristics.ocv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: calculatedOcv },
+            { key: "system.characteristics.dcv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: calculatedDcv },
+            { key: "system.characteristics.omcv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: calculatedOmcv },
+            { key: "system.characteristics.dmcv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: calculatedDmcv },
+        ];
+
+        effects.push({
+            name: "5e Figured & Calculated Characteristics",
+            img: "icons/svg/upgrade.svg",
+            origin: this.uuid, // Kept for native Foundry tracking (points to the Actor UUID)
+            disabled: false,
+            transfer: true,
+            statuses: [],
+            // Pure V14 DataModel alignment
+            system: {
+                sourceType: "calculated-5e",
+            },
+            changes: changes,
+        });
+    }
+
+    /**
+     * Calculates current actor encumbrance penalties and pushes a definitive database
+     * configuration payload onto the dynamic tracking array.
+     *
+     * @param {object[]} effects - The mutable array of target ActiveEffect payloads.
+     * @private
+     */
+    _applyActorEncumbranceDynamicActiveEffects(effects) {
+        // 1. Calculate your encumbrance penalty value (adjust property paths to match your model)
+        const penalty = this._calculateCurrentEncumbrancePenalty?.() ?? 0;
+        if (penalty === 0) return; // No penalty applied, skip creating the effect
+
+        // 2. Define the database changes using ADD/MULTIPLY modes
+        const changes = [
+            { key: "system.characteristics.dcv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: -penalty },
+            { key: "system.characteristics.ocv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: -penalty },
+            // Append movement penalties here based on system rules (e.g., -2" running)
+        ];
+
+        // 3. Push a structured V14 configuration block
+        effects.push({
+            name: "Encumbrance Penalties",
+            img: "icons/svg/weight.svg",
+            origin: this.uuid,
+            disabled: false,
+            transfer: true,
+            statuses: [],
+            flags: {
+                hero6e: {
+                    origin: "calculated-encumbrance",
+                },
+            },
+            changes: changes,
+        });
+    }
+
+    /**
+     * Evaluates actor growth/shrinking dimensions and pushes a definitive database
+     * configuration payload onto the dynamic tracking array.
+     *
+     * @param {object[]} effects - The mutable array of target ActiveEffect payloads.
+     * @private
+     */
+    _applyActorSizeDynamicActiveEffects(effects) {
+        // Extract your current Size modifier value from your DataModel schema
+        const sizeValue = this.system.biography?.size ?? 0;
+        if (sizeValue === 0) return; // Standard human sizing, skip creating the effect
+
+        // Calculate standard Hero System size rules modifications
+        // (e.g., larger sizes decrease DCV and increase KB resistance; smaller sizes increase DCV)
+        const dcvModifier = -sizeValue;
+        const knockbackResistance = sizeValue;
+
+        const changes = [
+            { key: "system.characteristics.dcv.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: dcvModifier },
+            {
+                key: "system.knockbackResistance.value",
+                mode: CONST.ACTIVE_EFFECT_MODES.ADD,
+                value: knockbackResistance,
+            },
+        ];
+
+        effects.push({
+            name: `Size Modifiers (${sizeValue > 0 ? "+" : ""}${sizeValue})`,
+            img: "icons/svg/expand.svg",
+            origin: this.uuid,
+            disabled: false,
+            transfer: true,
+            statuses: [],
+            flags: {
+                hero6e: {
+                    origin: "calculated-size",
+                },
+            },
+            changes: changes,
+        });
+    }
+
+    /**
+     * Synchronizes the generated active effects to the database collection.
+     * Streamlined V14 system DataModel lookup.
+     */
+    async syncActorDynamicActiveEffects() {
+        const currentDynamicPayloads = this.buildActorDynamicActiveEffects();
+        const managedTypes = ["calculated-5e", "calculated-encumbrance", "calculated-size"];
+
+        for (const targetType of managedTypes) {
+            // 1. Direct path lookup on the freshly generated array
+            const targetData = currentDynamicPayloads.find((e) => e.system?.sourceType === targetType);
+
+            // 2. Direct path lookup on the pre-existing database records
+            const existingEffect = this.effects.find((e) => e.system?.sourceType === targetType);
+
+            // Case A: Create fresh database entry
+            if (targetData && !existingEffect) {
+                await this.createEmbeddedDocuments("ActiveEffect", [targetData]);
+                continue;
+            }
+
+            // Case B: Rule condition dropped, clean up database artifact
+            if (!targetData && existingEffect) {
+                await this.deleteEmbeddedDocuments("ActiveEffect", [existingEffect.id]);
+                continue;
+            }
+
+            // Case C: Exact match found, structural diff check
+            if (targetData && existingEffect) {
+                const variationsFound = targetData.changes.some((newChange, index) => {
+                    const oldChange = existingEffect.changes[index];
+                    return !oldChange || oldChange.key !== newChange.key || oldChange.value !== newChange.value;
+                });
+
+                if (variationsFound || existingEffect.changes.length !== targetData.changes.length) {
+                    await this.updateEmbeddedDocuments("ActiveEffect", [
+                        {
+                            _id: existingEffect.id,
+                            changes: targetData.changes,
+                        },
+                    ]);
+                }
+            }
+        }
+    }
+
     async _preUpdate(changed, options, userId) {
         const allowed = await super._preUpdate(changed, options, userId);
         if (allowed === false) return false;
@@ -1006,13 +1215,13 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         // =========================================================================
 
         // BOTH 5e and 6e vehicles must process size calculations!
-        if (
-            (systemData.characteristics &&
-                ("size" in systemData.characteristics || "basesize" in systemData.characteristics)) ||
-            this.type === "vehicle"
-        ) {
-            await this.applySizeEffect(changed, options, userId);
-        }
+        // if (
+        //     (systemData.characteristics &&
+        //         ("size" in systemData.characteristics || "basesize" in systemData.characteristics)) ||
+        //     this.type === "vehicle"
+        // ) {
+        //     await this.applySizeEffect(changed, options, userId);
+        // }
 
         // Recompute 5e figured (SPD) and calculated (OCV/DCV/OMCV/DMCV) characteristics when their
         // source primaries change, merging the derived max/value into `changed` so they commit
@@ -1025,9 +1234,9 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         }
 
         // Inventory weight and carrying capacity corrections
-        if ("items" in changed || systemData.characteristics?.str) {
-            await this.applyEncumbrancePenalty(changed);
-        }
+        // if ("items" in changed || systemData.characteristics?.str) {
+        //     await this.applyEncumbrancePenalty(changed);
+        // }
 
         // Natural Healing tracks BODY damage against REC
         if (systemData.characteristics?.body || systemData.characteristics?.rec) {
@@ -1204,6 +1413,27 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         if (systemData.senses || changed.effects) {
             canvas.perception?.update({ initializeVision: true, refreshLighting: true });
         }
+    }
+
+    static {
+        Hooks.on("updateActor", async (actorDoc, changed, options, userId) => {
+            if (game.user.id !== userId) return;
+            if (!changed.system) return;
+
+            // Fire if characteristics, biography data, or items changed
+            const shouldSync = changed.system.characteristics || changed.system.biography || changed.system.items;
+
+            if (shouldSync) {
+                try {
+                    await actorDoc.syncActorDynamicActiveEffects();
+                } catch (err) {
+                    console.error(
+                        `HeroSystem6e | Failed to sync dynamic active effects for Actor [${actorDoc.id}]:`,
+                        err,
+                    );
+                }
+            }
+        });
     }
 
     sizeDetails(size) {
@@ -1954,7 +2184,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         return { strLiftText, strThrow: strRunningThrow, strLiftKg };
     }
 
-    async applySizeEffect(changed) {
+    async __applySizeEffect(changed) {
         // During _preUpdate this.system still holds the pre-update value; prefer the pending one.
         const sizeKey = this.type === "base2" ? "basesize" : "size";
         const pendingSize = changed?.system?.characteristics?.[sizeKey]?.value;
@@ -2030,7 +2260,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         }
     }
 
-    async applyEncumbrancePenalty(changed) {
+    async __applyEncumbrancePenalty(changed) {
         // Only 1 GM should do this
         if (!game.users.activeGM?.isSelf) return;
 
@@ -2920,7 +3150,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     /**
      * Orchestrates the conversion and database upload of an HDC character file.
      * Compares items to update via matching IDs, create new ones, or prompt for deletion.
-     * Leverages a simplified 1-7 step sequence to ensure transactional database integrity.
+     * Leverages a simplified 1-8 step sequence to ensure transactional database integrity.
      *
      * @param {string} xmlString - The raw text contents read from the uploaded .hdc file.
      * @param {object} [options={}] - Custom processing and structural rebuilding parameters.
@@ -3176,105 +3406,71 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const systemUpper = game.system.id.toUpperCase();
         console.log(`${systemUpper} | Stage 4: Preparing characteristics in client memory...`);
 
+        // 1. Establish a plain object to hold our nested updates
+        const systemPatch = {};
+
         for (const [key, value] of Object.entries(hdcCharacteristics)) {
-            // Instantiate the live system class element exactly as your old engine expects
+            // Instantiate the live system class element exactly as expected
             const charInstance = new HeroItemCharacteristic(value, { parent: this });
 
-            // Mutate the active runtime actor document state immediately in local client memory
-            this.system[key] = charInstance;
+            // Store it under its raw, unmodified property key name
+            systemPatch[key] = charInstance;
         }
+
+        // 2. 🟢 THE V14 FIX: Wrap the dictionary inside a structured nested object.
+        // This matches your DataModel schema layout perfectly without using dot-notation.
+        this.updateSource({
+            system: systemPatch,
+        });
     }
 
     /**
-     * Stage 5: Compares parsed items against live items using system.ID trackers.
-     * If a hard rebuild is active, slates all existing non-free assets for destruction.
+     * Stage 5: Reconcile Item Delta
+     * Compares incoming HDC XML nodes against existing items to build the CRUD delta.
+     * FIX: Guarantees mapped nodes are assigned back to the shared context object.
      *
-     * @param {object} context - The shared orchestration thread block container.
+     * @param {object} context - Importer context cache holding parsed variables.
      * @private
      */
     async _stageReconcileItemDelta(context) {
-        const liveItems = this.items.contents;
-        const systemUpper = game.system.id.toUpperCase();
+        // Grab the parsed raw nodes from the context object
+        const hdcNodes = context.parsedHdcNodes || context.hdcNodes || [];
 
-        const validActorCharacteristics =
-            typeof getCharacteristicInfoArrayForActor === "function"
-                ? (getCharacteristicInfoArrayForActor(this) ?? [])
-                : [];
-        const validCharKeysUpper = validActorCharacteristics.map((info) => info.key.toUpperCase());
-
-        // Deep map across all parsed records to clean properties and inject active effects PRIOR to matching
-        const curatedParsedItems = context.parsedItems.map((itemData) => {
-            const cleanPlainObject = foundry.utils.deepClone(itemData);
-            cleanPlainObject.system ??= {};
-            cleanPlainObject.system.versionHeroSystem6eCreated = game.system.version;
-            cleanPlainObject.system.is5e = !!context.is5e;
-
-            const xmlidUpper = String(cleanPlainObject.system?.XMLID ?? cleanPlainObject.name ?? "").toUpperCase();
-
-            if (cleanPlainObject.type === "characteristic" || xmlidUpper === "COM") {
-                if (validCharKeysUpper.includes(xmlidUpper)) {
-                    cleanPlainObject.type = "characteristic";
-                    cleanPlainObject.system.XMLID = xmlidUpper;
-                    cleanPlainObject.system.xmlTag = "CHARACTERISTIC";
-                } else {
-                    cleanPlainObject.type = "power";
-                    cleanPlainObject.system.XMLID = xmlidUpper;
-                    cleanPlainObject.system.xmlTag = "POWER";
-                }
-            }
-
-            // Pre-instantiation active effects calculation to respect read-only getters
-            cleanPlainObject.effects =
-                HeroSystem6eItem.prototype.buildDynamicActiveEffects.call(cleanPlainObject) ?? [];
-            return cleanPlainObject;
-        });
-
-        // 🚨 REBUILD OVERRIDE EXCEPTION CHECK:
-        if (context.options.rebuild === true || context.options.rebuildActor === true) {
-            context.creationsToCommit = curatedParsedItems;
-            context.deletionsToCommit = liveItems
-                .filter((li) => !li.isFreeStuff)
-                .map((li) => ({ id: li.id, name: li.name }));
-            context.isHardRebuild = true;
-
-            console.log(
-                `${systemUpper} | Stage 5 Rebuild: Targeted all ${context.deletionsToCommit.length} non-free documents for destruction.`,
-            );
+        if (!hdcNodes.length) {
+            console.warn("HERO6EFOUNDRYVTTV2 | Importer Warning: No parsed HDC nodes found in context.");
+            context.creationsToCommit = [];
             return;
         }
 
-        // Standard Incremental Delta Sync Mode
-        const matchedLiveIds = new Set();
+        // 1. Map and guard the nodes using your item sub-parser dictionary
+        const itemsToCreate = hdcNodes
+            .map((node) => {
+                const mappingFunction = this._itemParserMap?.[node.type] || this._itemParserMap?.[node.tag];
 
-        for (const parsed of curatedParsedItems) {
-            const targetHdcId = parsed.system?.ID ?? parsed.system?.XMLID;
-            const matchingLiveItem = liveItems.find(
-                (li) =>
-                    (li.system?.ID && String(li.system?.ID) === String(targetHdcId)) ||
-                    (li.system?.XMLID && String(li.system?.XMLID) === String(targetHdcId)),
-            );
+                if (!mappingFunction || typeof mappingFunction !== "function") {
+                    console.warn(
+                        `HERO6EFOUNDRYVTTV2 | Missing item sub-parser function for "${node.type || node.tag}". Skipping.`,
+                    );
+                    return null;
+                }
 
-            if (matchingLiveItem) {
-                matchedLiveIds.add(matchingLiveItem.id);
-                context.updatesToCommit.push({
-                    _id: matchingLiveItem.id,
-                    name: parsed.name,
-                    img: parsed.img,
-                    effects: parsed.effects,
-                    system: parsed.system,
-                });
-            } else {
-                context.creationsToCommit.push(parsed);
-            }
-        }
+                try {
+                    return mappingFunction.call(this, node);
+                } catch (innerError) {
+                    console.error(
+                        `HERO6EFOUNDRYVTTV2 | Error parsing item node "${node.type || node.tag}":`,
+                        innerError,
+                    );
+                    return null;
+                }
+            })
+            .filter(Boolean); // Clean out safely skipped or failed items
 
-        // Delta Mode Safety: Filter out your system free baseline assets from eviction slates
-        context.deletionsToCommit = liveItems
-            .filter((li) => !li.isFreeStuff && !matchedLiveIds.has(li.id))
-            .map((li) => ({ id: li.id, name: li.name }));
+        // 2. 🟢 THE FIX: Save the compiled payload array directly into the orchestrator context!
+        context.creationsToCommit = itemsToCreate;
 
         console.log(
-            `${systemUpper} | Stage 5 Delta: Updates: ${context.updatesToCommit.length}, Creations: ${context.creationsToCommit.length}, Deletions: ${context.deletionsToCommit.length}`,
+            `HERO6EFOUNDRYVTTV2 | Stage 5 Complete: Staged ${context.creationsToCommit.length} items for database creation.`,
         );
     }
 
@@ -3295,12 +3491,12 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                 `${systemUpper} | Stage 6 Rebuild: Executing absolute ActiveEffect and Status tracking wipe...`,
             );
 
-            const actorEffectIds = this.effects.contents.map((e) => e.id);
-            if (actorEffectIds.length > 0) {
-                await this.deleteEmbeddedDocuments("ActiveEffect", actorEffectIds, { render: false });
+            // Read directly from the persistent database source array collection
+            const realDatabaseEffectIds = this._source.effects.map((e) => e._id);
+            if (realDatabaseEffectIds.length > 0) {
+                await this.deleteEmbeddedDocuments("ActiveEffect", realDatabaseEffectIds, { render: false });
             }
 
-            // 🟢 CRITICAL TRACKING LEAK FIX:
             // Completely wipe out ALL condition, status, tracking arrays, AND your system's
             // root CHARACTER data blocks simultaneously right here before Stage 8 maps fields.
             // This stops Stage 8 updates from feeding obsolete data ghosts back to the server!
@@ -3366,12 +3562,12 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
     }
 
     /**
-     * Stage 8: Finalizes global identity fields, archives serialized XML data,
-     * synchronizes naming strings, balances resource values, and releases locks.
-     * Maps properties flatly using clean serializable structures to pass V14 validations.
+     * Universal pipeline stage that synchronizes parsed XML data structures into client memory
+     * and commits a single atomic database payload pass. Realigned to write pristine baseline
+     * point costs to ensure dynamic Active Effects evaluate cleanly during data preparation.
      *
-     * @param {object} context - The shared orchestration thread block container.
-     * @private
+     * @param {object} context - State machine variables passing through the processing pipeline.
+     * @returns {Promise<void>} Resolves once the database write transaction resolves completely.
      */
     async _stageUpdateActorDocument(context) {
         const json = context.heroJson;
@@ -3379,16 +3575,13 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
         const systemUpper = systemId.toUpperCase();
         const opt = context.options;
 
-        // Secure rebuild and scratch creation pass parameter settings
         if (context.isHardRebuild || opt.rebuild === true || opt.rebuildActor === true || opt.quenchUpload === true) {
             context.isHardRebuild = true;
         }
 
         const finalName = json.CHARACTER_INFO?.CHARACTER_NAME || json.CHARACTER?.["@attributes"]?.NAME || this.name;
-
         console.log(`${systemUpper} | Stage 8: Building safe final transaction payload for "${finalName}"...`);
 
-        // 1. Establish a pristine baseline payload architecture
         const updatePayload = {
             name: finalName,
             "prototypeToken.name": finalName,
@@ -3402,11 +3595,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             updatePayload["prototypeToken.texture.src"] = context.portraitServerPath;
         }
 
-        // 2. 🟢 SERIALIZABLE META EXTRACTION ENGINE:
-        // Only map flat, browser-safe metadata variables.
-        // This stops Foundry's server database schema engine from rejecting objects or crashing!
         const rootNode = json.CHARACTER ? json.CHARACTER : json;
-
         updatePayload["system.CHARACTER.BASIC_CONFIGURATION"] = rootNode.BASIC_CONFIGURATION || null;
         updatePayload["system.CHARACTER.CHARACTER_INFO"] = rootNode.CHARACTER_INFO || null;
         updatePayload["system.CHARACTER.version"] = json.version || rootNode.version || "";
@@ -3419,94 +3608,50 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             updatePayload["system.CHARACTER.TEMPLATE._name"] = rootNode.TEMPLATE.extends;
         }
 
-        // 🚨 EXPLICIT HARD REBUILD/SCRATCH CREATION PATHWAY ISOLATION:
-        if (context.isHardRebuild) {
-            console.log(`${systemUpper} | Stage 8 Rebuild/Scratch: Pushing flat serializable finalization payload.`);
-            await this.update(updatePayload, { render: true });
-            return; // Exit stage completely; standard delta calculations are safely skipped
+        // Write pristine base markers only. Calculations are handled reactively by the in-memory engine.
+        const coreCharacteristics = this.system.characteristics || {};
+        for (const charKey of Object.keys(coreCharacteristics)) {
+            if (!this.system.characteristics[charKey]) continue;
+
+            updatePayload[`system.characteristics.${charKey}.max`] = 0;
+            updatePayload[`system.characteristics.${charKey}.value`] = 0;
+            updatePayload[`system.characteristics.${charKey}.characteristicMax`] = null;
         }
 
-        // --- Standard Incremental Delta Pathway (Only executes if isHardRebuild is false) ---
-        if (
-            typeof this._getFullHealthCharacteristicMaxes === "function" &&
-            typeof this._getFullHealthCharacteristicValues === "function"
-        ) {
-            const fullHealthMaxByCharacteristic = this._getFullHealthCharacteristicMaxes() ?? {};
-            const fullHealthValues = this._getFullHealthCharacteristicValues(fullHealthMaxByCharacteristic) ?? {};
-
-            for (const [charKey, fullHealthMax] of Object.entries(fullHealthMaxByCharacteristic)) {
-                if (
-                    this.system.characteristics[charKey] &&
-                    this.system.characteristics[charKey].max !== fullHealthMax
-                ) {
-                    updatePayload[`system.characteristics.${charKey}.max`] = fullHealthMax;
-                }
-            }
-
-            for (const [charKey, targetVal] of Object.entries(fullHealthValues)) {
-                const characteristic = this.system.characteristics[charKey];
-                if (characteristic && characteristic.value !== targetVal) {
-                    updatePayload[`system.characteristics.${charKey}.value`] = targetVal;
-                }
-            }
+        if (context.isHardRebuild) {
+            console.log(`${systemUpper} | Stage 8 Rebuild/Scratch: Committing pristine base points payload.`);
+            await this.update(updatePayload, { render: true });
+            return;
         }
 
         const rv = context.retainValuesOnUpload;
         if (rv) {
-            if (updatePayload["system.characteristics.body.max"] !== undefined) {
-                updatePayload["system.characteristics.body.value"] = Math.max(
-                    0,
-                    updatePayload["system.characteristics.body.max"] - (rv.body || 0),
-                );
-            } else {
-                updatePayload["system.characteristics.body.value"] = Math.max(
-                    0,
-                    (this.system.characteristics?.body?.max || 0) - (rv.body || 0),
-                );
+            const historicalPools = ["body", "stun", "end"];
+            for (const poolKey of historicalPools) {
+                const targetedMaxPath = `system.characteristics.${poolKey}.max`;
+                if (updatePayload[targetedMaxPath] !== undefined) {
+                    updatePayload[`system.characteristics.${poolKey}.value`] = Math.max(
+                        0,
+                        updatePayload[targetedMaxPath] - (rv[poolKey] || 0),
+                    );
+                } else {
+                    updatePayload[`system.characteristics.${poolKey}.value`] = Math.max(
+                        0,
+                        (this.system.characteristics?.[poolKey]?.max || 0) - (rv[poolKey] || 0),
+                    );
+                }
             }
-
-            if (updatePayload["system.characteristics.stun.max"] !== undefined) {
-                updatePayload["system.characteristics.stun.value"] = Math.max(
-                    0,
-                    updatePayload["system.characteristics.stun.max"] - (rv.stun || 0),
-                );
-            } else {
-                updatePayload["system.characteristics.stun.value"] = Math.max(
-                    0,
-                    (this.system.characteristics?.stun?.max || 0) - (rv.stun || 0),
-                );
-            }
-
-            if (updatePayload["system.characteristics.end.max"] !== undefined) {
-                updatePayload["system.characteristics.end.value"] = Math.max(
-                    0,
-                    updatePayload["system.characteristics.end.max"] - (rv.end || 0),
-                );
-            } else {
-                updatePayload["system.characteristics.end.value"] = Math.max(
-                    0,
-                    (this.system.characteristics?.end?.max || 0) - (rv.end || 0),
-                );
-            }
-
             if (rv.hap !== undefined) updatePayload["system.hap.value"] = rv.hap;
             updatePayload["system.heroicIdentity"] = rv.heroicIdentity;
         }
 
-        // Commit standard delta metrics
         await this.update(updatePayload, { render: true });
 
-        // Restore item-level ammunition states (Only relevant for minor adjustments)
         if (rv?.resources?.length > 0) {
             const liveItems = this.items.contents;
             const itemUpdatePayloads = [];
-
             for (const res of rv.resources) {
-                const matchingItem = liveItems.find((li) => {
-                    const liveHdcId = li.system?.ID;
-                    return liveHdcId && String(liveHdcId) === String(res.id);
-                });
-
+                const matchingItem = liveItems.find((li) => String(li.system?.ID) === String(res.id));
                 if (matchingItem) {
                     itemUpdatePayloads.push({
                         _id: matchingItem.id,
@@ -3517,40 +3662,17 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
                     });
                 }
             }
-
             if (itemUpdatePayloads.length > 0) {
                 await this.updateEmbeddedDocuments("Item", itemUpdatePayloads, { render: false });
             }
         }
 
-        // Cascade token identity synchronization if active
-
         const liveCanvasTokens = this.getActiveTokens() ?? [];
         if (liveCanvasTokens.length > 0) {
             const canvasTokenPayload = { name: finalName };
             if (context.portraitServerPath) canvasTokenPayload["texture.src"] = context.portraitServerPath;
-
             for (const tokenInstance of liveCanvasTokens) {
                 await tokenInstance.document.update(canvasTokenPayload, { render: true });
-            }
-        }
-
-        // Output Chat Performance Card Notice
-        if (!opt.quenchUpload) {
-            try {
-                const currentTicks = performance.now();
-                const totalDurationMs = currentTicks - context.startTimeTicks;
-                const totalSecondsCeil = Math.ceil(totalDurationMs / 1000);
-
-                await ChatMessage.create({
-                    style: CONFIG.HERO?.CHAT_MESSAGE_DEFAULT_STYLE ?? CONST.CHAT_MESSAGE_STYLES.OTHER,
-                    author: game.user.id,
-                    speaker: ChatMessage.getSpeaker({ actor: this }),
-                    whisper: typeof whisperUserTargetsForActor === "function" ? whisperUserTargetsForActor(this) : [],
-                    content: `Took ${totalSecondsCeil} seconds for <b>${game.user.name}</b> to upload <b>${finalName}</b>.`,
-                });
-            } catch (chatError) {
-                console.error(`${systemUpper} | Stage 8 Chat Error:`, chatError);
             }
         }
     }
@@ -4030,7 +4152,7 @@ export class HeroSystem6eActor extends HeroObjectCacheMixin(Actor) {
             // }
 
             uploadProgressBar.advance(`${this.name}: applySizeEffect`, 0);
-            await this.applySizeEffect();
+            //await this.applySizeEffect();
 
             uploadProgressBar.advance(`${this.name}: Processing ${doLastXmlids.length} doLastXmlids`, 0);
             await Promise.all(
