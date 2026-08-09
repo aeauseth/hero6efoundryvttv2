@@ -148,8 +148,7 @@
         "RoundPrev": "Previous Turn",
         "RoundNext": "Next Turn",
 
-        "Segment": "Segment",
-        "CombatantRemoveHero": "Remove Combatant"
+        "Segment": "Segment"
     },
 
     "EFFECT": {
@@ -205,6 +204,26 @@
                 "Name": "Last Migration"
             },
 
+            "combatTrackerCompact": {
+                "Name": "Compact Combat Tracker",
+                "Hint": "This client only: shrink non-active combatant rows in the single-combatant tracker (no portrait, tighter spacing). The active combatant keeps the full-size row."
+            },
+
+            "combatTrackerGrouping": {
+                "Name": "Group Same-Actor Combatants",
+                "Hint": "Tokens of the same base actor share one tie-break roll and collapse into a single ×N tracker row. Disable to give every token its own roll and row. Mid-combat changes take effect with the next Segment's tie-break rolls."
+            },
+
+            "fastDrawTieBreak": {
+                "Name": "Fast Draw Breaks DEX Ties",
+                "Hint": "Optional rule: characters with the Fast Draw skill act before others at the same DEX; two Fast Draw characters compare their Fast Draw tie-break rolls. Off = pure random tie-breaks."
+            },
+
+            "stunnedAutoSkip": {
+                "Name": "Auto-Skip Stunned Phases",
+                "Hint": "When a Stunned character's Phase arrives, spend it recovering automatically and advance the tracker. Off = the tracker stops on them so the table can narrate the recovery before ending the turn."
+            },
+
             "singleCombatantTracker": {
                 "Name": "Single Combatant Tracker",
                 "Hint": "Default combat tracker has a combatant entity per phase, but has issues when combatants are added/removed, also some modules don't like multiple combatants per token. Single Combatant Tracker (a work in progress) has one combatant entity per token, and will eventually support holding/haymaker/etc. Changing this setting may require you to delete and re-create existing combat trackers."
@@ -258,10 +277,6 @@
             "Name": "Lightning Reflexes: Always Act Early",
             "Hint": "Automatically place combatants with scoped Lightning Reflexes at their elevated position at the start of each Segment (single combatant tracker only). When off, owners instead receive a whispered prompt with an Act Early button."
         },
-        "defaultDexInitiative": {
-            "Name": "Default DEX for Initiative",
-            "Hint": "Character should use EGO for initiative when using Mental Powers. By default initiative will use EGO for initiative when it is higher then DEX. Checking this setting will always default to DEX (regardless of EGO value), when uploading an HDC file. You can always change DEX/EGO initiative in the OTHERS tab of a character sheet."
-        },
         "DefaultEdition": {
             "Name": "Default System Rules",
             "Hint": "The system rules are typically determined by the edition defined within the HDC file you import for each actor. When there is no actor (or otherwise 5e/6e cannot be determined) we will use this choice for the rule system.  Also used to create the HeroSystem compendium.",
@@ -298,6 +313,13 @@
         },
         "HitLocation": {
             "Name": "Hit Locations",
+            "Hint": "Are you using hit locations and, if so, are you also using sectional defenses.",
+            "Choices": {
+                "NoHitLocations": "No Hit Locations",
+                "HitWithoutSectional": "Hit Locations Without Sectional Defenses",
+                "HitWithSectional": "Hit Locations With Sectional Defenses"
+            },
+
             "Tracking": {
                 "Name": "Hit Location Left/Right",
                 "Hint": "Allows differentiation between left and right sides of the body. Currently there is no automation that deals with Impairing or Disabling a specific body part.",
@@ -349,10 +371,6 @@
         "ShowGenericRoller": {
             "Name": "Show Generic Dice Roller",
             "Hint": "Show generic dice rolling buttons at the bottom of the Chat Messages sidebar."
-        },
-        "ShowOnlyVisibleCombatants": {
-            "Name": "Show only visible combatants",
-            "Hint": "Show only the combatants that you can currently see. When a combatant goes around a corner or turns invisible, they will not show up on the combat tracker. Currently experimental."
         },
         "StrEnd": {
             "Name": "Strength & Endurance",

@@ -392,12 +392,24 @@ export class HeroRoller {
         return this;
     }
 
+    /**
+     *
+     * @param {Boolean} useHitLocation
+     * @param {String} alreadyHitLocation
+     * @param {Boolean} useHitLocationSide
+     * @param {String} alreadyHitLocationSide
+     * @param {Boolean} [doNotPromptUserForPlacedShotSelection] - used for testing and shouldn't be required otherwise
+     * @param {Number} [placedShotHitLocationOverride] - used for testing and shouldn't be required otherwise
+     *
+     * @returns
+     */
     addToHitLocation(
         useHitLocation = true,
         alreadyHitLocation = "none",
         useHitLocationSide = false,
         alreadyHitLocationSide = "none",
-        doNotPromptUserForPlacedShotSelection = false,
+        doNotPromptUserForPlacedShotSelection = game.settings.get(game.system.id, "hit locations") !==
+            "hitLocationsWithSectional",
         placedShotHitLocationOverride = 0, // An invalid value
     ) {
         if (useHitLocation) {

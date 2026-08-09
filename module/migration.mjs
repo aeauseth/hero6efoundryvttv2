@@ -357,11 +357,11 @@ export async function migrateWorld() {
     );
 
     await migrateToVersion(
-        "4.3.15",
+        "5.0.0",
         lastMigration,
-        [],
-        "rebuild compendium",
-        async () => await CreateHeroCompendiums(),
+        ["run once"],
+        "migrate hit location settings",
+        async () => await migrateHitLocationSettings_5_0_0(),
     );
 
     // Placeholder for notifying GM of items missing XMLID
@@ -451,6 +451,31 @@ async function commitItemsCollectionMigrateDataChanges(item) {
         const { system, flags, type } = item.toObject();
         delete flags[game.system.id][needToPersistToDb];
         await item.update(HeroCompatibility.forceReplace({ system, flags }, { type }));
+    }
+}
+
+/**
+ * The settings will have already been registered so previous boolean values of true or false will have been converted into a "true" or "false" string
+ *
+ * @returns {Promise}
+ */
+async function migrateHitLocationSettings_5_0_0() {
+    const hitLocationSetting = game.settings.get(game.system.id, "hit locations");
+    if (hitLocationSetting === "true") {
+        // Hit locations enabled. Make this the same as hit locations without sectional defenses.
+        await game.settings.set(game.system.id, "hit locations", "Hit Locations Without Sectional Defenses");
+
+        const chatData = {
+            author: game.user._id,
+            style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+            content: `The hit location setting has changed. Hit locations are now enabled but the sectional defense is disabled to avoid confusion. If you use sectional defenses in your world, you will want to change this setting.`,
+        };
+
+        await ChatMessage.create(chatData);
+    } else if (hitLocationSetting === "false") {
+        return game.settings.set(game.system.id, "hit locations", "No Hit Locations");
+    } else {
+        // We already converted so we're good.
     }
 }
 

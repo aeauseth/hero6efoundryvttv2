@@ -652,8 +652,11 @@ function buildActivationOrSectionalDefenseInternalRepresentation(item, rar) {
             sectionalDefenseActivationRollModifier,
         );
 
-        // Do we have valid ranges defined and are hit locations turned on? If not, then sectional defense don't make sense to consider.
-        if (validSectionalComment && game.settings.get(HEROSYS.module, "hit locations")) {
+        // Do we have valid ranges defined and are sectional defenses turned on?
+        if (
+            validSectionalComment &&
+            game.settings.get(HEROSYS.module, "hit locations") === "hitLocationsWithSectional"
+        ) {
             return {
                 type: RSR_ROLL_TYPE.SECTIONAL_DEFENSES_ROLL,
                 sectionalDefenseLocationsSet: sectionalDefenseLocationsSet,
@@ -692,11 +695,13 @@ function doSectionalDefensesApply(sectionalDefenseLocationsSet, hitLocationNum) 
  *
  * @param {HeroSystem6eItem} item
  * @param {Object} options
+ * @param {HeroSystem6eToken} [options.token]
+ * @param {Object} [options.test]
+ * @param {Number} [options.hitLocationNum]
  *
  * @returns {Boolean} - success
  */
 export async function isActivatedForThisUse(item, options) {
-    // PH: FIXME: options to be removed.
     return isActivatedForThisUseInternal(item, HeroRoll, options);
 }
 
@@ -779,9 +784,13 @@ async function isActivatedForThisUseInternal(item, rollClass, options) {
         let flavor;
 
         if (activationRoll.type === RSR_ROLL_TYPE.SECTIONAL_DEFENSES_ROLL) {
-            // PH: FIXME: We can simplify this since it has to be section defense by this point in time.
+            // PH: FIXME: Kludge to support turning on/activating sectional defense items via UI (as hitLocationNum clearly isn't set
+            //            but it's assumed that this item is invoked in the defensive path on every hit).
             if (!options.hitLocationNum) {
-                console.error(`sectional defense with no hitLocationNum provided`);
+                console.warn(
+                    `Kludge: Need to deconflate the active concept. No hit location provided implies UI action.`,
+                );
+                return true;
             }
 
             const sectionalDefenseApply = doSectionalDefensesApply(

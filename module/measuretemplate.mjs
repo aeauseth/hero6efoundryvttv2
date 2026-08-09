@@ -166,7 +166,12 @@ export default class HeroSystem6eMeasuredTemplate extends foundry.canvas.placeab
                 await game.user._onUpdateTokenTargets(targets);
             } else {
                 // V12 #2292
-                await game.user.updateTokenTargets(targets);
+                // V14 replaced User#updateTokenTargets with TokenLayer#setTargets
+                if (typeof canvas.tokens?.setTargets === "function") {
+                    canvas.tokens.setTargets(targets);
+                } else {
+                    await game.user.updateTokenTargets(targets);
+                }
             }
         }
     }

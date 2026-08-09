@@ -1,7 +1,13 @@
-$hero-held-accent: #d9a520;
-$hero-held-text: #ecc94b;
-$hero-next-turn: #ff9f43;
-$hero-lr-accent: #4fc3f7;
+// SCSS accents (single source of truth), emitted below as per-theme CSS custom
+// properties so the tracker reads correctly in light and dark mode.
+$hero-held-accent-dark: #d9a520;
+$hero-held-accent-light: #8a6d0e;
+$hero-held-text-dark: #ecc94b;
+$hero-held-text-light: #6b5300;
+$hero-next-turn-dark: #ff9f43;
+$hero-next-turn-light: #b45309;
+$hero-lr-accent-dark: #4fc3f7;
+$hero-lr-accent-light: #0369a1;
 $combat-tracker-hero-disposition-opacity-default: 0.05;
 $combat-tracker-hero-disposition-opacity-hover: 0.2;
 $combat-tracker-hero-disposition-opacity-active: 0.6;
@@ -12,6 +18,74 @@ $combat-tracker-hero-dispositions: (
     "secret": rgb(166 18 212),
     "player": rgb(0 212 0),
 );
+
+@mixin hero-tracker-vars-dark {
+    --hero-held-accent: #{$hero-held-accent-dark};
+    --hero-held-text: #{$hero-held-text-dark};
+    --hero-next-turn: #{$hero-next-turn-dark};
+    --hero-lr-accent: #{$hero-lr-accent-dark};
+    --hero-tracker-surface: var(--color-cool-5, rgb(28 27 34));
+    --hero-header-surface: var(--color-cool-5, rgb(28 27 34));
+    --hero-header-text: #e2e8f0;
+    --hero-muted-text: #8a929e;
+    --hero-on-accent: #f3f3f3;
+    --hero-defeated-accent: #e5484d;
+    --hero-header-shadow: rgb(0 0 0 / 30%);
+    --hero-row-border: black;
+}
+
+@mixin hero-tracker-vars-light {
+    --hero-held-accent: #{$hero-held-accent-light};
+    --hero-held-text: #{$hero-held-text-light};
+    --hero-next-turn: #{$hero-next-turn-light};
+    --hero-lr-accent: #{$hero-lr-accent-light};
+    --hero-tracker-surface: var(--color-light-1, #f0f0e0);
+    --hero-header-surface: #d9d3c2;
+    --hero-header-text: var(--color-text-emphatic, #1b1d24);
+    --hero-muted-text: #4a4f58;
+    --hero-on-accent: #f3f3f3;
+    --hero-defeated-accent: #a72a35;
+    --hero-header-shadow: rgb(0 0 0 / 15%);
+    --hero-row-border: rgb(0 0 0 / 25%);
+}
+
+// Theme variable layer. Dark is the default; light overrides follow core's own
+// precedence model (global body class, or a per-app .themed override).
+.combat-sidebar,
+.combat-tracker {
+    @include hero-tracker-vars-dark;
+}
+
+body.theme-light .combat-sidebar,
+body.theme-light .combat-tracker,
+.combat-sidebar.themed.theme-light,
+.themed.theme-light .combat-tracker {
+    @include hero-tracker-vars-light;
+}
+
+// The sidebar/popout follows the INTERFACE theme (.themed.theme-{x} on the tab
+// element), while body.theme-light tracks the APPLICATIONS theme. With
+// interface=dark + applications=light, the body.theme-light block above matched
+// even though core paints the element dark — re-assert the element's own theme
+// at higher specificity so mixed setups render coherently.
+.combat-sidebar.themed.theme-dark,
+.themed.theme-dark .combat-tracker {
+    @include hero-tracker-vars-dark;
+}
+
+/* Current turn: core's --entry-active-bg is a white wash that disappears on
+   light backgrounds — give the acting row its own accent edge, tint, and bold
+   name. Sits BEFORE the disposition loop so an enabled disposition tint
+   (background-color, equal specificity, later in source) still wins the fill
+   while the edge and bold name persist. */
+.combat-tracker li.combatant.current-segment-member.active {
+    background: color-mix(in srgb, var(--color-border-highlight, #ff6400) 14%, transparent);
+    box-shadow: inset 4px 0 0 var(--color-border-highlight, #ff6400);
+}
+
+.combat-tracker li.combatant.current-segment-member.active .name {
+    font-weight: bold;
+}
 
 // .combat-sidebar covers the legacy tracker, .combat-tracker the single-combatant timeline
 @each $disposition-name, $disposition-color in $combat-tracker-hero-dispositions {
@@ -46,10 +120,32 @@ $combat-tracker-hero-dispositions: (
 }
 
 .combat-sidebar .combatant {
-    border: 1px solid black;
+    border: 1px solid var(--hero-row-border, black);
 }
 
 /* --- HERO SYSTEM 6E SIDEBAR TIMELINE DESIGN MATRIX --- */
+
+/* 0. SINGLE TRACKER ONLY: HERO rolls no initiative — hide the core header roll buttons */
+.hero-single-tracker [data-action="rollAll"],
+.hero-single-tracker [data-action="rollNPC"] {
+    display: none;
+}
+
+/* 0b. POPOUT: AppV2 auto-height resizes the window to its content on every
+   render, and segment changes change the row count — the window visibly grew
+   and shrank as the fight advanced. Pin the popout's height; the timeline
+   already scrolls inside it (core: .combat-tracker { flex: 1; overflow: auto }). */
+.application.sidebar-popout.hero-single-tracker {
+    height: min(80vh, 780px);
+}
+
+/* Core indents any list that reaches 100 entries (ol:has(> li:nth-of-type(100))
+   in the base sheet styles); the timeline renders every member row even while
+   collapsed, so long combats cross that threshold and pick up stray left
+   padding. Higher specificity, no !important needed. */
+ol.combat-tracker.plain {
+    padding-left: 0;
+}
 
 /* 1. SHARED STRUCTURAL HEADER ROW LAYOUT */
 .combat-tracker .combatant.hero-timeline-header-row {
@@ -60,20 +156,39 @@ $combat-tracker-hero-dispositions: (
     margin-bottom: 2px !important;
     align-items: center !important;
     overflow: hidden !important;
-    box-shadow: 0 2px 4px rgb(0 0 0 / 30%);
+    background: var(--hero-header-surface);
+    box-shadow: 0 2px 4px var(--hero-header-shadow);
+}
+
+/* Collapse carets live in CSS so expansion toggles never rewrite header text */
+.combat-tracker .combatant.hero-timeline-header-row .name::before {
+    content: "▸ ";
+    display: inline-block;
+    transition: transform 120ms ease;
+}
+
+.combat-tracker .combatant.hero-timeline-header-row.segment-expanded .name::before,
+.combat-tracker .combatant.active-segment-header-slot .name::before {
+    transform: rotate(90deg);
 }
 
 /* 2. ACTIVE CURRENT SEGMENT UNIQUE THEMING */
 .combat-tracker .active-segment-header-slot {
     background: var(--color-shadow-primary) !important;
-    color: #f3f3f3 !important;
+    color: var(--hero-on-accent) !important;
     border: 1px solid var(--color-border-highlight) !important;
     border-left: 5px solid var(--color-border-highlight) !important;
     font-size: 1.1em;
-    text-shadow: 0 0 4px #000;
 
     /* The current segment cannot be collapsed */
     pointer-events: none;
+}
+
+/* The accent band is the same orange in both themes: its label stays light
+   even in light mode. li.combatant outranks the shared header-text rule in
+   section 3, which carries equal class specificity and comes later. */
+.combat-tracker li.combatant.active-segment-header-slot .name {
+    color: var(--hero-on-accent) !important;
 }
 
 /* 2b. COLLAPSIBLE SEGMENT HEADERS */
@@ -85,8 +200,9 @@ $combat-tracker-hero-dispositions: (
     border-color: var(--color-border-highlight) !important;
 }
 
-.combat-tracker .past-segment-header-slot h4 {
-    color: #8a929e !important;
+/* li.combatant outranks the shared header-text rule in section 3 */
+.combat-tracker li.combatant.past-segment-header-slot .name {
+    color: var(--hero-muted-text) !important;
 }
 
 /* 2c. NON-CURRENT SEGMENT MEMBER ROWS */
@@ -99,18 +215,39 @@ $combat-tracker-hero-dispositions: (
     filter: grayscale(60%);
 }
 
-/* 2d. NEXT TURN (FUTURE ROUND) SEGMENTS RENDER ORANGE */
-.combat-tracker .combatant.next-turn-header-slot {
-    border-left: 5px solid $hero-next-turn !important;
+/* 2c2. EXPAND/COLLAPSE ANIMATION: member rows always render; a collapsed segment
+   hides them via class so the toggle animates in place without a re-render */
+.combat-tracker li.combatant.timeline-member {
+    max-height: 72px;
+    overflow: hidden;
+    transition:
+        max-height 180ms ease,
+        opacity 150ms ease,
+        padding 150ms ease,
+        margin 150ms ease;
 }
 
-.combat-tracker .combatant.next-turn-header-slot h4 {
-    color: $hero-next-turn !important;
+.combat-tracker li.combatant.timeline-member.segment-member-hidden {
+    max-height: 0;
+    opacity: 0;
+    padding-block: 0;
+    margin-block: 0;
+    border-width: 0;
+    pointer-events: none;
+}
+
+/* 2d. NEXT TURN (FUTURE ROUND) SEGMENTS RENDER ORANGE */
+.combat-tracker .combatant.next-turn-header-slot {
+    border-left: 5px solid var(--hero-next-turn) !important;
+}
+
+.combat-tracker li.combatant.next-turn-header-slot .name {
+    color: var(--hero-next-turn) !important;
 }
 
 .combat-tracker .combatant.next-turn-preview {
-    box-shadow: inset 3px 0 0 rgba($hero-next-turn, 0.8);
-    background: rgba($hero-next-turn, 0.06);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--hero-next-turn) 80%, transparent);
+    background: color-mix(in srgb, var(--hero-next-turn) 6%, transparent);
 }
 
 /* 2e. SAME-ACTOR GROUPS: ×N SUMMARY HEADER WITH INDENTED MEMBERS WHEN EXPLODED */
@@ -133,36 +270,68 @@ $combat-tracker-hero-dispositions: (
     display: none;
 }
 
+/* 2f. POPOUT/NARROW WIDTH: single-line names with ellipsis, wrapping controls */
+.combat-tracker li.combatant .token-name {
+    min-width: 0;
+}
+
+.combat-tracker li.combatant:not(.hero-timeline-header-row) .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// Scoped: the legacy tracker's rows keep core's single-line controls
+.hero-single-tracker .combat-tracker li.combatant .combatant-controls {
+    flex-wrap: wrap;
+    row-gap: 2px;
+}
+
+.combat-tracker li.combatant .hero-use-held-compact span {
+    max-width: 16ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* 2g. HELD ACTIONS: PANEL FOR EVENT/GENERIC HOLDS, MARKER FOR POSITIONAL SLOTS */
 
 /* The header pins to the top of the scrolling list while the panel has members;
-   sticky elements need opaque backgrounds so the timeline doesn't show through */
+   sticky elements need opaque backgrounds so the timeline doesn't show through.
+   No bottom margin: the margin gap under a sticky header doesn't paint and the
+   timeline scrolled visibly through the transparent strip. */
 .combat-tracker .combatant.hero-held-panel-header {
     position: sticky;
     top: 0;
     z-index: 6;
     margin-top: 0 !important;
-    border-left: 5px solid $hero-held-accent !important;
-    background: var(--color-cool-5, rgb(28 27 34)) !important;
+    margin-bottom: 0 !important;
+    border-left: 5px solid var(--hero-held-accent) !important;
+    background: var(--hero-tracker-surface) !important;
 }
 
-.combat-tracker .combatant.hero-held-panel-header h4 {
-    color: $hero-held-text !important;
+.combat-tracker li.combatant.hero-held-panel-header .name {
+    color: var(--hero-held-text) !important;
 }
 
 /* Member rows live in a pinned container built by the render hook; it caps out
-   and scrolls when more holders than that pile up */
+   and scrolls when more holders than that pile up. top overlaps the 26px header
+   by 1px to defeat subpixel rounding at odd zoom levels. */
 .combat-tracker .hero-held-scroll-wrapper {
     position: sticky;
-    top: 28px; /* header height (26px) + its bottom margin */
+    top: 25px;
     z-index: 5;
     max-height: max(15vh, 200px);
     overflow-y: auto;
     margin: 0;
     padding: 0;
     list-style: none;
-    background: var(--color-cool-5, rgb(28 27 34));
-    box-shadow: 0 3px 6px rgb(0 0 0 / 40%);
+    background: var(--hero-tracker-surface);
+    box-shadow: 0 3px 6px var(--hero-header-shadow);
+}
+
+.combat-tracker .hero-held-scroll-wrapper.hero-held-collapsed {
+    display: none;
 }
 
 .combat-tracker .hero-held-scroll {
@@ -171,8 +340,8 @@ $combat-tracker-hero-dispositions: (
 }
 
 .combat-tracker li.combatant.hero-held-row {
-    box-shadow: inset 3px 0 0 rgba($hero-held-accent, 0.8);
-    background: rgba($hero-held-accent, 0.06);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--hero-held-accent) 80%, transparent);
+    background: color-mix(in srgb, var(--hero-held-accent) 6%, transparent);
 }
 
 .combat-tracker li.combatant.hero-held-row .name {
@@ -223,17 +392,31 @@ $combat-tracker-hero-dispositions: (
 
 /* 2h2. LIGHTNING REFLEXES: ELEVATED ROWS AND THE ACT-EARLY TOGGLE */
 .combat-tracker li.combatant.hero-lr-row {
-    box-shadow: inset 3px 0 0 rgba($hero-lr-accent, 0.8);
-    background: rgba($hero-lr-accent, 0.06);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--hero-lr-accent) 80%, transparent);
+    background: color-mix(in srgb, var(--hero-lr-accent) 6%, transparent);
 }
 
 .combat-tracker li.combatant .hero-lr-elevate {
-    color: rgba($hero-lr-accent, 0.55);
+    color: color-mix(in srgb, var(--hero-lr-accent) 55%, transparent);
 }
 
 .combat-tracker li.combatant .hero-lr-elevate:hover,
 .combat-tracker li.combatant .hero-lr-elevate.hero-lr-elevated {
-    color: $hero-lr-accent;
+    color: var(--hero-lr-accent);
+}
+
+/* Completed LR stop: inert record of where the scoped action happened */
+.combat-tracker li.combatant.hero-lr-spent {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.combat-tracker li.combatant.hero-lr-spent .name {
+    font-style: italic;
+}
+
+.combat-tracker li.combatant.hero-lr-spent .combatant-controls {
+    display: none;
 }
 
 /* Shadow row: where the rest of the Phase lands once the LR stop is done */
@@ -256,16 +439,224 @@ $combat-tracker-hero-dispositions: (
     text-decoration: line-through;
 }
 
+/* 2k. DELAYED ACTIONS (Haymaker, Extra Time): landing markers in their segment */
+.combat-tracker li.combatant.hero-haymaker-row,
+.combat-tracker li.combatant.hero-delayed-row {
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+.combat-tracker li.combatant.hero-haymaker-row .name,
+.combat-tracker li.combatant.hero-delayed-row .name {
+    font-style: italic;
+}
+
+.combat-tracker li.combatant.hero-haymaker-row .combatant-controls,
+.combat-tracker li.combatant.hero-delayed-row .combatant-controls {
+    display: none;
+}
+
+/* The row is inert, but its injected Resolve-now / Cancel controls are live */
+.combat-tracker li.combatant.hero-delayed-row .hero-delayed-controls {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+}
+
+.combat-tracker li.combatant.hero-delayed-row .hero-delayed-controls .combatant-control:hover {
+    color: var(--hero-held-text);
+}
+
+/* 2k2. UNKNOWN PLACEHOLDER: player-view band standing in for segments whose
+   only combatants are GM-hidden — present so the timeline shape is honest,
+   inert and deliberately vague */
+.combat-tracker li.combatant.hero-unknown-header {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.combat-tracker li.combatant.hero-unknown-header .name {
+    font-style: italic;
+    letter-spacing: 2px;
+}
+
+/* No caret: the band never expands */
+.combat-tracker .combatant.hero-unknown-header .name::before {
+    content: "";
+}
+
+/* 2j. LEDGER HISTORY: past segments render what actually happened */
+.combat-tracker li.combatant.hero-history-row {
+    cursor: default;
+}
+
+.combat-tracker li.combatant.hero-history-row .combatant-controls {
+    display: none;
+}
+
+.combat-tracker li.combatant.hero-history-removed {
+    opacity: 0.4;
+    filter: grayscale(90%);
+    pointer-events: none;
+}
+
+.combat-tracker li.combatant.hero-history-removed .name {
+    font-style: italic;
+}
+
+/* 2l. DEFEATED: core's strike-through drowns in the hero row treatments (#4555) —
+   add a red edge, tint, and portrait fade that survive past/future filters */
+.combat-sidebar li.combatant.defeated,
+.combat-tracker li.combatant.defeated {
+    background: color-mix(in srgb, var(--hero-defeated-accent) 10%, transparent);
+    box-shadow: inset 3px 0 0 var(--hero-defeated-accent);
+}
+
+.combat-sidebar li.combatant.defeated .name,
+.combat-tracker li.combatant.defeated .name {
+    color: var(--hero-defeated-accent);
+    text-decoration: line-through;
+}
+
+.combat-sidebar li.combatant.defeated .token-image,
+.combat-tracker li.combatant.defeated .token-image {
+    opacity: 0.35;
+    filter: grayscale(100%);
+}
+
+/* 2m. CLICKABLE CONDITION ICONS (owners only) */
+.combat-tracker li.combatant .token-effects.hero-effects-clickable img.token-effect {
+    cursor: pointer;
+    transition: transform 100ms ease;
+}
+
+.combat-tracker li.combatant .token-effects.hero-effects-clickable img.token-effect:hover {
+    transform: scale(1.2);
+}
+
 /* Hold/abort declaration dialogs: keep the select's dropdown arrow clear of the text */
 .hero-hold-dialog select[name="hold-segment"],
+.hero-hold-dialog select[name="hold-anchor"],
 .hero-hold-dialog select[name="abort-action"] {
     min-width: 11em;
     padding-right: 1.75em;
 }
 
+/* The "Right after/before" relation select stays compact beside the anchor list */
+.hero-hold-dialog select[name="hold-anchor-relation"] {
+    flex: 0 0 auto;
+    min-width: 7.5em;
+    padding-right: 1.75em;
+}
+
+/* Hold dialog: two top-level modes; the unselected mode's branch hides
+   entirely instead of greying out */
+.hero-hold-dialog .hero-hold-mode {
+    font-weight: bold;
+}
+
+.hero-hold-dialog .hero-hold-branch {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-left: 1.75em;
+}
+
+.hero-hold-dialog .hero-hold-branch.hero-hold-branch-hidden {
+    display: none;
+}
+
+/* Compact mode (#3157): non-active timeline rows collapse to a single tight line.
+   The row is normally a two-line stack (name over controls + effects) beside a
+   portrait — compact drops the portrait, flows name/effects/initiative onto one
+   line, and reveals the control buttons only on hover. The active combatant,
+   segment headers, and the held panel keep their full-size treatment. */
+
+/* :not(.segment-member-hidden): collapsed segments zero their members' padding
+   (max-height animation); re-applying the compact padding at higher specificity
+   leaked spacing under every collapsed header */
+.hero-single-tracker.hero-compact li.combatant.timeline-member:not(.active, .segment-member-hidden) {
+    padding-block: 1px;
+
+    /* Members sit flush with their header's label (6px band padding + 6px label
+       margin) instead of core's 8px — without this they read as outdented */
+    padding-inline-start: 12px;
+    min-height: 0;
+
+    img.token-image {
+        display: none;
+    }
+
+    .token-name {
+        display: flex;
+
+        /* nowrap: revealed hover controls must never wrap onto a second line —
+           the row's height is not allowed to change on hover */
+        flex-flow: row nowrap;
+        align-items: center;
+        column-gap: 6px;
+        font-size: var(--font-size-12);
+
+        /* The name owns the line: it grows into free space and only ellipsizes
+           when genuinely out of room — icons must never squeeze it out entirely */
+        strong,
+        .name {
+            flex: 1 1 auto;
+            min-width: 6ch;
+            font-size: var(--font-size-12);
+            line-height: 1.5;
+        }
+    }
+
+    /* Promote the controls' children onto the name line instead of a second row */
+    .combatant-controls {
+        display: contents;
+    }
+
+    /* Buttons (hide/defeat/ping/delay, injected hold and LR controls) appear on
+       hover only — "mouse over for full details" */
+    .combatant-controls > :not(.token-effects) {
+        display: none;
+    }
+
+    /* Revealed controls fit INSIDE the 18px text line (12px × 1.5): core's
+       inline-control buttons default to --button-size: 1.5rem, which grew the
+       row on hover and shifted the whole list */
+    &:hover .combatant-controls > :not(.token-effects) {
+        display: inline-flex;
+        align-items: center;
+        font-size: var(--font-size-10);
+
+        --button-size: 16px;
+
+        max-height: 16px;
+        flex: 0 0 auto;
+    }
+
+    /* Status icons stay glanceable inline, sized to content — never growing at
+       the name's expense */
+    .token-effects {
+        display: flex;
+        align-items: center;
+        flex: 0 0 auto;
+        gap: 1px;
+
+        img.token-effect {
+            width: 12px;
+            height: 12px;
+        }
+    }
+
+    .token-initiative {
+        font-size: var(--font-size-11);
+    }
+}
+
 /* Injected "Use Held Action" controls */
 .combat-tracker li.combatant .hero-use-held {
-    color: $hero-held-text;
+    color: var(--hero-held-text);
 }
 
 .combat-tracker li.combatant .hero-use-held-compact,
@@ -279,7 +670,7 @@ $combat-tracker-hero-dispositions: (
     font-size: var(--font-size-10);
     font-weight: bold;
     line-height: 1.1;
-    color: $hero-held-text;
+    color: var(--hero-held-text);
 }
 
 .combat-tracker li.combatant .hero-use-held-compact {
@@ -287,11 +678,11 @@ $combat-tracker-hero-dispositions: (
 }
 
 .combat-tracker li.combatant .hero-use-held-compact:hover {
-    text-shadow: 0 0 6px $hero-held-text;
+    text-shadow: 0 0 6px var(--hero-held-text);
 }
 
 .combat-tracker li.combatant .hero-held-condition {
-    color: #8a929e;
+    color: var(--hero-muted-text);
 }
 
 /* 3. INTERNAL DOM COMPONENT ALIGNMENTS & VISIBILITY FOR HEADERS */
@@ -306,28 +697,23 @@ $combat-tracker-hero-dispositions: (
     flex: 1;
 }
 
-.combat-tracker .combatant.hero-timeline-header-row h4 {
+.combat-tracker .combatant.hero-timeline-header-row .name {
     font-size: var(--font-size-11) !important;
-    color: #e2e8f0 !important;
+    color: var(--hero-header-text) !important;
     font-weight: bold !important;
     text-transform: uppercase;
     letter-spacing: 0.75px;
     line-height: 26px !important;
     margin: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+/* The clockwork glyph never read well against the header bands (invisible in
+   light mode); the caret + label carry the row on their own */
 .combat-tracker .combatant.hero-timeline-header-row .token-image {
-    width: 16px !important;
-    height: 16px !important;
-    min-width: 16px !important;
-    max-height: 16px !important;
-    flex: 0 0 16px !important;
-    object-fit: contain !important;
-    border: none !important;
-    border-radius: 0 !important;
-    opacity: 0.6;
-    margin: 0 !important;
-    padding: 0 !important;
+    display: none !important;
 }
 
 /* 4. STRIP NATIVE UTILITY CONTROLS FROM HEADER SLOTS */

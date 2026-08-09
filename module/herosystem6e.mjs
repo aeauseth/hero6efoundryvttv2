@@ -1,5 +1,6 @@
 import { HeroSystem6eTemplateLayer } from "./canvas-layer.mjs";
 import * as chat from "./chat.mjs";
+import "./chat/delayed-attack-cards.mjs";
 import { HeroSystem6eCombat } from "./combat.mjs";
 import { HeroSystem6eCombatTracker } from "./combatTracker.mjs";
 import { HeroSystem6eCombatant } from "./combatant.mjs";
@@ -108,10 +109,9 @@ export class HEROSYS {
     }
 
     static get isSingleCombatantTrackerEnabled() {
-        return (
-            game.settings.get(game.system.id, "alphaTesting") &&
-            game.settings.get(game.system.id, "singleCombatantTracker")
-        );
+        // World-scoped only: the combat document classes must match on every client (#4553).
+        // The client-scoped alphaTesting setting merely reveals the config option.
+        return game.settings.get(game.system.id, "singleCombatantTracker");
     }
 }
 
@@ -187,6 +187,13 @@ Hooks.once("init", async function () {
     // V11 now support ActiveEffects on items without
     // the need to transfer the effect to the actor.
     CONFIG.ActiveEffect.legacyTransferral = false;
+
+    // The system expires effects itself (expireEffects). Keep core's ActiveEffectRegistry from
+    // persisting duration.expired on lapsed effects — with the default "update" action it
+    // suppresses adjustments before their fade runs on the actor's Phase (#4524), and the
+    // stale flag re-suppresses them on every later lapse since nothing ever clears it.
+    // TODO: Fix this in the AE overhaul for V14
+    CONFIG.ActiveEffect.expiryAction = null;
 
     /**
      * Set an initiative formula for the system
@@ -311,7 +318,6 @@ Hooks.once("init", async function () {
 
         `systems/${HEROSYS.module}/templates/combat/header.hbs`,
         `systems/${HEROSYS.module}/templates/combat/tracker.hbs`,
-        `systems/${HEROSYS.module}/templates/combat/tracker-single.hbs`,
         `systems/${HEROSYS.module}/templates/combat/footer.hbs`,
 
         `systems/${HEROSYS.module}/templates/item/item-action-icons-partial.hbs`,
@@ -442,48 +448,107 @@ Hooks.on("renderChatMessageHTML", (app, html, data) => {
             const combat = game.combats.get(button.dataset.combatId);
             const combatant = combat?.combatants.get(button.dataset.combatantId);
             if (!combat?.started || !combatant?.isOwner) return;
-            if (ui.combat?.viewed?.id !== combat.id) {
-                return ui.notifications.warn("Open the active combat in the tracker to act early.");
-            }
-            if (ui.combat._lrElevationState?.(combatant) !== "available") {
+            if (combat.lrElevationState?.(combatant) !== "available") {
                 return ui.notifications.warn(
                     `The Lightning Reflexes window for ${combatant.name} has passed this Segment.`,
                 );
             }
-            ui.combat._onToggleLrElevation(combatant.id);
+            combat.toggleLrElevation(combatant.id);
         });
     });
+
+    // Deferred voluntary SPD change: the GM's "apply immediately" escape hatch
+    html.querySelectorAll("button.hero-spd-apply-now").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            if (!game.user.isGM) return;
+            const combat = game.combats.get(button.dataset.combatId);
+            combat?.applyPendingSpdNow?.(button.dataset.combatantId);
+        });
+    });
+
+    // Wound-up Haymaker: interruption cancel (owner or GM)
+    html.querySelectorAll("button.hero-haymaker-cancel").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            const combat = game.combats.get(button.dataset.combatId);
+            combat?.cancelHaymaker?.(button.dataset.combatantId);
+        });
+    });
+
+    // Delayed action (Extra Time): interruption cancel (owner or GM)
+    html.querySelectorAll("button.hero-delayed-cancel").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            const combat = game.combats.get(button.dataset.combatId);
+            combat?.cancelDelayedAction?.(button.dataset.combatantId, button.dataset.delayedId ?? null);
+        });
+    });
+
+    // Delayed action: resolve immediately (owner/GM fiat)
+    html.querySelectorAll("button.hero-delayed-now").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            const combat = game.combats.get(button.dataset.combatId);
+            combat?.resolveDelayedActionNow?.(button.dataset.combatantId, button.dataset.delayedId ?? null);
+        });
+    });
+
+    // The hero-delayed-roll / hero-delayed-fail buttons are wired in
+    // chat/delayed-attack-cards.mjs (its own renderChatMessageHTML hook).
 });
 
 // Hooks.on("renderChatLog", (app, html) => HeroSystem6eCardHelpers.chatListeners(html));
 // Hooks.on("renderChatPopout", (app, html) => HeroSystem6eCardHelpers.chatListeners(html));
 
-// When actor SPD is changed we need to setupTurns again
+// When actor SPD/DEX (or other initiative inputs) change we need to setupTurns again
 Hooks.on("updateActor", async (document, change /*, _options, _userId */) => {
-    if (!HEROSYS.isSingleCombatantTrackerEnabled) {
-        if (
-            change?.system?.characteristics?.spd?.value ||
-            change?.system?.characteristics?.dex?.value ||
-            change?.system?.characteristics?.ego?.value ||
-            change?.system?.characteristics?.int?.value ||
-            change?.system?.initiativeCharacteristic
-        ) {
-            for (const combat of game.combats) {
-                if (combat.active) {
-                    const _combatants = combat.combatants.filter((o) => o.actorId === document.id);
-                    if (_combatants) {
-                        // Reroll Initiative (based on new spd/dex/ego/int changes)
-                        //await combat.rollAll();
-                        await combat.rollInitiative(_combatants.map((o) => o.id));
-                        await combat.extraCombatants();
+    const initiativeRelevant =
+        change?.system?.characteristics?.spd?.value !== undefined ||
+        change?.system?.characteristics?.dex?.value !== undefined ||
+        change?.system?.characteristics?.ego?.value !== undefined ||
+        change?.system?.characteristics?.int?.value !== undefined ||
+        change?.system?.initiativeCharacteristic !== undefined;
+    if (!initiativeRelevant) return;
 
-                        // Setup Turns in combat tracker based on new spd/dex/ego/int changes)
-                        // Should no longer be needed now that SPD is part of initiative (handled via rollAll/combat:rollInitiative)
-                        //await combat.setupTurns();
-                    }
+    if (!HEROSYS.isSingleCombatantTrackerEnabled) {
+        for (const combat of game.combats) {
+            if (combat.active) {
+                const _combatants = combat.combatants.filter((o) => o.actorId === document.id);
+                if (_combatants) {
+                    // Reroll Initiative (based on new spd/dex/ego/int changes)
+                    //await combat.rollAll();
+                    await combat.rollInitiative(_combatants.map((o) => o.id));
+                    await combat.extraCombatants();
+
+                    // Setup Turns in combat tracker based on new spd/dex/ego/int changes)
+                    // Should no longer be needed now that SPD is part of initiative (handled via rollAll/combat:rollInitiative)
+                    //await combat.setupTurns();
                 }
             }
         }
+        return;
+    }
+
+    // Single tracker: re-sort on live priorities and keep the pointer on the active
+    // combatant. The stored actingPriority threshold is deliberately untouched — it
+    // is what stops already-acted combatants from being re-admitted (and unacted
+    // ones from being skipped) when priorities move mid-segment. SPD semantics
+    // (lockouts, voluntary deferral) are owned by the segment-boundary poll.
+    for (const combat of game.combats) {
+        if (!combat.active || !combat.started) continue;
+        const combatants = combat.combatants.filter((o) => o.actorId === document.id);
+        if (combatants.length === 0) continue;
+        if (!game.users.activeGM?.isSelf) {
+            combat.collection.render();
+            continue;
+        }
+        const activeId = combat.combatant?.id ?? null;
+        const updates = combatants
+            .map((c) => ({ _id: c.id, initiative: combat.getInitiativePriority(c, combat.segment) }))
+            .filter((u) => combat.combatants.get(u._id)?.initiative !== u.initiative);
+        if (updates.length > 0) await combat.updateEmbeddedDocuments("Combatant", updates);
+        await combat.resyncTurnPointer?.(activeId);
     }
 });
 
@@ -768,6 +833,15 @@ function actorHasTemporaryEffects(actor) {
     return false;
 }
 
+// The tracker derives row names and images live from the token, but core only
+// re-renders it on combat/actor updates — a token rename or art swap otherwise
+// waits for the next unrelated render (#3319, #3727)
+Hooks.on("updateToken", (tokenDoc, change) => {
+    if (!("name" in change) && !foundry.utils.hasProperty(change, "texture.src")) return;
+    if (!ui.combat?.viewed?.combatants.some((c) => c.tokenId === tokenDoc.id)) return;
+    ui.combat.render();
+});
+
 // Foundry does not await async hook callbacks, so rapid time advances (combat clicking,
 // large calendar jumps) can otherwise overlap and double-process the same effects.
 let worldTimeWorkChain = Promise.resolve();
@@ -1039,25 +1113,4 @@ async function _outOfCombatRecovery(actor, multiplier) {
 Hooks.once("setup", function () {
     // Apply custom application for Compendiums for parent/child features
     game.packs.filter((p) => p.metadata.type === "Item").forEach((p) => (p.applicationClass = HeroSystem6eCompendium));
-});
-
-Hooks.on("getCombatTrackerEntryContext", function (html, menu) {
-    const entry = {
-        name: "COMBAT.CombatantRemoveHero",
-        icon: '<i class="fas fa-trash"></i>',
-        callback: (li) => {
-            const combat = game.combats.viewed;
-            const combatant = combat.combatants.get(li.data("combatant-id"));
-            const tokenId = combatant?.tokenId;
-            if (tokenId) {
-                const combatantIds = combat.combatants.reduce((ids, c) => {
-                    if (tokenId === c.tokenId) ids.push(c.id);
-                    return ids;
-                }, []);
-                return combat.deleteEmbeddedDocuments("Combatant", combatantIds);
-            }
-        },
-    };
-    menu.findSplice((o) => o.name === "COMBAT.CombatantRemove");
-    menu.push(entry);
 });

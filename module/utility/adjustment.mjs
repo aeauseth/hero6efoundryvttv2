@@ -363,40 +363,8 @@ function _createNewAdjustmentEffect(options) {
         disabled: false,
     };
 
-    activeEffect = foundry.utils.mergeObject(activeEffect, {
-        [`HeroCompatibility.isV14 ? "system.changes" : "changes"`]: [],
-    });
-
-    if (HeroCompatibility.isV14) {
-        activeEffect.start ??= ActiveEffect.getEffectStart();
-    }
-
-    // If this is 5e then some characteristics are entirely calculated based on
-    // those. We only need to worry about 2 (DEX -> OCV & DCV and EGO -> OMCV & DMCV)
-    // as figured characteristics aren't adjusted.
-    if (targetActor.is5e) {
-        if (potentialCharacteristic === "dex") {
-            activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`].push(
-                _createAEChangeBlock("ocv", targetSystem),
-            );
-            activeEffect.flags[game.system.id].target.push("ocv");
-
-            activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`].push(
-                _createAEChangeBlock("dcv", targetSystem),
-            );
-            activeEffect.flags[game.system.id].target.push("dcv");
-        } else if (potentialCharacteristic === "ego") {
-            activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`].push(
-                _createAEChangeBlock("omcv", targetSystem),
-            );
-            activeEffect.flags[game.system.id].target.push("omcv");
-
-            activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`].push(
-                _createAEChangeBlock("dmcv", targetSystem),
-            );
-            activeEffect.flags[game.system.id].target.push("dmcv");
-        }
-    }
+    activeEffect.system = { changes: [] };
+    activeEffect.start ??= ActiveEffect.getEffectStart();
 
     // V14: Need changes getter
     if (HeroCompatibility.isV14) {
@@ -664,14 +632,19 @@ export async function performAdjustment(
         if (adjustmentDamageThisApplication !== 0) {
             await targetActor.update({ [`system.characteristics.${char}.value`]: newActorValue });
 
+            // Make sure changes exist
+            activeEffect.system ??= {};
+            activeEffect.system.changes ??= [];
+            const changes = activeEffect.system.changes;
+
             // Update or create change
             if (prevChange) {
                 prevChange.value = parseInt(prevChange.value) + value;
-                const _idx = activeEffect.changes.findIndex((c) => c.key === prevChange.key);
-                activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`][_idx] = prevChange;
+                const _idx = changes.findIndex((c) => c.key === prevChange.key);
+                changes[_idx] = prevChange;
             } else {
                 changeTemp.value = value;
-                activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`].push(changeTemp);
+                changes.push(changeTemp);
             }
 
             activeEffect.flags[game.system.id] ??= {};
@@ -1188,8 +1161,9 @@ function updateEffectName(activeEffect) {
 
     let xmlidSlug = `${_array.map((o) => `${o.value} ${o.name}`).join(",")}`;
     if (activeEffect.flags[game.system.id]?.XMLID === "HEALING") {
+        // The originating item (or its whole actor) may have been deleted (#4526)
         const attackItem = fromUuidSync(activeEffect.origin);
-        const simplifiedHealing = attackItem.system.INPUT.match(/simplified/i); //&&
+        const simplifiedHealing = attackItem?.system?.INPUT?.match(/simplified/i); //&&
         //["BODY", "STUN"].includes(potentialCharacteristic.toUpperCase());
 
         xmlidSlug = `HEALING ${simplifiedHealing ? "SIMPLIFIED " : ""}${xmlidSlug.replace(/\+/g, "").replace(/-/g, "")}`;

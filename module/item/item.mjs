@@ -30,6 +30,7 @@ import { roundFavorPlayerAwayFromZero, roundFavorPlayerTowardsZero } from "../ut
 import { doSuccessRoll, generateSuccessChatCard } from "../utility/success-card.mjs";
 import { getRoundedUpDistanceInSystemUnits, getSystemDisplayUnits } from "../utility/units.mjs";
 import {
+    activeSingleTrackerCombatFor,
     getPowerInfo,
     getTokenUuid,
     hdcTimeOptionIdToSeconds,
@@ -1719,6 +1720,14 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             await ui.notifications.warn(`${this.actor.name} is not the active combatant`);
         }
 
+        // Maneuvers that only apply their active effect (Dodge — behaviors
+        // "ae-only"): there is no to-hit and no effect dice, so activating IS
+        // the roll. Routing through toggle also lands in activateManeuver,
+        // where the out-of-turn Abort offer lives.
+        if (this.baseInfo.behaviors.includes("ae-only")) {
+            return this.toggle({ token: options.token });
+        }
+
         if (this.baseInfo.behaviors.includes("to-hit")) {
             // FIXME: Martial maneuvers all share the MANEUVER XMLID. Need to extract out things from that (and fix the broken things).
             switch (this.system.XMLID) {
@@ -1936,6 +1945,39 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
         ChatMessage.create(chatData);
     }
 
+    /**
+     * Under the single tracker, an Extra Time activation is intercepted and put
+     * on the combat's schedule instead of turning the power on now. The delayed
+     * resolution re-enters turnOn with options.delayedResolution set, which
+     * bypasses this. Without a single-tracker combat (legacy tracker, out of
+     * combat) activation proceeds normally.
+     * @param {object} options - turnOn's options
+     * @param {string|null} [resourcesUsedDescription] - When set, a "began activating" chat card is emitted for the up-front spend
+     * @param {string|null} [resourcesUsedDescriptionRenderedRoll]
+     * @returns {Promise<boolean>} True when the activation was scheduled
+     */
+    async _interceptExtraTimeActivation(
+        options,
+        resourcesUsedDescription = null,
+        resourcesUsedDescriptionRenderedRoll = null,
+    ) {
+        if (options.delayedResolution) return false;
+        const active = activeSingleTrackerCombatFor(this.actor);
+        const plan = active?.combat.extraTimePlan(this.actor, this);
+        if (!plan) return false;
+        if (resourcesUsedDescription) {
+            await ChatMessage.create({
+                author: game.user._id,
+                style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+                content: `Spent ${resourcesUsedDescription} to begin activating ${this.name}${resourcesUsedDescriptionRenderedRoll ?? ""}`,
+                whisper: whisperUserTargetsForActor(this.actor),
+                speaker: ChatMessage.getSpeaker({ actor: this.actor, token: options.token }),
+            });
+        }
+        await active.combat.scheduleDelayedAction(this.actor, { ...plan, kind: "activation" }, this);
+        return true;
+    }
+
     async turnOn(options = {}) {
         if (!options.token && this.actor?.getActiveTokens().length > 0) {
             console.error(`turnOn: missing token`);
@@ -1953,6 +1995,10 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             item.system.duration === CONFIG.HERO.DURATION_TYPES.CONSTANT &&
             item.baseInfo.behaviors.includes("to-hit")
         ) {
+            // Extra Time defers this activation like any other (the resolution
+            // re-enters with delayedResolution); no resources are pre-spent here
+            // because this power class pays per Phase instead
+            if (await this._interceptExtraTimeActivation(options)) return;
             await this.setActive(true);
 
             const speaker = ChatMessage.getSpeaker({ actor: item.actor });
@@ -1989,7 +2035,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             warning: resourceWarning,
             resourcesUsedDescription,
             resourcesUsedDescriptionRenderedRoll,
-        } = activationRoll
+        } = activationRoll || options.delayedResolution
             ? {}
             : await userInteractiveVerifyOptionallyPromptThenSpendResources(item, {
                   noResourceUse: overrideCanAct,
@@ -2100,7 +2146,10 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             token: options.token,
         });
 
-        const success = activationRoll || (await isActivatedForThisUse(this, { event: options.event }));
+        const success =
+            activationRoll ||
+            options.delayedResolution ||
+            (await isActivatedForThisUse(this, { event: options.event }));
         if (!success) {
             const chatData = {
                 author: game.user._id,
@@ -2113,6 +2162,18 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
             };
             await ChatMessage.create(chatData);
 
+            return;
+        }
+
+        // Extra Time: the activation BEGINS now — the resources and rolls above are
+        // paid up front per RAW — but the power only turns on at the scheduled moment.
+        if (
+            await this._interceptExtraTimeActivation(
+                options,
+                resourcesUsedDescription,
+                resourcesUsedDescriptionRenderedRoll,
+            )
+        ) {
             return;
         }
 
@@ -2940,9 +3001,7 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
 
         const performanceDuration = new Date().getTime() - performanceStart;
         if (performanceDuration > 1000) {
-            console.warn(
-                `${this.actor?.name}/${this.detailedName()}: Performance concernt. Took ${performanceDuration} seconds to upload.`,
-            );
+            console.warn(`${actor?.name}/${xml}: Performance concern. Took ${performanceDuration} seconds to upload.`);
         }
 
         return itemData;
@@ -6456,7 +6515,9 @@ export class HeroSystem6eItem extends HeroObjectCacheMixin(Item) {
      * If the item is not a maneuver of some kind then it's the effective attack item.
      */
     get effectiveAttackItem() {
-        return this.system._active.maWeaponItem || this.system._active.__baseAttackItem || this;
+        // _active can be absent on items rebuilt from serialized sources (delayed
+        // attack snapshots); no active state means no maneuver/weapon override
+        return this.system._active?.maWeaponItem || this.system._active?.__baseAttackItem || this;
     }
 
     /**

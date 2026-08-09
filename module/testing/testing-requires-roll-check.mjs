@@ -879,7 +879,10 @@ export function registerRequiresRollCheckTests(quench) {
                         let defaultHitLocationsEnabled;
 
                         before(async function () {
-                            defaultHitLocationsEnabled = await getAndSetGameSetting("hit locations", true);
+                            defaultHitLocationsEnabled = await getAndSetGameSetting(
+                                "hit locations",
+                                "hitLocationsWithSectional",
+                            );
                         });
 
                         after(async function () {
@@ -1457,7 +1460,7 @@ export function registerRequiresRollCheckTests(quench) {
                         let defaultHitLocationsEnabled;
 
                         before(async function () {
-                            defaultHitLocationsEnabled = await getAndSetGameSetting("hit locations", false);
+                            defaultHitLocationsEnabled = await getAndSetGameSetting("hit locations", "noHitLocations");
                         });
 
                         after(async function () {
@@ -1702,7 +1705,10 @@ export function registerRequiresRollCheckTests(quench) {
                     before(async function () {
                         actor = await createQuenchActor({ quench: this, contents, is5e: true });
 
-                        defaultHitLocationsEnabled = await getAndSetGameSetting("hit locations", true);
+                        defaultHitLocationsEnabled = await getAndSetGameSetting(
+                            "hit locations",
+                            "hitLocationsWithSectional",
+                        );
 
                         sectionalDefenseShortVestArmor = actor.items.find((item) => item.name === "Short Vest");
                         sectionalDefenseStandardVestArmor = actor.items.find((item) => item.name === "Standard Vest");
@@ -3899,7 +3905,10 @@ export function registerRequiresRollCheckTests(quench) {
                             let defaultHitLocationsEnabled;
 
                             before(async function () {
-                                defaultHitLocationsEnabled = await getAndSetGameSetting("hit locations", true);
+                                defaultHitLocationsEnabled = await getAndSetGameSetting(
+                                    "hit locations",
+                                    "hitLocationsWithSectional",
+                                );
                             });
 
                             after(async function () {

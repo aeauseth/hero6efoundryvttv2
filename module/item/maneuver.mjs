@@ -1,5 +1,6 @@
 import { HeroSystem6eActorActiveEffects } from "../actor/actor-active-effects.mjs";
 import { HeroCompatibility } from "../utility/compatibility.mjs";
+import { activeSingleTrackerCombatFor, isQuenchTestRunning } from "../utility/util.mjs";
 import { roundFavorPlayerTowardsZero } from "../utility/round.mjs";
 import { calculateVelocityInSystemUnits } from "../utility/units.mjs";
 import { dehydrateAttackItem, rehydrateAttackItem } from "./item-attack.mjs";
@@ -114,11 +115,28 @@ export async function expireManeuverNextPhaseEffects(actor) {
             } catch (e) {
                 console.warn(`Unable to resolve maneuver item for expiring effect ${ae.name}`, e);
             }
-            if (maneuver?.isActive) return maneuver.toggle();
+            if (maneuver?.isActive) return maneuver.toggle({ token: actor?.getActiveTokens()[0]?.document });
         }
         return ae.delete();
     });
     await Promise.all(expiryPromises);
+}
+
+/**
+ * Ends an active Haymaker wind-up wherever its state lives: the status effect
+ * may sit on the actor directly (token HUD toggles and some attack paths) or
+ * ride on the HAYMAKER maneuver item's phase effect — cover both stores so no
+ * -5 DCV lingers and the item's activation state stays in sync.
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {TokenDocument} [options.token] - Token for the item toggle; defaults to the actor's first active token
+ */
+export async function endHaymakerManeuver(actor, { token } = {}) {
+    if (!actor) return;
+    const haymakerEffect = actor.effects.find((e) => e.statuses.has("haymaker"));
+    if (haymakerEffect) await haymakerEffect.delete();
+    const haymakerItem = actor.items.find((i) => i.system?.XMLID === "HAYMAKER" && i.isActive);
+    if (haymakerItem) await haymakerItem.toggle({ token: token ?? actor.getActiveTokens()[0]?.document });
 }
 
 /**
@@ -128,6 +146,47 @@ export async function expireManeuverNextPhaseEffects(actor) {
 export function maneuverCanBeAbortedTo(item) {
     const maneuverHasAbortTrait = item.system.EFFECT?.toLowerCase().indexOf("abort") > -1;
     return !!maneuverHasAbortTrait;
+}
+
+/**
+ * Toggling an abortable maneuver (Dodge, Martial Dodge, …) outside the actor's
+ * own Phase in a live combat IS Aborting — offer to declare it through the
+ * combat engine so the Phase cost and lockout are recorded. Confirm
+ * first: an out-of-turn toggle may just be pre-staging, and Cancel keeps the
+ * maneuver active without an Abort.
+ * @param {HeroSystem6eItem} item - The maneuver that was just activated
+ */
+export async function promptOutOfTurnAbortForManeuver(item) {
+    try {
+        const actor = item.actor;
+        if (!actor || !maneuverCanBeAbortedTo(item)) return;
+        if (isQuenchTestRunning()) return;
+
+        // Live single-tracker combats only, and outside this actor's own turn
+        const active = activeSingleTrackerCombatFor(actor);
+        if (!active) return;
+        const { combat, combatant } = active;
+        // The abort flow toggles the defense maneuver as part of declaring —
+        // that toggle must not re-prompt. Read the latch off the combat's
+        // constructor: importing combat-single here would create a cycle.
+        if (combat.constructor?._abortFlowActive) return;
+        if (combat.combatant?.actor === actor) return;
+        if (!combatant?.isOwner || combatant.abortEffect) return;
+
+        const proceed = await foundry.applications.api.DialogV2.confirm({
+            window: { title: `Abort — ${actor.name}` },
+            content: `<p>${actor.name} is activating <b>${item.name}</b> outside their Phase. Abort to it?</p>
+                <p class="hint">Aborting consumes their next Phase — or their Held Action, if holding. Cancel keeps ${item.name} active without declaring an Abort (e.g. pre-staging).</p>`,
+            rejectClose: false,
+        });
+        if (!proceed) return;
+
+        // The maneuver is already active, so no statusId — the item carries its
+        // own CV effects; declareAbort records the cost, card, and ledger entry
+        await combat.declareAbort(combatant, { toAction: item.name, statusId: null });
+    } catch (e) {
+        console.error(`Out-of-turn abort prompt failed`, e);
+    }
 }
 
 /**
@@ -278,6 +337,92 @@ export function maneuverHasVelocityTrait(item) {
     return !!maneuverHasVelocityTrait;
 }
 
+// Maneuvers we recognize but have not implemented status effects for yet
+const UNSUPPORTED_MANEUVER_EFFECT_XMLIDS = ["COVER", "HIPSHOT", "HURRY", "SET", "SETANDBRACE", "PULLINGAPUNCH"];
+
+// Shared field recipes for MANEUVER_EFFECT_SPECS
+const nameWithXmlid = (item) => (item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`);
+const statusName = (_item, status) => status.name;
+const traitChanges = (_item, _status, { dcvTrait, ocvTrait }) =>
+    [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
+const statusChanges = (_item, status) => foundry.utils.deepClone(status.changes);
+
+/**
+ * Declarative specs for the status effect each maneuver activation turns on.
+ * Evaluated top to bottom — order reproduces the precedence of the old
+ * if/else-if chain (trait matches before XMLID matches). An entry without a
+ * `changes` recipe leaves the effect's changes untouched; an `unsupported`
+ * entry warns instead of building an effect.
+ */
+const MANEUVER_EFFECT_SPECS = [
+    {
+        // Trait match rather than XMLID so custom/martial dodges qualify too
+        match: (item) => maneuverHasDodgeTrait(item),
+        statusKey: "dodgeEffect",
+        name: (item, _status, { dcvTrait }) =>
+            item.name ? `${item.name} (${item.system.XMLID} +${dcvTrait})` : `${item.system.XMLID} +${dcvTrait}`,
+        changes: traitChanges,
+    },
+    {
+        // Trait match rather than XMLID so custom/martial blocks qualify too
+        match: (item) => maneuverHasBlockTrait(item),
+        statusKey: "blockEffect",
+        name: nameWithXmlid,
+        changes: traitChanges,
+    },
+    {
+        // NOTE: This effect is special and doesn't come off as the start of the next phase
+        match: (item) => item.system.XMLID === "BRACE",
+        statusKey: "braceEffect",
+        name: nameWithXmlid,
+        changes: statusChanges,
+    },
+    {
+        match: (item) => item.system.XMLID === "HAYMAKER",
+        statusKey: "haymakerEffect",
+        name: statusName,
+        changes: statusChanges,
+    },
+    {
+        match: (item) => item.system.XMLID === "CLUBWEAPON",
+        statusKey: "clubWeaponEffect",
+        name: statusName,
+    },
+    {
+        match: (item) => UNSUPPORTED_MANEUVER_EFFECT_XMLIDS.includes(item.system.XMLID),
+        unsupported: true,
+    },
+    {
+        // PH: FIXME: Assume this is a martial maneuver and give it a default effect
+        match: () => true,
+        statusKey: "strikeEffect",
+        name: nameWithXmlid,
+        changes: traitChanges,
+    },
+];
+
+/**
+ * Apply a spec's fields, plus the fields every maneuver effect shares, onto
+ * the (possibly reused) active effect.
+ */
+function buildManeuverActiveEffect(activeEffect, item, spec, traits) {
+    const status = HeroSystem6eActorActiveEffects.statusEffectsObj[spec.statusKey];
+    activeEffect.name = spec.name(item, status, traits);
+    activeEffect.img = status.img;
+    activeEffect.flags = buildManeuverNextPhaseFlags(item);
+    if (spec.changes) {
+        activeEffect = foundry.utils.mergeObject(activeEffect, {
+            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: spec.changes(item, status, traits),
+        });
+    }
+    activeEffect.duration ??= {};
+    activeEffect.duration.startTime = game.time.worldTime;
+    // The status ID, not the localized name — the condition system only recognizes registered ids
+    activeEffect.statuses = [status.id];
+    activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
+    return activeEffect;
+}
+
 /**
  * Activate a combat or martial maneuver
  */
@@ -286,6 +431,12 @@ export async function activateManeuver(item) {
     if (!effect) {
         return;
     }
+
+    // Every activation path funnels through here (toggle, sheet roll, attack
+    // flow), so this is the one reliable spot to offer the out-of-turn Abort.
+    // Deliberately not awaited: cards and effect creation must not block on
+    // the confirmation dialog.
+    promptOutOfTurnAbortForManeuver(item);
 
     // FIXME: These are supposed to be for HTH or ranged combat only except for dodge.
     const dcvTrait = parseInt(item.system.DCV === "--" ? 0 : item.system.DCV || 0);
@@ -306,10 +457,6 @@ export async function activateManeuver(item) {
         ocvTrait = 0;
     }
 
-    // Types of effects for this maneuver?
-    const hasDodgeTrait = maneuverHasDodgeTrait(item);
-    const hasBlockTrait = maneuverHasBlockTrait(item);
-
     // Make sure we have original Item
     const originalItem = item.id ? item : fromUuidSync(item.system._active.__originalUuid);
 
@@ -317,95 +464,12 @@ export async function activateManeuver(item) {
         flags: [],
     };
 
-    // Dodge effect
-    if (hasDodgeTrait) {
-        activeEffect.name = item.name
-            ? `${item.name} (${item.system.XMLID} +${dcvTrait})`
-            : `${item.system.XMLID} +${dcvTrait}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.dodgeEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    }
-
-    // Block effect
-    else if (hasBlockTrait) {
-        activeEffect.name = item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.blockEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.blockEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    }
-
-    // Other maneuvers with effects
     // Turn on any status effects that we have implemented
-    else if (item.system.XMLID === "BRACE") {
-        // NOTE: This effect is special and doesn't come off as the start of the next phase
-        activeEffect.name = item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = foundry.utils.deepClone(HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect.changes);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.braceEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    } else if (item.system.XMLID === "HAYMAKER") {
-        activeEffect.name = HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.name;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = foundry.utils.deepClone(HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.changes);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    } else if (item.system.XMLID === "CLUBWEAPON") {
-        activeEffect.name = HeroSystem6eActorActiveEffects.statusEffectsObj.clubWeaponEffect.name;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.clubWeaponEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.clubWeaponEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
-    } else if (
-        item.system.XMLID === "COVER" ||
-        item.system.XMLID === "HIPSHOT" ||
-        item.system.XMLID === "HURRY" ||
-        item.system.XMLID === "SET" ||
-        item.system.XMLID === "SETANDBRACE" ||
-        item.system.XMLID === "PULLINGAPUNCH"
-    ) {
+    const spec = MANEUVER_EFFECT_SPECS.find((s) => s.match(item));
+    if (spec.unsupported) {
         console.error(`Unsupported maneuver ${item.detailedName()}`);
     } else {
-        // PH: FIXME: Assume this is a martial maneuver and give it a default effect
-        activeEffect.name = item.name ? `${item.name} (${item.system.XMLID})` : `${item.system.XMLID}`;
-        activeEffect.img = HeroSystem6eActorActiveEffects.statusEffectsObj.strikeEffect.img;
-        activeEffect.flags = buildManeuverNextPhaseFlags(item);
-        const changes = [addDcvTraitToChanges(dcvTrait), addOcvTraitToChanges(ocvTrait)].filter(Boolean);
-        activeEffect = foundry.utils.mergeObject(activeEffect, {
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]: changes,
-        });
-        activeEffect.duration ??= {};
-        activeEffect.duration.startTime = game.time.worldTime;
-        activeEffect.statuses = [HeroSystem6eActorActiveEffects.statusEffectsObj.strikeEffect.name];
-        activeEffect.duration.expiry = "combatEnd"; // V14 kluge until we implement phaseStart.  Combat:_onStartTurn should expire this.
+        activeEffect = buildManeuverActiveEffect(activeEffect, item, spec, { dcvTrait, ocvTrait });
     }
 
     // Handy reference to current V13/V14 AE changes

@@ -2017,6 +2017,7 @@ export class HeroSystemActorSheetV2 extends HandlebarsApplicationMixin(ActorShee
         // Then we want to force more individual control rather than allow toggleStatusEffect
         const allApplicableEffects = Array.from(this.actor.allApplicableEffects());
         for (const effect of allApplicableEffects) {
+            if (!effect.active) continue;
             for (const id of effect.statuses) {
                 if (!(id in statusInfo)) continue;
                 statusInfo[id].active = "active";

@@ -296,8 +296,7 @@ export async function expireEffects(actor, expiresOn) {
         }
 
         if (expiresOn.includes("segment") && aeExpiresOn?.includes("turn") && actor.inCombat) {
-            await flushPendingWork();
-            return;
+            continue;
         }
 
         const zero = aeExpiresOn === "segmentEnd" ? -1 : 0;
@@ -601,6 +600,18 @@ export function getTokenUuid(token) {
 }
 
 /**
+ * Forced-deletion update payload for the given keys: each key maps to a
+ * ForcedDeletion operator so a document update removes it outright instead
+ * of merging.
+ *
+ * @param {string[]} keys - Field names (unprefixed) to delete
+ * @returns {Record<string, object>}
+ */
+export function forceDeleteKeys(keys) {
+    return Object.fromEntries(keys.map((key) => [key, foundry.data.operators.ForcedDeletion.create()]));
+}
+
+/**
  * Given information, find the best guess for the token in the scene which we should use.
  *
  * NOTE: Typically we want the token that is making an attack or receiving the attack so that we can
@@ -679,6 +690,18 @@ export function gmActive() {
     return !!game.users.filter((u) => u.active && u.isGM).length;
 }
 
+/**
+ * Whether a Quench test run is in progress. Quench keeps its active mocha
+ * runner on the global instance for the duration of a run (cleared when it
+ * ends); optional chaining makes this safely false without the module or if a
+ * future Quench renames the field. Use it to suppress interactive prompts that
+ * would stall unattended test loops.
+ * @returns {boolean}
+ */
+export function isQuenchTestRunning() {
+    return !!globalThis.quench?._currentRunner;
+}
+
 // btoa only accepts latin1, so route UTF-8 text through its percent-encoded byte string first.
 export function utf8ToBase64(str) {
     return btoa(unescape(encodeURIComponent(str)));
@@ -743,4 +766,21 @@ export function hdcTextNumberToNumeric(textNumber) {
             console.error(`hdcTextNumberToNumeric: ${textNumber} is unhandled`);
             return 0;
     }
+}
+
+/**
+ * The started single-tracker combat this actor fights in, with its combatant.
+ * Capability-probed on one sentinel method to avoid importing combat-single
+ * (util is loaded before the combat classes register).
+ * @param {Actor} actor
+ * @returns {{combat: Combat, combatant: Combatant}|null}
+ */
+export function activeSingleTrackerCombatFor(actor) {
+    if (!actor) return null;
+    for (const combat of game.combats ?? []) {
+        if (!combat.started || typeof combat.scheduleDelayedAction !== "function") continue;
+        const combatant = combat.combatantForActor?.(actor);
+        if (combatant) return { combat, combatant };
+    }
+    return null;
 }

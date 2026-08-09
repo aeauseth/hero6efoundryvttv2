@@ -410,3 +410,17 @@ html,
         }
     }
 }
+
+/* Consumed delayed-attack landing cards (Haymaker / Extra Time): the buttons
+   stay in place with greyed text instead of the heavy disabled treatment;
+   clicking still explains that the attack already resolved */
+button.hero-delayed-spent {
+    color: var(--color-text-subtle, #7a7971);
+    opacity: 0.65;
+    cursor: default;
+
+    &:hover,
+    &:focus {
+        box-shadow: none;
+    }
+}

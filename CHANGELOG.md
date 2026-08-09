@@ -1,8 +1,12 @@
 # Releases
 
-### Version 4.3.0 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
+### Version 5.0.0 So Far... [Hero System 6e (Unofficial) v2](https://github.com/dmdorman/hero6e-foundryvtt)
 
 - This (and future) releases no longer support FoundryVTT V13. This release only works with FoundryVTT V14.
+- Sectional defenses are now only supported if the hit locations setting is "Hit Locations with Sectional Defense".
+- Fixed attacks with strength minima that are specifically defined rather than just using the default range. [#4647](https://github.com/dmdorman/hero6e-foundryvtt/issues/4647)
+- AOE region templates are placed on the attacking token's scene level. [#4637](https://github.com/dmdorman/hero6e-foundryvtt/issues/4637)
+- 5e and 6e compendia now have disadvantages/complications and a separate folder for skill and perk enhancers. [#4112](https://github.com/dmdorman/hero6e-foundryvtt/issues/4112) [#4114](https://github.com/dmdorman/hero6e-foundryvtt/issues/4114)
 
 ### Version 4.3.17 20260725
 

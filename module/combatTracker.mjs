@@ -4,10 +4,7 @@ import { HeroSystem6eActorActiveEffects } from "./actor/actor-active-effects.mjs
 
 export class HeroSystem6eCombatTracker extends foundry.applications.sidebar.tabs.CombatTracker {
     static get singleCombatantTracker() {
-        return (
-            game.settings.get(game.system.id, "alphaTesting") &&
-            game.settings.get(game.system.id, "singleCombatantTracker")
-        );
+        return HEROSYS.isSingleCombatantTrackerEnabled;
     }
 
     static initializeTemplate() {

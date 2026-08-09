@@ -17,6 +17,17 @@ export class HeroSystem6eActorActiveEffectsSystemData extends _ActiveEffectTypeD
             sourceType: new fields.StringField(),
         };
     }
+
+    // V14 core suppresses an AE once its duration lapses (ActiveEffect#isSuppressed falls back to
+    // duration.expired, persisted by the ActiveEffectRegistry). The system expires effects itself
+    // (expireEffects), and adjustments fade on the actor's Phase — later than core's world-time
+    // lapse. In that gap a suppressed drain stops contributing to max while the drained value
+    // remains, e.g. BODY 7/7 briefly shows 7/10 [SUPPRESSED] (#4524). Core prefers this getter
+    // over duration.expired, so opt out of suppression entirely (matching V13 behavior).
+    // TODO: When we refactor active effects for V14 properly, evaluate this.
+    get isSuppressed() {
+        return false;
+    }
 }
 
 export class HeroSystem6eActorActiveEffects extends ActiveEffect {
@@ -481,6 +492,18 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
                 img: `systems/${module}/icons/senses/touchSenseDisabled.svg`,
                 showIcon: 2, // always
             },
+            // Weight-derived condition (#2319): the AE carrying the actual DCV/
+            // movement penalties is managed by the encumbrance recalc; registering
+            // the status surfaces it on the token HUD and tracker rows. The
+            // equipment weight percentage setting at 0 disables the penalties.
+            encumberedEffect: {
+                id: "encumbered",
+                name: "Encumbered",
+                img: `systems/${module}/icons/encumbered.svg`,
+                // Weight-derived: the encumbrance recalc owns it, so keep the HUD
+                // from offering a manual toggle that would orphan or strip penalties
+                hud: false,
+            },
         });
 
         // Return an array of status effects sorted by property in alphabetical order
@@ -532,6 +555,18 @@ export class HeroSystem6eActorActiveEffects extends ActiveEffect {
         // delete, so this clamp is a no-op there. Only the initiating client writes.
         if (userId === game.user.id) {
             this._clampCharacteristicValuesAfterAdjustmentRemoval();
+
+            // A maneuver phase effect removed outside its item's toggle (effects
+            // panel, scripts) must not leave the item flagged active
+            const flags = this.flags?.[game.system.id];
+            if (flags?.type === "maneuverNextPhaseEffect" && flags.toggle) {
+                const item = this.parent;
+                if (item?.documentName === "Item" && item.system?.active) {
+                    item.update({ "system.active": false }).catch((e) =>
+                        console.error(`Maneuver active-state sync failed`, e),
+                    );
+                }
+            }
         }
     }
 

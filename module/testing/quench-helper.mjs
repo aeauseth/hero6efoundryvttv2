@@ -91,6 +91,24 @@ export function registerGlobalSetup(quench) {
             const { describe, it } = context;
 
             describe("Global Module Setup", function () {
+                // Combats FIRST: once the actor sweep runs, leaked combats lose the
+                // _Quench actor names this filter needs
+                it("Delete '_Quench' combats", async () => {
+                    // Test combats are created with the _Quench name prefix. The
+                    // fallback sweeps unnamed leaks, but only when at least one
+                    // combatant provably belongs to a _Quench actor — a real saved
+                    // encounter whose actors were deleted must survive this
+                    const ids = game.combats
+                        .filter(
+                            (c) =>
+                                c.name?.startsWith("_Quench") ||
+                                (c.combatants.some((ct) => ct.actor?.name?.startsWith("_Quench")) &&
+                                    c.combatants.every((ct) => !ct.actor || ct.actor.name.startsWith("_Quench"))),
+                        )
+                        .map((c) => c.id);
+                    if (ids.length > 0) await Combat.deleteDocuments(ids);
+                });
+
                 it("Delete '_Quench' actors", async () => {
                     await Actor.deleteDocuments(
                         game.actors.filter((a) => a.name.startsWith("_Quench")).map((o) => o.id),
@@ -112,6 +130,24 @@ export function registerGlobalTeardown(quench) {
             const { describe, it } = context;
 
             describe("Global Teardown", function () {
+                // Combats FIRST: once the actor sweep runs, leaked combats lose the
+                // _Quench actor names this filter needs
+                it("Delete '_Quench' combats", async () => {
+                    // Test combats are created with the _Quench name prefix. The
+                    // fallback sweeps unnamed leaks, but only when at least one
+                    // combatant provably belongs to a _Quench actor — a real saved
+                    // encounter whose actors were deleted must survive this
+                    const ids = game.combats
+                        .filter(
+                            (c) =>
+                                c.name?.startsWith("_Quench") ||
+                                (c.combatants.some((ct) => ct.actor?.name?.startsWith("_Quench")) &&
+                                    c.combatants.every((ct) => !ct.actor || ct.actor.name.startsWith("_Quench"))),
+                        )
+                        .map((c) => c.id);
+                    if (ids.length > 0) await Combat.deleteDocuments(ids);
+                });
+
                 it("Delete '_Quench' actors", async () => {
                     // The end-to-end tests create tokens, make sure they get deleted
                     const activeScene = game.scenes.active ?? game.scenes.contents?.[0];
@@ -158,6 +194,24 @@ export async function waitForTokenDrawn(tokenDoc, timeoutMs = 5000) {
         await new Promise((resolve) => setTimeout(resolve, 20));
     }
     return tokenDoc.object ?? canvas.tokens?.get(tokenDoc.id) ?? null;
+}
+
+/**
+ * Poll until a condition becomes true. Some combat side effects (held-action
+ * consumption, boundary maintenance) run async after the update commits.
+ *
+ * @param {() => boolean} condition
+ * @param {number} timeoutMs
+ * @param {number} intervalMs
+ * @returns {Promise<boolean>} The condition's final value.
+ */
+export async function waitUntil(condition, timeoutMs = 3000, intervalMs = 50) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        if (condition()) return true;
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    return condition();
 }
 
 export async function waitForNotificationQueueToClear(timeout = 5000) {

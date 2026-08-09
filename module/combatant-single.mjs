@@ -1,7 +1,24 @@
 export class HeroSystem6eCombatantSingle extends Combatant {
     /**
-     * Speed Chart (6E1 17; 5ER 20). SPD 0 or below has no Phases
-     * (Post-Segment 12 Recovery only).
+     * GM-hidden and invisible tokens enter combat hidden from the player-facing
+     * tracker (#4466). An explicit hidden value in the creation data wins — the
+     * GM can still add them visibly on purpose.
+     * @override
+     */
+    async _preCreate(data, options, user) {
+        const allowed = await super._preCreate(data, options, user);
+        if (allowed === false) return false;
+        if (data.hidden === undefined) {
+            const token = this.token ?? this.parent?.scene?.tokens?.get(data.tokenId);
+            if (token?.hidden || this.actor?.statuses?.has("invisible")) {
+                this.updateSource({ hidden: true });
+            }
+        }
+        return allowed;
+    }
+
+    /**
+     * Speed Chart. SPD 0 or below has no Phases (Post-Segment 12 Recovery only).
      * @type {Record<number, number[]>}
      */
     static speedChart = {
@@ -48,6 +65,42 @@ export class HeroSystem6eCombatantSingle extends Combatant {
     }
 
     /**
+     * The first absolute segment at or after fromAbs whose segment is a Phase for
+     * BOTH speeds — the 5e optional SPD-change rule: after changing SPD, a character
+     * cannot act until the next Segment that is a Phase for both SPDs
+     * (SPD 1 shares no segment with other SPDs; see the fallback below).
+     * @param {number} spdA
+     * @param {number} spdB
+     * @param {number} fromAbs
+     * @returns {number}
+     */
+    static nextSharedPhaseAbs(spdA, spdB, fromAbs) {
+        const systemSpeedChart = CONFIG.HERO?.speedChart || HeroSystem6eCombatantSingle.speedChart;
+        const phasesA = systemSpeedChart[Math.min(12, Math.max(1, spdA))] || [];
+        const phasesB = systemSpeedChart[Math.min(12, Math.max(1, spdB))] || [];
+        for (let abs = fromAbs; abs < fromAbs + 12; abs++) {
+            const segment = ((abs - 1) % 12) + 1;
+            if (phasesA.includes(segment) && phasesB.includes(segment)) return abs;
+        }
+        // No shared segment exists (SPD 1's only Phase is Segment 7). Fall back to
+        // the later of the two SPDs' next Phases — returning fromAbs would dissolve
+        // the lockout entirely.
+        return Math.max(
+            HeroSystem6eCombatantSingle.nextPhaseAbs(spdA, fromAbs),
+            HeroSystem6eCombatantSingle.nextPhaseAbs(spdB, fromAbs),
+        );
+    }
+
+    /**
+     * Human-readable combat position for chat cards.
+     * @param {number} abs
+     * @returns {string} e.g. "Segment 4 of Turn 2"
+     */
+    static phaseLabel(abs) {
+        return `Segment ${HeroSystem6eCombatantSingle.segmentOf(abs)} of Turn ${HeroSystem6eCombatantSingle.roundOf(abs)}`;
+    }
+
+    /**
      * The first absolute segment at or after fromAbs in which the given SPD has a Phase.
      * @param {number} spd
      * @param {number} fromAbs
@@ -63,14 +116,47 @@ export class HeroSystem6eCombatantSingle extends Combatant {
     }
 
     /**
-     * Details of this combatant's Held Action (6E2 20-21; 5ER 360-361), or null when
-     * not holding. Declared via the tracker's Hold Action dialog, which stores the
+     * Holding/aborted effects live on the actor, which linked tokens share; records
+     * without a combatant binding are only trustworthy when this actor fields a
+     * single combatant in this combat.
+     * @returns {boolean}
+     */
+    get isSoleCombatantForActor() {
+        // Unlinked tokens carry their own synthetic actor: effects on it can only
+        // belong to this combatant, however many siblings share the base actorId
+        if (this.actor?.isToken) return true;
+        const siblings = this.combat?.combatants.filter((c) => c.actorId === this.actorId) ?? [];
+        return siblings.length <= 1;
+    }
+
+    /**
+     * The ActiveEffect carrying THIS combatant's Held Action, or null. Declarations
+     * record the declaring combatant's id on the hold flag; effects without one
+     * (legacy declarations, bare token-HUD toggles) count only when unambiguous.
+     * @type {ActiveEffect|null}
+     */
+    get heldActionEffect() {
+        if (!game.system?.id) return null;
+        let unbound = null;
+        for (const effect of this.actor?.effects ?? []) {
+            if (!effect.statuses.has("holding")) continue;
+            const hold = effect.getFlag(game.system.id, "hold");
+            if (hold?.combatantId === this.id) return effect;
+            if (!hold?.combatantId) unbound ??= effect;
+        }
+        return unbound && this.isSoleCombatantForActor ? unbound : null;
+    }
+
+    /**
+     * Details of this combatant's Held Action, or null when not holding.
+     * Declared via the tracker's Hold Action dialog, which stores the
      * declaration on the holding effect; a bare holding status (e.g. token HUD toggle)
      * counts as a generic hold.
-     * @type {{mode: "position"|"event"|"generic", segmentAbs?: number, dex?: number, trigger?: string}|null}
+     * @type {{mode: "position"|"event"|"generic", segmentAbs?: number, dex?: number, trigger?: string,
+     *         fraction?: number, declaredAbs?: number, id?: string, combatantId?: string}|null}
      */
     get heldAction() {
-        const effect = this.actor?.effects.find((e) => e.statuses.has("holding"));
+        const effect = this.heldActionEffect;
         if (!effect) return null;
         return effect.getFlag(game.system.id, "hold") ?? { mode: "generic" };
     }
@@ -87,7 +173,7 @@ export class HeroSystem6eCombatantSingle extends Combatant {
 
     /**
      * Segment-number variant for turn-flow checks. Unambiguous despite the modulo because
-     * the hold window is always shorter than a full Turn (null zone, 6E2 21).
+     * the hold window is always shorter than a full Turn (null zone).
      * @param {number} segmentNumber - 1-12
      * @returns {boolean}
      */
@@ -125,7 +211,7 @@ export class HeroSystem6eCombatantSingle extends Combatant {
     }
 
     /**
-     * Lightning Reflexes raises effective DEX for acting order only (6E1 116; 5ER 96).
+     * Lightning Reflexes raises effective DEX for acting order only.
      * HD encodes every 6e scope under LIGHTNING_REFLEXES_ALL, distinguished by
      * OPTIONID; 5e single-action LR is its own XMLID. Only the unrestricted All
      * Actions scope applies automatically — scoped purchases restrict the character
@@ -170,14 +256,50 @@ export class HeroSystem6eCombatantSingle extends Combatant {
     }
 
     /**
+     * The absolute segment this combatant's positional held slot was taken in,
+     * or null. Written when the pointer lands on the declared slot; a taken slot
+     * never comes up again in that segment.
+     * @type {number|null}
+     */
+    get heldSlotTakenAbs() {
+        if (!game.system?.id) return null;
+        return this.getFlag(game.system.id, "heldSlotTakenAbs") ?? null;
+    }
+
+    /**
+     * @param {number} abs
+     * @returns {boolean}
+     */
+    heldSlotTakenAt(abs) {
+        return this.heldSlotTakenAbs === abs;
+    }
+
+    /**
+     * The ActiveEffect carrying THIS combatant's abort, or null. Same binding rules
+     * as {@link heldActionEffect}: unbound records only count when this actor fields
+     * a single combatant in this combat.
+     * @type {ActiveEffect|null}
+     */
+    get abortEffect() {
+        if (!game.system?.id) return null;
+        let unbound = null;
+        for (const effect of this.actor?.effects ?? []) {
+            if (!effect.statuses.has("aborted")) continue;
+            const abort = effect.getFlag(game.system.id, "abort");
+            if (abort?.combatantId === this.id) return effect;
+            if (!abort?.combatantId) unbound ??= effect;
+        }
+        return unbound && this.isSoleCombatantForActor ? unbound : null;
+    }
+
+    /**
      * The absolute segment of the Phase this combatant's abort consumes, recorded at
-     * declaration (6E2 22: aborting uses the NEXT full Phase). Null for aborts applied
+     * declaration (aborting uses the NEXT full Phase). Null for aborts applied
      * without the tracker (bare status toggles), which fall back to segment matching.
      * @type {number|null}
      */
     get abortSpentAbs() {
-        const effect = this.actor?.effects.find((e) => e.statuses.has("aborted"));
-        return effect?.getFlag(game.system.id, "abort")?.spentAbs ?? null;
+        return this.abortEffect?.getFlag(game.system.id, "abort")?.spentAbs ?? null;
     }
 
     /**
@@ -190,8 +312,9 @@ export class HeroSystem6eCombatantSingle extends Combatant {
      * @returns {boolean}
      */
     abortAppliesAtAbs(abs) {
-        if (!this.actor?.statuses.has("aborted")) return false;
-        const spentAbs = this.abortSpentAbs;
+        const effect = this.abortEffect;
+        if (!effect) return false;
+        const spentAbs = effect.getFlag(game.system.id, "abort")?.spentAbs ?? null;
         return spentAbs === null || abs <= spentAbs;
     }
 
@@ -224,33 +347,38 @@ export class HeroSystem6eCombatantSingle extends Combatant {
     /**
      * Effective Speed for phase purposes: 0 when drained below 1, otherwise clamped
      * to the 1-12 speed chart range since characters cannot act more than once per segment.
-     * Traverses cross-generation document data layers to find the true Speed score.
      * @type {number}
      */
     get combatSpd() {
         if (!this.actor) return 0;
 
-        const rawSource =
-            this.actor._source?.system ||
-            this.actor.system?._source ||
-            this.actor.data?._source?.system ||
-            this.actor.data?.system ||
-            {};
-        const spdObj =
-            this.actor.system?.characteristics?.spd ||
-            this.actor.data?.system?.characteristics?.spd ||
-            rawSource.characteristics?.spd ||
-            rawSource.data?.characteristics?.spd;
+        // A voluntarily declared SPD change takes effect only at Post-Segment 12;
+        // until then the character keeps acting at the old SPD
+        if (game.system?.id && this.combat?.started) {
+            const pending = this.getFlag(game.system.id, "pendingSpd");
+            if (pending) {
+                const known = this.getFlag(game.system.id, "knownSpd");
+                const effective = typeof known === "object" && known !== null ? known.effective : known;
+                if (Number.isFinite(effective)) {
+                    if (effective <= 0) return 0;
+                    return Math.min(12, effective);
+                }
+            }
+        }
 
-        const rawSpd = spdObj?.value ?? spdObj?.total ?? spdObj?.base ?? spdObj?.current ?? 2;
+        // Prepared system data carries active-effect adjustments (Aid/Drain);
+        // the raw _source only covers documents read before preparation
+        const rawSource = this.actor._source?.system || this.actor.system?._source || {};
+        const spdObj = this.actor.system?.characteristics?.spd || rawSource.characteristics?.spd;
+
+        const rawSpd = spdObj?.value ?? 2;
 
         if (rawSpd <= 0) return 0;
         return Math.min(12, rawSpd);
     }
 
     /**
-     * Evaluates if this participant possesses an active action phase
-     * in the specified speed chart calendar segment index.
+     * Whether this combatant has a Phase in the given Speed Chart segment.
      * @param {number} segmentIndex - Speed Chart segment column to examine (1-12)
      * @param {number} [queryAbs] - Exact absolute segment being probed; segment numbers
      *   alias across Turns, so scans reaching into the next round pass the position.
@@ -266,8 +394,8 @@ export class HeroSystem6eCombatantSingle extends Combatant {
         if (!activePhases.includes(segmentIndex)) return false;
 
         // A character whose SPD changed mid-Turn cannot act until both the old and the
-        // new SPD would have had a Phase (6E2 17; 5ER 357). The lockout flag is written
-        // and cleared by the combat's segment-boundary maintenance.
+        // new SPD would have had a Phase. The lockout flag is written and cleared by
+        // the combat's segment-boundary maintenance.
         const lockout = game.system?.id ? this.getFlag(game.system.id, "spdLockout") : null;
         const combat = this.combat;
         if (lockout?.lockoutEndAbs && combat?.started) {

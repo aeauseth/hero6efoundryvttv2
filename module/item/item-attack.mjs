@@ -1,4 +1,4 @@
-import { activateManeuver, doManeuverEffects, maneuverHasBlockTrait } from "./maneuver.mjs";
+import { activateManeuver, doManeuverEffects, endHaymakerManeuver, maneuverHasBlockTrait } from "./maneuver.mjs";
 
 import { HEROSYS } from "../herosystem6e.mjs";
 
@@ -40,7 +40,13 @@ import {
     getRoundedDownDistanceInSystemUnits,
     getSystemDisplayUnits,
 } from "../utility/units.mjs";
-import { getPowerInfo, getTokenUuid, tokenEducatedGuess, whisperUserTargetsForActor } from "../utility/util.mjs";
+import {
+    activeSingleTrackerCombatFor,
+    getPowerInfo,
+    getTokenUuid,
+    tokenEducatedGuess,
+    whisperUserTargetsForActor,
+} from "../utility/util.mjs";
 import { userInteractiveVerifyOptionallyPromptThenSpendResources } from "./item-resources.mjs";
 
 const { renderTemplate } = foundry.applications.handlebars;
@@ -197,6 +203,11 @@ export function rehydrateAttackItem(itemJsonStr, actor) {
     const item = HeroSystem6eItem.fromSource(obj.item, {
         parent: actor,
     });
+
+    // fromSource can come up without the transient _active state; restore the
+    // dehydrated copy (it carries __originalUuid/effectiveStr) so the effective-
+    // item getters and resource math see the declared state
+    item.system._active ??= obj.item.system?._active ?? {};
 
     // If there is a base attack item, then we need to rehydrate it.
     if (obj.__baseAttackItem) {
@@ -365,6 +376,157 @@ export async function getTargetArray(formData) {
     return targetArray;
 }
 
+/**
+ * Whether the actor has a Haymaker resolution pending in a single-tracker combat —
+ * its -5 DCV effect must persist until the landing segment ends.
+ * @param {Actor} actor
+ * @returns {boolean}
+ */
+function findScheduledHaymaker(actor) {
+    const active = activeSingleTrackerCombatFor(actor);
+    if (!active) return null;
+    return active.combat.hasDelayedAction(active.combatant, "haymaker") ? active : null;
+}
+
+function hasScheduledHaymaker(actor) {
+    return findScheduledHaymaker(actor) !== null;
+}
+
+/**
+ * The declaration payload a delayed attack's resolution card replays from.
+ * Only plain values survive the flag round-trip — the replay recomputes the
+ * rest. The attack item is often a TEMPORARY effective clone whose uuid
+ * resolves to nothing later; dehydrate it (the regions' pattern) so the replay
+ * can always rebuild it, and keep the original DB item's uuid as a fallback.
+ * @param {Item} item
+ * @param {object} formData - The attack dialog's inputs
+ * @param {object} options
+ * @param {boolean} options.prepaid - Whether resources and rolls were spent at declaration
+ * @returns {object}
+ */
+function buildDelayedActionData(item, formData, { prepaid }) {
+    const sanitizedFormData = {};
+    for (const [key, value] of Object.entries(formData ?? {})) {
+        if (value === null || ["string", "number", "boolean"].includes(typeof value)) {
+            sanitizedFormData[key] = value;
+        }
+    }
+    let itemJson = null;
+    try {
+        // dehydrateAttackItem already returns a JSON string
+        itemJson = dehydrateAttackItem(item);
+    } catch (e) {
+        console.error(`Unable to dehydrate ${item.name} for its delayed resolution`, e);
+    }
+    return {
+        formData: sanitizedFormData,
+        targetTokenIds: Array.from(game.user.targets).map((t) => t.id),
+        userId: game.user.id,
+        itemJson,
+        originalItemUuid: item.system?._active?.__originalUuid ?? null,
+        actorUuid: item.actor?.uuid ?? null,
+        prepaid,
+    };
+}
+
+/**
+ * Under the single tracker, a declared Haymaker doesn't launch until the very
+ * end of the NEXT Segment (6E2 68-69; 5ER 389): nothing is rolled now. The
+ * declaration is stored on the schedule and the landing card offers the actual
+ * attack roll — with the maneuver still active, so its +4 DC and -5 DCV apply.
+ * Unlike Extra Time, END is paid in the segment the attack LAUNCHES, so the
+ * replay spends resources normally.
+ * @param {Item} item
+ * @param {object} formData - The attack dialog's inputs
+ * @returns {Promise<boolean>} True when the attack was intercepted and scheduled
+ */
+async function scheduleHaymakerDeclaration(item, formData) {
+    const actor = item?.actor;
+    if (!actor) return false;
+    const active = activeSingleTrackerCombatFor(actor);
+    if (!active) return false;
+    const { combat } = active;
+
+    const currentAbs = combat.round * 12 + combat.segment;
+    await combat.scheduleDelayedAction(
+        actor,
+        {
+            kind: "haymaker",
+            label: "their Haymaker",
+            resolveAbs: currentAbs + 1,
+            priority: null,
+            commit: false,
+            actionData: buildDelayedActionData(item, formData, { prepaid: false }),
+        },
+        item,
+    );
+    return true;
+}
+
+/**
+ * Under the single tracker, an attack with the Extra Time Limitation begins
+ * activating now but is ROLLED when it goes off (6E1 377-378): resources and
+ * activation/RSR rolls are paid up front per RAW (lost on interruption), the
+ * dialog's inputs and targets are stored on the schedule, and the resolution
+ * card offers the actual attack roll.
+ * @param {Item} item
+ * @param {object} formData - The attack dialog's inputs
+ * @returns {Promise<boolean>} True when the attack was intercepted (scheduled
+ *   or consumed by a failed up-front activation)
+ */
+async function scheduleExtraTimeAttackDeclaration(item, formData) {
+    const actor = item?.actor;
+    if (!actor) return false;
+    const active = activeSingleTrackerCombatFor(actor);
+    if (!active) return false;
+    const { combat, combatant: schedulingCombatant } = active;
+    const plan = combat.extraTimePlan(actor, item) ?? combat.extraTimePlan(actor, item.effectiveAttackItem);
+    if (!plan) return false;
+
+    // Dedupe BEFORE paying: the item shows no active state while the schedule is
+    // pending, so a second click would otherwise double-spend and double-schedule
+    const itemUuid = item?.uuid ?? null;
+    const pending = [...(combat.delayedActionsFor?.(schedulingCombatant) ?? [])].some(
+        ([, record]) => record.label === plan.label || (itemUuid && record.itemUuid === itemUuid),
+    );
+    if (pending) {
+        ui.notifications.warn(`${item.name} is already being activated.`);
+        return true;
+    }
+
+    // RAW: END is committed when the activation begins and stays spent if it is
+    // interrupted; activation/RSR rolls happen now too. The dialog's formData
+    // carries effective STR / boostable charges — without it the spend undercharges
+    const { error, warning } = await userInteractiveVerifyOptionallyPromptThenSpendResources(item, formData ?? {});
+    if (error) {
+        ui.notifications.error(`${item.name} ${error}`);
+        return true;
+    }
+    if (warning) {
+        ui.notifications.warn(`${item.name} ${warning}`);
+        return true;
+    }
+    // The replay skips ALL RSR on prepaid, so both rolls happen here (the roll
+    // site checks base and effective items separately — mirror that)
+    if (!(await isActivatedForThisUse(item, {}))) return true; // attempt failed; resources stay spent
+    const sameEffective =
+        item.system._active?.__originalUuid === item.effectiveAttackItem?.system?._active?.__originalUuid;
+    if (!sameEffective && item.effectiveAttackItem && !(await isActivatedForThisUse(item.effectiveAttackItem, {}))) {
+        return true; // attempt failed; resources stay spent
+    }
+
+    await combat.scheduleDelayedAction(
+        actor,
+        {
+            ...plan,
+            kind: "attack",
+            actionData: buildDelayedActionData(item, formData, { prepaid: true }),
+        },
+        item,
+    );
+    return true;
+}
+
 export async function processActionToHit(item, formData, options = {}) {
     const targetArray = await getTargetArray(formData);
     const action = Attack.buildActionInfo(item, targetArray, { ...formData, ...options });
@@ -386,6 +548,35 @@ export async function processActionToHit(item, formData, options = {}) {
 
     // PH: FIXME: Need to not pass in formData and move the interesting stuff into action
 
+    // A Haymaker launches at the very end of the NEXT Segment (6E2 68-69):
+    // nothing is rolled now — the landing card offers the attack roll while the
+    // maneuver (and its +4 DC / -5 DCV) stays active
+    if (!formData?.delayedResolution && !options?.delayedResolution) {
+        if (haymakerManeuverActive) {
+            const scheduled = findScheduledHaymaker(item.actor);
+            if (scheduled) {
+                // A Haymaker is already winding up: performing any other attack
+                // ruins it (6E2 69) — cancel the schedule (its teardown ends the
+                // maneuver) and roll this attack normally
+                await scheduled.combat.cancelHaymaker(scheduled.combatant.id);
+            } else {
+                try {
+                    if (await scheduleHaymakerDeclaration(item, formData)) return;
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        // Extra Time attacks (6E1 377-378): the activation begins now — resources
+        // and activation rolls are paid up front — but the attack itself is rolled
+        // when the power goes off
+        try {
+            if (await scheduleExtraTimeAttackDeclaration(item, formData)) return;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     // Manual targeting resolves an AoE per-target via the single-target path, not the origin roll.
     if (item.effectiveAttackItem.getAoeModifier() && !formData.aoeManualTargeting) {
         await doAoeActionToHit(action, formData, options);
@@ -393,10 +584,13 @@ export async function processActionToHit(item, formData, options = {}) {
         await doSingleTargetActionToHit(action, formData, options);
     }
 
-    // turn off haymaker
-    await item?.actor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.id, {
-        active: false,
-    });
+    // turn off haymaker — the wind-up is over once the attack has rolled. A still-
+    // SCHEDULED landing keeps its maneuver active (this path is the mid-wait case
+    // of some other attack being fired, or the landing replay after its record
+    // was consumed).
+    if (!hasScheduledHaymaker(item?.actor)) {
+        await endHaymakerManeuver(item?.actor);
+    }
 }
 
 /**
@@ -563,7 +757,11 @@ export async function addAttackCslsIntoToHitRoll(action, attackHeroRoller, _item
 async function addAttackHitLocationsIntoToHitRoll(item, attackHeroRoller, options) {
     let remainingAimOcvPenalty = 0;
 
-    if (game.settings.get(HEROSYS.module, "hit locations") && options.aim && options.aim !== "none") {
+    if (
+        game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations" &&
+        options.aim &&
+        options.aim !== "none"
+    ) {
         const aimTargetLocation =
             game.settings.get(HEROSYS.module, "hitLocTracking") === "all" && options.aimSide !== "none"
                 ? `${options.aimSide} ${options.aim}`
@@ -890,7 +1088,9 @@ async function doSingleTargetActionToHit(action, options) {
         resourcesUsedDescriptionRenderedRoll,
     } = await userInteractiveVerifyOptionallyPromptThenSpendResources(item, {
         ...options,
-        ...{ noResourceUse: overrideCanAct },
+        // A delayed Extra Time resolution paid its resources at declaration
+        // (prepaid); a delayed Haymaker pays HERE — in the segment it launches
+        ...{ noResourceUse: overrideCanAct || !!options.prepaid },
     });
     if (resourceError) {
         return ui.notifications.error(`${item.name} ${resourceError}`);
@@ -898,10 +1098,13 @@ async function doSingleTargetActionToHit(action, options) {
         return ui.notifications.warn(`${item.name} ${resourceWarning}`);
     }
 
-    // Does base item Requires A Rolls
-    const attackItemRSR = await isActivatedForThisUse(item, {
-        resourcesUsedDescription: `${resourcesUsedDescription}${resourcesUsedDescriptionRenderedRoll}`,
-    });
+    // Does base item Requires A Rolls — a delayed Extra Time resolution already
+    // rolled this when the activation began
+    const attackItemRSR =
+        options.prepaid ||
+        (await isActivatedForThisUse(item, {
+            resourcesUsedDescription: `${resourcesUsedDescription}${resourcesUsedDescriptionRenderedRoll}`,
+        }));
     if (!attackItemRSR) {
         return;
     }
@@ -911,9 +1114,10 @@ async function doSingleTargetActionToHit(action, options) {
         item.system._active?.__originalUuid === item.effectiveAttackItem.system._active?.__originalUuid;
     const effectiveAttackItemRSR =
         !attackItemAndEffectiveItemAreSame &&
-        (await isActivatedForThisUse(item.effectiveAttackItem, {
-            resourcesUsedDescription: `${resourcesUsedDescription}${resourcesUsedDescriptionRenderedRoll}`,
-        }));
+        (options.prepaid ||
+            (await isActivatedForThisUse(item.effectiveAttackItem, {
+                resourcesUsedDescription: `${resourcesUsedDescription}${resourcesUsedDescriptionRenderedRoll}`,
+            })));
     if (!attackItemAndEffectiveItemAreSame && !effectiveAttackItemRSR) {
         return;
     }
@@ -1485,7 +1689,7 @@ export function getAttackTags(item) {
                 break;
 
             case "STRMINIMUM": {
-                const strMinimum = parseInt(mod.OPTION_ALIAS.match(/\d+/)?.[0] || 0);
+                const strMinimum = calculateStrengthMinimumForItem(effectiveAttackItem, mod);
                 attackTags.push({
                     name: `${strMinimum} ${mod.ALIAS || mod.XMLID}`,
                     title: `${mod.XMLID}`,
@@ -2477,7 +2681,8 @@ export async function _onRollDamage(event) {
     });
 
     const includeHitLocation =
-        game.settings.get(HEROSYS.module, "hit locations") && !item.effectiveAttackItem.system.noHitLocations;
+        game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations" &&
+        !item.effectiveAttackItem.system.noHitLocations;
 
     const customStunMultiplierSetting = game.settings.get(
         game.system.id,
@@ -2599,10 +2804,10 @@ export async function _onRollDamage(event) {
 
     await ChatMessage.create(chatData);
 
-    // turn off haymaker
-    await actor.toggleStatusEffect(HeroSystem6eActorActiveEffects.statusEffectsObj.haymakerEffect.id, {
-        active: false,
-    });
+    // turn off haymaker — a scheduled delayed resolution keeps the -5 DCV until it lands
+    if (!hasScheduledHaymaker(actor)) {
+        await endHaymakerManeuver(actor);
+    }
 
     return;
 }
@@ -3124,10 +3329,9 @@ export async function _onApplyDamageToSpecificToken(item, _damageData, action, t
         return ui.notifications.error(`Attack details are no longer available.`);
     }
 
-    // Remove haymaker status
-    const haymakerAe = item.actor?.effects.find((effect) => effect.statuses.has("haymaker"));
-    if (haymakerAe) {
-        await item.actor.removeActiveEffect(haymakerAe);
+    // Remove haymaker status — a scheduled delayed resolution keeps it until it lands
+    if (!hasScheduledHaymaker(item.actor)) {
+        await endHaymakerManeuver(item.actor);
     }
 
     const damageRoller = HeroRoller.fromJSON(damageData.roller);
@@ -3167,15 +3371,24 @@ export async function _onApplyDamageToSpecificToken(item, _damageData, action, t
                 console.warn(`targetToken.object.center was unexpected`);
             }
 
+            // Region shape sizes are in pixels.
+            const shape = aoeTemplate.shapes?.[0];
+            const templateSizeInMeters =
+                ((shape?.radius ?? shape?.length ?? 0) / canvas.grid.size) * getGridSizeInMeters();
+
+            if (!templateSizeInMeters) {
+                console.warn(`Unable to determine AoE template size, applying full effect`, aoeTemplate);
+            }
+
             if (hexTemplates && hexGrid) {
                 const gridSizeInMeters = getGridSizeInMeters();
                 distance = calculateDistanceBetween(aoeTemplate, targetTokenCenter).gridSpaces * gridSizeInMeters;
 
-                // NOTE: The grid size is half a hex smaller since the centre hex counts as 1" so template is 1m smaller (see item-attack-application.mjs)
-                pct = distance / (aoeTemplate.distance + 1);
+                // NOTE: The template is half a hex (1m) smaller since the centre hex counts as 1" (see _spawnAreaOfEffect)
+                pct = templateSizeInMeters ? distance / (templateSizeInMeters + 1) : 0;
             } else {
                 distance = calculateDistanceBetween(aoeTemplate, targetTokenCenter).distance;
-                pct = distance / aoeTemplate.distance;
+                pct = templateSizeInMeters ? distance / templateSizeInMeters : 0;
             }
 
             // Remove highest N terms
@@ -3798,8 +4011,7 @@ export async function _onApplyEntangleToSpecificToken(item, token, originalRoll)
         prevEntangle.update({
             name: activeEffect.name,
             flags: activeEffect.flags,
-            [HeroCompatibility.isV14 ? `system.changes` : `changes`]:
-                activeEffect[HeroCompatibility.isV14 ? `system.changes` : `changes`],
+            "system.changes": activeEffect.system?.changes,
             origin: activeEffect.origin,
         });
     } else {
@@ -3861,7 +4073,7 @@ export async function _onApplyDamageToEntangle(attackItem, token, originalRoll, 
     // TODO: Add drian body support for entangles
     if (attackItem.isAdjustment) {
         ui.notifications.error(
-            `An entangle (${fromUuidSync(entangleAE.origin).name || entangleAE.name}) is not a supported target for an adjustment power (${attackItem.name}).`,
+            `An entangle (${fromUuidSync(entangleAE.origin)?.name || entangleAE.name}) is not a supported target for an adjustment power (${attackItem.name}).`,
         );
         return;
     }
@@ -3917,11 +4129,9 @@ export async function _onApplyDamageToEntangle(attackItem, token, originalRoll, 
             const newBody = body - bodyDamage;
             const name = `${entangleAE.flags[game.system.id]?.XMLID} ${newBody} BODY ${entangleAE.flags[game.system.id]?.entangleDefense.string}`;
             entangleAE.update({ name });
-            entangleAE[HeroCompatibility.isV14 ? `system.changes` : `changes`][bodyChangeIdx].value = newBody;
-            entangleAE.update({
-                [HeroCompatibility.isV14 ? `system.changes` : `changes`]:
-                    entangleAE[HeroCompatibility.isV14 ? `system.changes` : `changes`],
-            });
+            const entangleChanges = entangleAE.system.changes;
+            entangleChanges[bodyChangeIdx].value = newBody;
+            entangleAE.update({ "system.changes": entangleChanges });
             effectsFinal = `Entangle has ${newBody} BODY remaining.`;
         } else {
             await entangleAE.parent.removeActiveEffect(entangleAE);
@@ -4463,7 +4673,8 @@ async function _calcDamage(damageRoller, item, options) {
     }
 
     const noHitLocationsPower = !!item.effectiveAttackItem.system.noHitLocations;
-    const useHitLocations = game.settings.get(HEROSYS.module, "hit locations") && !noHitLocationsPower;
+    const useHitLocations =
+        game.settings.get(HEROSYS.module, "hit locations") !== "noHitLocations" && !noHitLocationsPower;
     const hasStunMultiplierRoll = isKillingAttack && !useHitLocations;
 
     const stunMultiplier = hasStunMultiplierRoll ? damageRoller.getStunMultiplier() : 1;

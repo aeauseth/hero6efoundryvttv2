@@ -1,6 +1,7 @@
-import { getPowerInfo } from "../utility/util.mjs";
+import { expireEffects, getPowerInfo } from "../utility/util.mjs";
 import { HeroSystem6eItem } from "../item/item.mjs";
 import { _onApplyAdjustmentToSpecificToken } from "../item/item-attack.mjs";
+import { performAdjustment } from "../utility/adjustment.mjs";
 
 const { Actor } = foundry.documents;
 
@@ -1035,6 +1036,240 @@ export function registerAdjustmentFadeTests(quench) {
                         Math.floor(actor.system.characteristics.spd.value),
                         2,
                         "Sec 14 Check: Expected 5e fractional pool floor to drop to 2 SPD.",
+                    );
+                });
+            });
+
+            // Issue #4524: a drained BODY showed 7/10 [SUPPRESSED] between the character's Phases.
+            // V14 core persisted duration.expired when the AE's duration lapsed, suppressing the
+            // drain (max snapped back, value stayed drained) before the system's fade ran.
+            describe("Drain fade over world time (#4524)", function () {
+                this.timeout(30000);
+
+                let drainActor = null;
+                let drainItem = null;
+                let baselineWorldTime = 0;
+
+                const findAdjustmentEffect = () =>
+                    drainActor.effects.find((e) => e.flags[game.system.id]?.type === "adjustment");
+
+                // The fade pipeline runs asynchronously off the world-time hook; poll until the
+                // expected state lands. Trailing asserts report the actual mismatch on timeout.
+                const settle = async (predicate) => {
+                    for (let i = 0; i < 40; i++) {
+                        drainActor.reset();
+                        if (predicate()) return;
+                        await new Promise((resolve) => setTimeout(resolve, 50));
+                    }
+                };
+
+                beforeEach(async () => {
+                    baselineWorldTime = game.time.worldTime;
+                    drainActor = await Actor.create({
+                        name: "Quench Test Drain Target",
+                        type: "pc",
+                        system: { is5e: true },
+                    });
+                    const drainXml = `
+                        <POWER XMLID="DRAIN" ID="17661${Math.floor(Math.random() * 100000000)}" BASECOST="0.0" LEVELS="1" ALIAS="Drain" POSITION="1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="Drain BODY" INPUT="BODY" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                        <NOTES />
+                        </POWER>
+                    `;
+                    drainItem = await HeroSystem6eItem.create(HeroSystem6eItem.itemDataFromXml(drainXml, drainActor), {
+                        parent: drainActor,
+                    });
+                });
+
+                afterEach(async () => {
+                    if (drainActor) {
+                        await drainActor.delete();
+                        drainActor = null;
+                    }
+                    drainItem = null;
+                    const timeDelta = baselineWorldTime - game.time.worldTime;
+                    if (timeDelta !== 0) {
+                        await game.time.advance(timeDelta);
+                    }
+                });
+
+                it("7 AP BODY drain fades back 5 AP per turn without suppression", async function () {
+                    const body = () => drainActor.system.characteristics.body;
+
+                    // 5e BODY costs 2 CP/point: 7 AP drain removes trunc(7/2) = 3 BODY.
+                    await performAdjustment(drainItem, "BODY", -7, "", "", false, drainActor, null);
+                    drainActor.reset();
+                    assert.equal(body().max, 7, "Drain should reduce BODY max to 7.");
+                    assert.equal(body().value, 7, "Drain should reduce BODY value to 7.");
+                    const effect = findAdjustmentEffect();
+                    assert.ok(effect, "Drain should create an adjustment active effect.");
+                    assert.equal(effect.flags[game.system.id].adjustmentActivePoints, -7);
+                    assert.isNull(
+                        CONFIG.ActiveEffect.expiryAction,
+                        "Core expiryAction must be disabled so lapsed effects are not marked expired.",
+                    );
+                    assert.isFalse(effect.isSuppressed, "Fresh drain must not be suppressed.");
+
+                    // One turn later the drain fades 5 AP: -7 -> -2 AP = 1 BODY still drained.
+                    await game.time.advance(12);
+                    await settle(() => body().max === 9 && body().value === 9);
+                    assert.equal(body().max, 9, "After one fade BODY max should be 9.");
+                    assert.equal(body().value, 9, "After one fade BODY value should be 9.");
+                    const fadedEffect = findAdjustmentEffect();
+                    assert.ok(fadedEffect, "Partially faded drain should still exist.");
+                    assert.equal(fadedEffect.flags[game.system.id].adjustmentActivePoints, -2);
+
+                    // Regression probe for #4524: simulate a lapsed duration with core's
+                    // persisted expired flag (as pre-fix worlds have). The drain must keep
+                    // applying while it waits for its fade — not report 9/10 [SUPPRESSED].
+                    await fadedEffect.update({
+                        "duration.expired": true,
+                        "start.time": game.time.worldTime - 24,
+                    });
+                    drainActor.reset();
+                    assert.isFalse(
+                        fadedEffect.isSuppressed,
+                        "A lapsed drain awaiting its fade must not be suppressed.",
+                    );
+                    assert.equal(body().max, 9, "A lapsed drain must keep reducing BODY max.");
+
+                    // Final fade returns the remaining 2 AP and removes the effect.
+                    await game.time.advance(12);
+                    await settle(() => body().max === 10 && !findAdjustmentEffect());
+                    assert.equal(body().max, 10, "Fully faded drain should restore BODY max.");
+                    assert.equal(body().value, 10, "Fully faded drain should restore BODY value.");
+                    assert.notOk(findAdjustmentEffect(), "Fully faded drain effect should be deleted.");
+                });
+
+                // Issue #4564: in combat the segment pass hit a turn-based AE (the drain) and
+                // returned, stranding every later-sorted segment AE — a lapsed FLASH lingered
+                // showing "N sec ago" instead of being deleted.
+                it("segmentEnd effect expires in combat despite an earlier-sorted turn-based adjustment (#4564)", async function () {
+                    await performAdjustment(drainItem, "BODY", -7, "", "", false, drainActor, null);
+                    drainActor.reset();
+                    assert.ok(findAdjustmentEffect(), "Drain adjustment effect should exist.");
+
+                    const [flashEffect] = await drainActor.createEmbeddedDocuments("ActiveEffect", [
+                        {
+                            name: "FLASH SIGHTGROUP",
+                            img: "icons/svg/blind.svg",
+                            duration: { seconds: 1 },
+                            flags: {
+                                [game.system.id]: {
+                                    bodyDamage: 1,
+                                    XMLID: "FLASH",
+                                    source: "Quench Test",
+                                    expiresOn: "segmentEnd",
+                                },
+                            },
+                        },
+                    ]);
+                    // Backdate the flash so its segmentEnd expiry (remaining <= -1) is already due.
+                    await flashEffect.update({ "start.time": game.time.worldTime - 2 });
+
+                    // The bug requires the turn-based AE to sort before the flash ("DRAIN..." < "FLASH...").
+                    const ordered = drainActor.getTemporaryEffects();
+                    assert.isBelow(
+                        ordered.findIndex((e) => e.flags[game.system.id]?.type === "adjustment"),
+                        ordered.findIndex((e) => e.id === flashEffect.id),
+                        "Premise: the adjustment must sort before the flash effect.",
+                    );
+
+                    // Combat state is what routes turn-based AEs away from the segment pass;
+                    // shadow inCombat rather than standing up a full speed-chart combat.
+                    Object.defineProperty(drainActor, "inCombat", { get: () => true, configurable: true });
+                    try {
+                        await expireEffects(drainActor, "segment");
+                    } finally {
+                        delete drainActor.inCombat;
+                    }
+
+                    drainActor.reset();
+                    assert.notOk(
+                        drainActor.effects.get(flashEffect.id),
+                        "Lapsed segmentEnd flash should be deleted by the in-combat segment pass.",
+                    );
+                    assert.ok(
+                        findAdjustmentEffect(),
+                        "Turn-based drain must be untouched by the segment pass (fades on the actor's Phase).",
+                    );
+                    assert.equal(
+                        findAdjustmentEffect().flags[game.system.id].adjustmentActivePoints,
+                        -7,
+                        "Drain must not fade during the segment pass.",
+                    );
+                });
+            });
+
+            // Healing lives here with the other production-flow performAdjustment coverage.
+            // The HEALING branch wrote its change block via flat bracket keys
+            // (activeEffect["system.changes"]) that are undefined on V14 — both first and
+            // repeat healing threw a TypeError before any change was recorded.
+            describe("Healing application", function () {
+                this.timeout(30000);
+
+                let healActor = null;
+
+                beforeEach(async () => {
+                    healActor = await Actor.create({
+                        name: "Quench Test Healing Target",
+                        type: "pc",
+                        system: { is5e: true },
+                    });
+                });
+
+                afterEach(async () => {
+                    if (healActor) {
+                        await healActor.delete();
+                        healActor = null;
+                    }
+                });
+
+                it("HEALING applies and repeat-heals only above previous total", async function () {
+                    const body = () => healActor.system.characteristics.body;
+                    const findHealingEffect = () =>
+                        healActor.effects.find((e) => e.flags[game.system.id]?.XMLID === "HEALING");
+
+                    const healXml = `
+                        <POWER XMLID="HEALING" ID="17662${Math.floor(Math.random() * 100000000)}" BASECOST="0.0" LEVELS="1" ALIAS="Healing" POSITION="1" MULTIPLIER="1.0" GRAPHIC="Burst" COLOR="255 255 255" SFX="Default" SHOW_ACTIVE_COST="Yes" INCLUDE_NOTES_IN_PRINTOUT="Yes" NAME="Heal BODY" INPUT="BODY" USESTANDARDEFFECT="No" QUANTITY="1" AFFECTS_PRIMARY="No" AFFECTS_TOTAL="Yes">
+                        <NOTES />
+                        </POWER>
+                    `;
+                    const healItem = await HeroSystem6eItem.create(
+                        HeroSystem6eItem.itemDataFromXml(healXml, healActor),
+                        { parent: healActor },
+                    );
+
+                    await healActor.update({ "system.characteristics.body.value": 5 });
+
+                    // 5e BODY costs 2 CP/point: 7 AP heals trunc(7/2) = 3 BODY.
+                    await performAdjustment(healItem, "BODY", 7, "", "", false, healActor, null);
+                    healActor.reset();
+                    assert.equal(body().value, 8, "First heal should restore 3 BODY (5 -> 8).");
+                    assert.equal(body().max, 10, "Healing must not alter BODY max.");
+                    const healEffect = findHealingEffect();
+                    assert.ok(healEffect, "Healing lockout effect should exist.");
+                    assert.equal(
+                        parseInt(healEffect.changes.find((c) => c.key === "body")?.value),
+                        3,
+                        "Lockout effect should record 3 BODY healed.",
+                    );
+
+                    // Repeat healing within the lockout applies only what exceeds the previous
+                    // roll: 11 AP -> trunc(11/2) = 5 BODY vs 3 already healed = +2 (here also the
+                    // BODY max clamp). Each application gets its own lockout effect whose change
+                    // records that application's full heal roll — CUSTOM-mode bookkeeping for the
+                    // exceeds-previous comparison, never applied to the actor.
+                    await performAdjustment(healItem, "BODY", 11, "", "", false, healActor, null);
+                    healActor.reset();
+                    assert.equal(body().value, 10, "Repeat heal should add only the 2 BODY excess (8 -> 10).");
+                    const healEffects = healActor.effects.filter((e) => e.flags[game.system.id]?.XMLID === "HEALING");
+                    assert.equal(healEffects.length, 2, "Each healing application gets its own lockout effect.");
+                    assert.deepEqual(
+                        healEffects
+                            .map((e) => parseInt(e.changes.find((c) => c.key === "body")?.value))
+                            .sort((a, b) => a - b),
+                        [3, 5],
+                        "Each lockout effect should record its application's heal roll.",
                     );
                 });
             });
